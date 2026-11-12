@@ -74,12 +74,16 @@ npm run typecheck    # TypeScript check for main/preload and renderer
 npm run lint         # ESLint
 npm run build        # typecheck, then production build into out/
 npm run dist         # build, then package an installer for this OS into release/<version>/
+npm run check:deps   # fail if a runtime dependency would be left out of the package (e.g. a peer-only dependency)
+npm run smoke        # after dist: check app.asar, copy the app outside the repo, launch it, confirm it opens, quit
 ```
 
-Releases: set `version` in package.json, commit, then push a matching tag (`v0.0.1`). `.github/workflows/release.yml` builds Windows, macOS and Linux installers into a draft GitHub Release. CI (`ci.yml`) runs typecheck, lint and unit tests on every push.
+Releases: set `version` in package.json, commit, then push a matching tag (`v0.0.2`). `.github/workflows/release.yml` builds Windows, macOS and Linux installers, smoke-tests each one, and only if all three pass uploads them to a draft GitHub Release. CI (`ci.yml`) runs typecheck, lint, `check:deps` and unit tests on every push. To check a release build locally the way CI does: `npm ci && npm run dist && npm run smoke`.
 
 Gotchas:
 
 - `npm test` must go through `scripts/run-vitest.mjs`, not `npx vitest`: better-sqlite3 is built for Electron's Node, and the script also upper-cases the Windows drive letter (`c:` vs `C:` makes Vitest load twice and fail with "failed to find the runner").
 - If `npm run dev` fails with `Cannot read properties of undefined (reading 'isPackaged')`, the shell has `ELECTRON_RUN_AS_NODE` set (VS Code's extension host sets it). Unset it and retry.
+- electron-builder packages only packages listed under `dependencies`/`optionalDependencies`, never `peerDependencies`. When a runtime library has a required peer (the AI SDK needs `zod`), add the peer to our own `dependencies`. `npm run check:deps` enforces this.
+- Never judge a packaged build by launching it from inside the repo: Node's module lookup climbs out of `app.asar` into the repo's `node_modules` and hides missing packages. `npm run smoke` copies the app to a temp folder first.
 - The development database lives in Electron's userData folder (`%APPDATA%\feynmind` on Windows), not in the repo.
