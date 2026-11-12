@@ -11,6 +11,10 @@ files:
   # GPL-2.0 (with a font exception) and are left out; see docs/tech-plan.md, Known limitations.
   - '!node_modules/pdfjs-dist/{build,web,image_decoders,types}/**'
   - '!node_modules/pdfjs-dist/standard_fonts/{LiberationSans-*,LICENSE_LIBERATION}'
+  # onnxruntime-node ships binaries for every platform and architecture; keep only this build's.
+  # (Platform-level `files` lists cannot be used for this: one with only exclusions packs everything.)
+  - '!node_modules/onnxruntime-node/bin/napi-v6/!(${platform})/**'
+  - '!node_modules/onnxruntime-node/bin/napi-v6/${platform}/!(${arch})/**'
 extraResources:
   - from: prompts
     to: prompts
@@ -27,17 +31,12 @@ asarUnpack:
   - node_modules/@tesseract.js-data/eng/**
   - node_modules/{bmp-js,idb-keyval,is-url,node-fetch,whatwg-url,tr46,webidl-conversions,opencollective-postinstall,regenerator-runtime,wasm-feature-detect,zlibjs}/**
 win:
-  # onnxruntime-node ships binaries for every platform; keep only this one's.
-  files:
-    - '!node_modules/onnxruntime-node/bin/napi-v6/{darwin,linux}/**'
   target: nsis
   artifactName: ${productName}-${version}-win-${arch}.${ext}
 nsis:
   oneClick: false
   allowToChangeInstallationDirectory: true
 mac:
-  files:
-    - '!node_modules/onnxruntime-node/bin/napi-v6/{win32,linux}/**'
   target:
     - target: dmg
       arch: [arm64, x64]
@@ -46,8 +45,6 @@ mac:
   # Unsigned for now; see docs/tech-plan.md, Risks.
   identity: null
 linux:
-  files:
-    - '!node_modules/onnxruntime-node/bin/napi-v6/{win32,darwin}/**'
   target: AppImage
   category: Education
   artifactName: ${productName}-${version}-linux-${arch}.${ext}

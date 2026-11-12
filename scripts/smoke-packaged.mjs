@@ -3,8 +3,14 @@
 // 1. Checks the built app.asar contains every runtime dependency (scripts/check-runtime-deps.mjs).
 // 2. Copies the unpacked app OUTSIDE the repository. Inside the repo, Node's module lookup climbs
 //    out of app.asar into the repo's node_modules and hides missing packages (the v0.0.1 bug).
-// 3. Launches it with a throwaway profile and no API key (so no network calls), waits for the
-//    settings screen and the database, fails on any uncaught exception, then quits.
+// 3. Launches it with a throwaway profile and no API key, waits for the window and the database.
+// 4. Imports two small fixture PDFs (one needs text recognition), waits until both are read and
+//    indexed, and checks that a search returns the right passage with its printed page number.
+//    This exercises every native and WASM part (PDF.js, canvas, Tesseract, sqlite-vec, ONNX).
+//    The only network use is the one-time embedding model download into the throwaway profile.
+//    Set FEYNMIND_SMOKE_MODEL_CACHE to a folder to reuse the model between runs (CI caches it);
+//    the app verifies the model's checksums either way.
+// 5. Fails on any uncaught exception, then quits.
 //
 // Exits non-zero if anything goes wrong. Usage: node scripts/smoke-packaged.mjs
 import { spawnSync } from 'node:child_process'
@@ -21,7 +27,11 @@ const productName = pkg.productName ?? pkg.name
 const releaseDir = join(root, 'release', pkg.version)
 
 const LAUNCH_TIMEOUT_MS = 60_000
-const OVERALL_TIMEOUT_MS = 180_000
+const INGEST_TIMEOUT_MS = 300_000
+const OVERALL_TIMEOUT_MS = 480_000
+const FIXTURES = join(root, 'tests', 'fixtures')
+const MODEL_FOLDER = 'bge-small-en-v1.5-ea104dac'
+const modelCache = process.env['FEYNMIND_SMOKE_MODEL_CACHE']
 const FATAL_OUTPUT = /Uncaught Exception|A JavaScript error occurred|ERR_MODULE_NOT_FOUND|Cannot find (module|package)/i
 
 function fail(message, details = '') {
@@ -61,11 +71,15 @@ const appDir = join(workDir, 'app')
 cpSync(build.dir, appDir, { recursive: true, verbatimSymlinks: true })
 const executablePath = join(appDir, build.exe)
 const userDataDir = join(workDir, 'user-data')
+if (modelCache && existsSync(join(modelCache, MODEL_FOLDER))) {
+  cpSync(join(modelCache, MODEL_FOLDER), join(userDataDir, 'models', MODEL_FOLDER), { recursive: true })
+  console.log(`Using the cached embedding model from ${modelCache}`)
+}
 console.log(`Launching ${executablePath}`)
 
 // 3. Launch.
 // No API key (so no network calls) and nothing that would make Electron behave like dev or plain Node.
-const STRIPPED = new Set(['GEMINI_API_KEY', 'ELECTRON_RUN_AS_NODE', 'ELECTRON_RENDERER_URL'])
+const STRIPPED = new Set(['GEMINI_API_KEY', 'ELECTRON_RUN_AS_NODE', 'ELECTRON_RENDERER_URL', 'FEYNMIND_MODEL_DOWNLOAD'])
 const env = {
   ...Object.fromEntries(Object.entries(process.env).filter(([name]) => !STRIPPED.has(name))),
   FEYNMIND_USER_DATA_DIR: userDataDir
@@ -105,7 +119,7 @@ try {
   app.on('window', watchPage)
 
   const page = await app.firstWindow({ timeout: LAUNCH_TIMEOUT_MS })
-  await page.getByRole('heading', { name: 'Settings', level: 1 }).waitFor({ timeout: LAUNCH_TIMEOUT_MS })
+  await page.getByRole('heading', { name: 'Materials', level: 1 }).waitFor({ timeout: LAUNCH_TIMEOUT_MS })
 
   const info = await app.evaluate(({ app: electronApp, BrowserWindow }) => ({
     packaged: electronApp.isPackaged,
@@ -114,6 +128,37 @@ try {
   if (!info.packaged) throw new Error('The launched app does not report itself as packaged.')
   if (info.windows !== 1) throw new Error(`Expected 1 window, found ${info.windows}.`)
   if (!existsSync(join(userDataDir, 'feynmind.db'))) throw new Error('The database was not created (better-sqlite3 failed to load?).')
+
+  // Import two fixtures through the real "Add files" button, with the file dialog answered for us.
+  const files = [join(FIXTURES, 'openstax-precalculus-text.pdf'), join(FIXTURES, 'openstax-precalculus-scanned.pdf')]
+  await app.evaluate(({ dialog }, paths) => {
+    dialog.showOpenDialog = async () => ({ canceled: false, filePaths: paths })
+  }, files)
+  await page.getByRole('button', { name: 'Add files' }).click()
+  for (const name of ['openstax-precalculus-text.pdf', 'openstax-precalculus-scanned.pdf']) {
+    const stage = page.getByTestId('material').filter({ hasText: name }).getByTestId('material-stage')
+    await stage.filter({ hasText: /^(Ready|Failed)/ }).waitFor({ timeout: INGEST_TIMEOUT_MS })
+    const text = await stage.textContent()
+    if (!text?.startsWith('Ready')) throw new Error(`${name} did not import: ${text}`)
+  }
+  const counts = await page.getByTestId('material').filter({ hasText: 'openstax-precalculus-scanned.pdf' }).getByTestId('material-counts').textContent()
+  if (!counts?.includes('2 recognized from images')) throw new Error(`Text recognition did not run on the scanned fixture: ${counts}`)
+
+  await page.getByLabel('Search your materials').fill('What is the domain of a function in a horror movie example?')
+  await page.getByRole('button', { name: 'Search' }).click()
+  const first = page.getByTestId('search-result').first()
+  await first.waitFor({ timeout: LAUNCH_TIMEOUT_MS })
+  const result = await first.textContent()
+  if (await page.getByText('Keyword search only').count()) throw new Error('Search fell back to keywords: the embedding model did not load.')
+  if (!result?.includes('1.2. Domain and Range') || !result.includes('p. 22 (PDF 5)')) {
+    throw new Error(`Unexpected top search result: ${result}`)
+  }
+  console.log(`Search returned: ${result.slice(0, 120)}…`)
+
+  if (modelCache && !existsSync(join(modelCache, MODEL_FOLDER))) {
+    cpSync(join(userDataDir, 'models', MODEL_FOLDER), join(modelCache, MODEL_FOLDER), { recursive: true })
+    console.log(`Saved the embedding model to ${modelCache}`)
+  }
 
   await app.close()
 } catch (error) {
@@ -132,4 +177,4 @@ try {
 } catch {
   // Windows can keep files locked briefly after exit; the OS temp cleaner will remove them.
 }
-console.log(`Smoke test passed: ${productName} ${pkg.version} opened its window and quit cleanly.`)
+console.log(`Smoke test passed: ${productName} ${pkg.version} opened, imported and searched the fixtures, and quit cleanly.`)
