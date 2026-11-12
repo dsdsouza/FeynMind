@@ -1,3 +1,4 @@
-// The ingestion module. Its public interface is exported from this file.
-// Empty until its milestone (see docs/tech-plan.md, Build plan).
-export {}
+// The ingestion module: file import, text extraction, text recognition, chunking, embeddings,
+// search and the resumable job queue. Other modules use only what is exported here.
+export { IngestionService, type IngestionServiceOptions } from './service'
+export type { Embedder } from './embedder'

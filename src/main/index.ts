@@ -1,10 +1,13 @@
 import { readFileSync } from 'node:fs'
 import { join } from 'node:path'
 import { parseEnv } from 'node:util'
-import { app, BrowserWindow, safeStorage, shell } from 'electron'
+import { app, BrowserWindow, dialog, safeStorage, shell } from 'electron'
+import type { IpcEvent, IpcEvents } from '../shared/ipc'
+import { IngestionService } from './ingestion'
+import ingestionWorkerPath from './ingestion/worker?modulePath'
 import { registerIpcHandlers } from './ipc'
 import { createGeminiAdapter, ProviderService } from './providers'
-import { openDatabase, SettingsStore } from './storage'
+import { openDatabase, SessionStore, SettingsStore } from './storage'
 
 // Lets end-to-end tests run against a throwaway profile instead of the user's real data.
 const userDataOverride = process.env['FEYNMIND_USER_DATA_DIR']
@@ -70,14 +73,59 @@ function createWindow(): BrowserWindow {
   return window
 }
 
+/** Sends an event to every open window. */
+function broadcast<E extends IpcEvent>(event: E, payload: IpcEvents[E]): void {
+  for (const window of BrowserWindow.getAllWindows()) {
+    if (!window.isDestroyed()) window.webContents.send(event, payload)
+  }
+}
+
+async function pickMaterialFiles(): Promise<string[]> {
+  const window = BrowserWindow.getFocusedWindow() ?? BrowserWindow.getAllWindows()[0]
+  const options: Electron.OpenDialogOptions = {
+    title: 'Add course materials',
+    properties: ['openFile', 'multiSelections'],
+    filters: [{ name: 'PDF and PowerPoint', extensions: ['pdf', 'pptx'] }]
+  }
+  const result = window ? await dialog.showOpenDialog(window, options) : await dialog.showOpenDialog(options)
+  return result.canceled ? [] : result.filePaths
+}
+
 function isAppUrl(url: string): boolean {
   if (isDev && rendererDevUrl) return url.startsWith(rendererDevUrl)
   return url.startsWith('file://')
 }
 
 void app.whenReady().then(() => {
-  const db = openDatabase(join(app.getPath('userData'), 'feynmind.db'))
+  const dataDir = app.getPath('userData')
+  const dbPath = join(dataDir, 'feynmind.db')
+  const db = openDatabase(dbPath)
   app.on('will-quit', () => db.close())
+
+  const ingestion = new IngestionService({
+    db,
+    workerPath: ingestionWorkerPath,
+    init: {
+      dbPath,
+      materialsDir: join(dataDir, 'materials'),
+      modelsDir: join(dataDir, 'models'),
+      // Tests that must stay offline set FEYNMIND_MODEL_DOWNLOAD=off; search then uses keywords only.
+      allowModelDownload: process.env['FEYNMIND_MODEL_DOWNLOAD'] !== 'off'
+    },
+    onProgress: (summary) => broadcast('ingestion:progress', summary),
+    onModelStatus: (status) => broadcast('models:progress', status)
+  })
+  ingestion.start()
+  // Let the worker finish its current page before the app exits; anything unfinished resumes next time.
+  let stopped = false
+  app.on('before-quit', (event) => {
+    if (stopped) return
+    event.preventDefault()
+    void ingestion.stop().finally(() => {
+      stopped = true
+      app.quit()
+    })
+  })
 
   const providers = new ProviderService({
     settings: new SettingsStore(db),
@@ -86,7 +134,9 @@ void app.whenReady().then(() => {
     devKey: readDevKey(),
     loadPrompt
   })
-  registerIpcHandlers(providers, (event) => isAppUrl(event.senderFrame?.url ?? ''))
+  registerIpcHandlers({ providers, ingestion, sessions: new SessionStore(db), pickMaterialFiles }, (event) =>
+    isAppUrl(event.senderFrame?.url ?? '')
+  )
 
   createWindow()
   app.on('activate', () => {
