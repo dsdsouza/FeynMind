@@ -47,7 +47,10 @@ export async function createBgeEmbedder(modelDir: string, modelId: string): Prom
     // Leave half the cores free so the rest of the computer stays responsive during a long import.
     intraOpNumThreads: Math.max(1, Math.floor(availableParallelism() / 2)),
     interOpNumThreads: 1,
-    graphOptimizationLevel: 'all'
+    graphOptimizationLevel: 'all',
+    // By default idle threads spin on the CPU after each run, which slows PDF reading (measured
+    // 5x slower) while embeddings and reading take turns.
+    extra: { session: { intra_op: { allow_spinning: '0' } } }
   })
   const outputName = session.outputNames[0]
   if (!outputName) throw new Error('The embedding model has no output.')

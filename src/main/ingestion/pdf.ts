@@ -11,10 +11,40 @@ type Pdfjs = typeof import('pdfjs-dist')
 const require = createRequire(import.meta.url)
 let pdfjsModule: Promise<Pdfjs> | null = null
 
-/** Loads PDF.js's Node build once. It is an ES module, so it is imported rather than required. */
+/**
+ * Loads PDF.js's Node build once, with its worker code running in this thread.
+ *
+ * PDF.js decides once, when it loads, whether it runs in Node. It treats any Electron process
+ * other than the main one as a browser, which breaks it in the ingestion worker (a utility
+ * process with no window). While it loads, the process is presented as Electron's main process.
+ */
 function loadPdfjs(): Promise<Pdfjs> {
-  pdfjsModule ??= import(/* @vite-ignore */ pathToFileURL(join(packageDir('pdfjs-dist'), 'legacy', 'build', 'pdf.mjs')).href) as Promise<Pdfjs>
+  pdfjsModule ??= (async () => {
+    const folder = join(packageDir('pdfjs-dist'), 'legacy', 'build')
+    const restore = presentAsMainProcess()
+    try {
+      const pdfjs = (await import(/* @vite-ignore */ pathToFileURL(join(folder, 'pdf.mjs')).href)) as Pdfjs
+      // Loading the worker code now (instead of on first use) keeps its Node check inside this window too.
+      const worker: unknown = await import(/* @vite-ignore */ pathToFileURL(join(folder, 'pdf.worker.mjs')).href)
+      ;(globalThis as { pdfjsWorker?: unknown }).pdfjsWorker = worker
+      return pdfjs
+    } finally {
+      restore()
+    }
+  })()
   return pdfjsModule
+}
+
+/** Temporarily reports process.type as 'browser' (Electron's main process). Returns a function that undoes it. */
+function presentAsMainProcess(): () => void {
+  const electronProcess = process as NodeJS.Process & { type?: string }
+  if (!process.versions.electron || electronProcess.type === undefined || electronProcess.type === 'browser') return () => {}
+  const original = Object.getOwnPropertyDescriptor(process, 'type')
+  Object.defineProperty(process, 'type', { value: 'browser', configurable: true })
+  return () => {
+    if (original) Object.defineProperty(process, 'type', original)
+    else Reflect.deleteProperty(process, 'type')
+  }
 }
 
 /** Font names that mark math typesetting (TeX, STIX, Cambria Math, Symbol and similar). */
