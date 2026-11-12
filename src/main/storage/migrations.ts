@@ -44,6 +44,7 @@ export const MIGRATIONS: readonly Migration[] = [
         page_count     INTEGER,
         structure      TEXT CHECK (structure IN ('outline', 'headings', 'slides')),
         body_font_size REAL,
+        numbered_headings INTEGER,
         status         TEXT NOT NULL DEFAULT 'queued' CHECK (status IN ('queued', 'processing', 'done', 'failed')),
         error          TEXT,
         extract_ms     INTEGER NOT NULL DEFAULT 0,
@@ -51,6 +52,7 @@ export const MIGRATIONS: readonly Migration[] = [
         embed_ms       INTEGER NOT NULL DEFAULT 0,
         added_at       TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%fZ', 'now')),
         started_at     TEXT,
+        read_at        TEXT,
         finished_at    TEXT,
         UNIQUE (session_id, sha256)
       ) STRICT;

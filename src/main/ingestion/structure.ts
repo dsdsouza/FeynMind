@@ -100,9 +100,22 @@ export function headingStyleOf(sample: StoredPage[]): HeadingStyle | null {
 
 /** Finds chapter and section headings by their size, position and numbering, for documents without an outline. */
 export function detectHeadings(pages: StoredPage[], style: HeadingStyle): SectionStart[] {
+  return withLeadingStart(findHeadings(pages, style, null))
+}
+
+/** Adds an untitled start at the top of page 1 when the first heading comes later. */
+export function withLeadingStart(starts: SectionStart[]): SectionStart[] {
+  const first = starts[0]
+  return !first || first.startPage > 1 ? [{ chapter: null, section: null, startPage: 1, startY: 0 }, ...starts] : starts
+}
+
+/**
+ * The headings on the given pages, in order. `chapter` is the chapter in force before the first of
+ * them, so a long document can be scanned a few pages at a time.
+ */
+export function findHeadings(pages: StoredPage[], style: HeadingStyle, chapter: string | null): SectionStart[] {
   const { bodySize } = style
   const starts: SectionStart[] = []
-  let chapter: string | null = null
   for (const page of pages) {
     const lines = contentLines(page, bodySize)
     for (let i = 0; i < lines.length; i++) {
@@ -121,8 +134,6 @@ export function detectHeadings(pages: StoredPage[], style: HeadingStyle): Sectio
       starts.push({ chapter, section: level === 1 ? null : title, startPage: page.index, startY: Math.max(0, line.y - line.size * 1.2) })
     }
   }
-  const first = starts[0]
-  if (!first || first.startPage > 1) starts.unshift({ chapter: null, section: null, startPage: 1, startY: 0 })
   return starts
 }
 
