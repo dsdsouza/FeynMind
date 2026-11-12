@@ -19,7 +19,9 @@ nsis:
   oneClick: false
   allowToChangeInstallationDirectory: true
 mac:
-  target: dmg
+  target:
+    - target: dmg
+      arch: [arm64, x64]
   category: public.app-category.education
   artifactName: ${productName}-${version}-mac-${arch}.${ext}
   # Unsigned for now; see docs/tech-plan.md, Risks.
