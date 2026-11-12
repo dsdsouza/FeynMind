@@ -6,12 +6,15 @@ export default defineConfig({
   main: {
     build: {
       // better-sqlite3 is a native module and must stay external.
-      externalizeDeps: true
+      externalizeDeps: true,
+      // Vite cannot tell out/ is inside the project when the drive letter's case differs (Windows).
+      emptyOutDir: true
     }
   },
   preload: {
     build: {
-      externalizeDeps: true
+      externalizeDeps: true,
+      emptyOutDir: true
     }
   },
   renderer: {
