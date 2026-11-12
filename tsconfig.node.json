@@ -4,6 +4,7 @@
     "electron.vite.config.mts",
     "vitest.config.mts",
     "vitest.live.config.mts",
+    "vitest.models.config.mts",
     "playwright.config.ts",
     "src/main/**/*",
     "src/preload/**/*",
