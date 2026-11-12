@@ -27,8 +27,17 @@
   },
   "dependencies": {
     "@ai-sdk/google": "4.0.118",
+    "@huggingface/tokenizers": "0.2.0",
+    "@napi-rs/canvas": "1.1.1",
+    "@tesseract.js-data/eng": "1.0.0",
     "ai": "7.0.170",
     "better-sqlite3": "13.1.1",
+    "fast-xml-parser": "5.12.0",
+    "fflate": "0.8.3",
+    "onnxruntime-node": "1.31.1",
+    "pdfjs-dist": "6.5.438",
+    "sqlite-vec": "0.1.9",
+    "tesseract.js": "7.0.0",
     "zod": "4.6.7"
   },
   "devDependencies": {

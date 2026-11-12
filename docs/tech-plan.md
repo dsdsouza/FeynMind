@@ -10,11 +10,11 @@ One language, TypeScript, runs the whole app, so contributors need to know only 
 | --- | --- | --- |
 | App shell | Electron | Installs like a normal app on Windows, Mac and Linux; the full Node.js library ecosystem is available. Tauri gives a smaller download but adds Rust. |
 | Interface | React with Vite | Largest contributor pool; the canvas, math and graph libraries all support it |
-| Database | SQLite (better-sqlite3) with the sqlite-vec extension | One local file holds everything, including the search index |
-| PDF reading | PDF.js | Extracts text per page and renders pages to images for vision models |
-| Scanned pages | Tesseract.js | Local text recognition, no API cost |
-| Slide decks | Read PowerPoint files directly for text and speaker notes; PDF export for image-heavy decks | No extra software to install |
-| Embeddings | Transformers.js with a small local embedding model | Search runs on the user's machine for free |
+| Database | SQLite (better-sqlite3) with the sqlite-vec extension and SQLite's built-in FTS5 | One local file holds everything, including the vector and keyword search indexes |
+| PDF reading | PDF.js, with @napi-rs/canvas to render pages in the background process | Extracts text per page and renders pages to images for text recognition and vision models |
+| Scanned pages | Tesseract.js, with the English language data bundled (@tesseract.js-data/eng) | Local text recognition, no API cost, works offline |
+| Slide decks | Read PowerPoint (.pptx) files directly for text and speaker notes, with fflate (unzip) and fast-xml-parser; PDF export for image-heavy decks | No extra software to install |
+| Embeddings | onnxruntime-node and @huggingface/tokenizers running bge-small-en-v1.5, behind an embedder interface so the model can be swapped | Search runs on the user's machine for free. Calling the runtime directly avoids Transformers.js, whose image dependency (sharp) ships LGPL-licensed libvips binaries |
 | Dictation | Whisper running locally (whisper.cpp), model downloaded on first use | Private, free, works offline; operating system dictation remains an alternative |
 | Model calls | Vercel AI SDK | One interface across providers, with streaming and image input |
 | Review scheduling | ts-fsrs | An existing implementation of the FSRS spacing algorithm |
@@ -97,6 +97,23 @@ feynmind/
 ├─ tests/                    # fixtures/, unit/, e2e/
 └─ website/                  # GitHub Pages site
 ```
+
+## Ingestion
+
+Ingestion runs in a separate background process (an Electron utility process), so the interface never waits on it and a crash in text recognition or the embedding model cannot take down the window.
+
+- **Queue in the database.** Files are processed one at a time in the order they were added. Each page is committed as it finishes; sections are chunked and embedded as soon as all their pages are read, so search coverage grows in file order. After a crash or restart the worker continues from the first unfinished page, section or chunk.
+- **Files.** Each imported file is identified by its SHA-256 and copied into the app's data folder under that name, so the same file is never processed twice in a session and later steps work even if the original moves.
+- **Pages.** PDF.js extracts text with positions. Pages with almost no text but a large image are rendered and read with Tesseract. Math-heavy and figure-heavy pages are flagged for a vision model (milestone 3); nothing is sent anywhere in milestone 2. Printed page numbers come from the PDF's page labels, or are inferred from the page numbers printed on the pages when a PDF has none.
+- **Chunks.** Sections come from the PDF outline, or from detected headings when there is no outline. Chunks never cross a section and record their file, chapter, section and page range.
+- **Search.** Keyword (FTS5, BM25) and vector (sqlite-vec, cosine) results are merged with reciprocal rank fusion.
+- **Embedding model.** `Xenova/bge-small-en-v1.5` (MIT, 384 dimensions, int8 quantized, about 34 MB), pinned to one revision and checked against a SHA-256 after download. It is downloaded on first use into the app's data folder, with visible progress.
+
+### Known limitations
+
+- **English only.** The embedding model and the bundled text-recognition data are English-only. Courses in other languages will get poor search results and poor recognition of scanned pages. Supporting other languages means choosing a multilingual embedding model and downloading other Tesseract language data; not planned yet.
+- **PowerPoint.** Only .pptx is read (not the older .ppt). Slides cannot be rendered to images without extra software, so a picture-heavy slide is flagged but cannot be shown as an image; exporting the deck to PDF is the workaround.
+- **Bundled PDF fonts.** The Liberation fonts that ship with PDF.js are GPL-2.0 with a font exception and are left out of the installer. PDFs that rely on non-embedded fonts render with PDF.js's BSD-licensed fallback fonts instead.
 
 ## Build plan
 
