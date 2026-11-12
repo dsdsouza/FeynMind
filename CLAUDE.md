@@ -54,6 +54,7 @@ Work on one milestone at a time. Do not build features from later milestones, ev
 
 - Before writing code for a task, give a short plan: the files you will touch and how you will verify the result.
 - Keep changes small and focused. One concern per commit, with a clear message.
+- Do not add `Co-Authored-By` trailers, "Generated with Claude Code" text or any other AI attribution to commits or pull requests. Attribution is turned off in `.claude/settings.json`; keep it off.
 - Write tests alongside the code. A feature is not done until its tests pass and `npm run typecheck` and `npm run lint` are clean.
 - Prefer simple, readable code over clever code. Do not add abstractions for needs that do not exist yet.
 - Do not leave placeholder implementations or silent fallbacks. If something cannot be finished, say so plainly and leave a clear `TODO` with the reason.
