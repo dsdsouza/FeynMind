@@ -5,6 +5,10 @@
   "description": "Local-first adaptive tutor built from your course materials",
   "license": "MIT",
   "author": "FeynMind contributors",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/dsdsouza/FeynMind.git"
+  },
   "private": true,
   "main": "./out/main/index.js",
   "scripts": {
@@ -18,7 +22,8 @@
     "test:live": "node scripts/run-vitest.mjs --live run --config vitest.live.config.mts",
     "test:e2e": "electron-vite build && playwright test",
     "dist": "npm run build && electron-builder --publish never",
-    "check:deps": "node scripts/check-runtime-deps.mjs"
+    "check:deps": "node scripts/check-runtime-deps.mjs",
+    "smoke": "node scripts/smoke-packaged.mjs"
   },
   "dependencies": {
     "@ai-sdk/google": "4.0.118",
