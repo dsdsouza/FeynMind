@@ -1,0 +1,33 @@
+appId: org.feynmind.app
+productName: FeynMind
+directories:
+  output: release/${version}
+  buildResources: build
+files:
+  - out/**/*
+  - package.json
+  - '!**/*.map'
+extraResources:
+  - from: prompts
+    to: prompts
+asarUnpack:
+  - node_modules/better-sqlite3/**
+win:
+  target: nsis
+  artifactName: ${productName}-${version}-win-${arch}.${ext}
+nsis:
+  oneClick: false
+  allowToChangeInstallationDirectory: true
+mac:
+  target: dmg
+  category: public.app-category.education
+  artifactName: ${productName}-${version}-mac-${arch}.${ext}
+  # Unsigned for now; see docs/tech-plan.md, Risks.
+  identity: null
+linux:
+  target: AppImage
+  category: Education
+  artifactName: ${productName}-${version}-linux-${arch}.${ext}
+publish:
+  provider: github
+  releaseType: draft
