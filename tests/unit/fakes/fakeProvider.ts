@@ -7,7 +7,7 @@ export function model(id: string): ModelInfo {
 
 /** A provider that never touches the network. Records every call so tests can assert on them. */
 export class FakeProvider {
-  models: ModelInfo[] = [model('fake-pro'), model('gemini-2.5-flash-lite')]
+  models: ModelInfo[] = [model('fake-pro'), model('gemini-3.5-flash-lite')]
   reply = 'Hello from the fake model.'
   failWith: Error | null = null
   readonly calls: { method: 'listModels' | 'generateText'; apiKey: string; modelId?: string; prompt?: string }[] = []

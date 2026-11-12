@@ -7,14 +7,15 @@ const SETTINGS_KEY_API_KEY = 'provider.gemini.apiKeyEncrypted'
 const SETTINGS_KEY_MODEL = 'provider.gemini.model'
 
 /**
- * Preferred default models, cheapest first (Google's pricing page, checked 2026-11-12).
- * Used only to pre-fill the choice; the user can pick any model the key can reach.
+ * Preferred default models, in order. Used only to pre-fill the choice; the user can pick any
+ * model the key can reach.
+ *
+ * Checked 2026-11-12: gemini-2.5-flash-lite is cheaper but still appears in models.list while
+ * rejecting new users ("no longer available to new users ... use gemini-3.5-flash-lite"), so it
+ * is not offered as a default. gemini-3.1-flash-lite is cheaper than 3.5 on the paid tier but
+ * has not been verified with a new key.
  */
-export const PREFERRED_DEFAULT_MODELS = [
-  'gemini-2.5-flash-lite',
-  'gemini-3.1-flash-lite',
-  'gemini-3.5-flash-lite'
-] as const
+export const PREFERRED_DEFAULT_MODELS = ['gemini-3.5-flash-lite', 'gemini-3.1-flash-lite'] as const
 
 const MODEL_ID_PATTERN = /^[A-Za-z0-9][A-Za-z0-9._-]{0,127}$/
 const MAX_KEY_LENGTH = 512

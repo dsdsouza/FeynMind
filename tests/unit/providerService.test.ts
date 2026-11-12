@@ -81,8 +81,8 @@ describe('ProviderService models', () => {
   it('pre-selects the cheapest preferred model when none is chosen', async () => {
     const { service } = setup({ devKey: 'dev-key' })
     const models = await service.listModels()
-    expect(models.map((m) => m.id)).toEqual(['fake-pro', 'gemini-2.5-flash-lite'])
-    expect(service.getState().selectedModel).toBe('gemini-2.5-flash-lite')
+    expect(models.map((m) => m.id)).toEqual(['fake-pro', 'gemini-3.5-flash-lite'])
+    expect(service.getState().selectedModel).toBe('gemini-3.5-flash-lite')
   })
 
   it('falls back to the first model when no preferred model is available', async () => {
@@ -114,11 +114,11 @@ describe('ProviderService test call', () => {
     await service.listModels()
     const result = await service.test()
 
-    expect(result).toMatchObject({ model: 'gemini-2.5-flash-lite', reply: 'Hello from the fake model.' })
+    expect(result).toMatchObject({ model: 'gemini-3.5-flash-lite', reply: 'Hello from the fake model.' })
     expect(prompts).toEqual(['connection-test'])
     const generateCalls = provider.calls.filter((c) => c.method === 'generateText')
     expect(generateCalls).toEqual([
-      { method: 'generateText', apiKey: 'dev-key', modelId: 'gemini-2.5-flash-lite', prompt: PROMPT }
+      { method: 'generateText', apiKey: 'dev-key', modelId: 'gemini-3.5-flash-lite', prompt: PROMPT }
     ])
   })
 
