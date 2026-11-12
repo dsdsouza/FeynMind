@@ -62,15 +62,24 @@ Work on one milestone at a time. Do not build features from later milestones, ev
 
 ## Commands
 
-Fill this in when the project is scaffolded in milestone 1, and keep it current.
+Keep this section current.
 
 ```
-npm install          # install dependencies
-npm run dev          # run the app in development
-npm test             # unit tests (no network)
-npm run test:e2e     # full-app tests
-npm run typecheck    # TypeScript check
-npm run lint         # lint
-npm run build        # production build
-npm run dist         # package installers
+npm install          # install dependencies; postinstall rebuilds better-sqlite3 for Electron
+npm run dev          # run the app in development (reads GEMINI_API_KEY from .env.local if no key is saved)
+npm test             # unit tests, run inside Electron's Node; no network
+npm run test:e2e     # builds, then Playwright opens the app with a throwaway profile; no network
+npm run test:live    # opt-in: 2 real Gemini calls (list models + one short prompt) using .env.local
+npm run typecheck    # TypeScript check for main/preload and renderer
+npm run lint         # ESLint
+npm run build        # typecheck, then production build into out/
+npm run dist         # build, then package an installer for this OS into release/<version>/
 ```
+
+Releases: set `version` in package.json, commit, then push a matching tag (`v0.0.1`). `.github/workflows/release.yml` builds Windows, macOS and Linux installers into a draft GitHub Release. CI (`ci.yml`) runs typecheck, lint and unit tests on every push.
+
+Gotchas:
+
+- `npm test` must go through `scripts/run-vitest.mjs`, not `npx vitest`: better-sqlite3 is built for Electron's Node, and the script also upper-cases the Windows drive letter (`c:` vs `C:` makes Vitest load twice and fail with "failed to find the runner").
+- If `npm run dev` fails with `Cannot read properties of undefined (reading 'isPackaged')`, the shell has `ELECTRON_RUN_AS_NODE` set (VS Code's extension host sets it). Unset it and retry.
+- The development database lives in Electron's userData folder (`%APPDATA%\feynmind` on Windows), not in the repo.

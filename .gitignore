@@ -147,3 +147,13 @@ vite.config.ts.timestamp-*
 
 # Turbo Repo
 .turbo
+
+# FeynMind
+out/
+release/
+test-results/
+playwright-report/
+*.db
+*.db-*
+*.sqlite
+*.sqlite3
