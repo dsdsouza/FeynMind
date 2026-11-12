@@ -5,6 +5,7 @@
     "vitest.config.mts",
     "vitest.live.config.mts",
     "vitest.models.config.mts",
+    "vitest.bench.config.mts",
     "playwright.config.ts",
     "src/main/**/*",
     "src/preload/**/*",
