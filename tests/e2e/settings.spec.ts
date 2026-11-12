@@ -19,6 +19,7 @@ test.beforeAll(async () => {
     }
   }
   env['FEYNMIND_USER_DATA_DIR'] = userDataDir
+  env['FEYNMIND_MODEL_DOWNLOAD'] = 'off'
   app = await electron.launch({ args: ['.'], env })
 })
 
@@ -30,6 +31,8 @@ test.afterAll(async () => {
 test('opens the settings screen with no key configured', async () => {
   const page = await app.firstWindow()
   await expect(page).toHaveTitle('FeynMind')
+  await expect(page.getByRole('heading', { name: 'Materials', level: 1 })).toBeVisible()
+  await page.getByRole('button', { name: 'Settings' }).click()
   await expect(page.getByRole('heading', { name: 'Settings', level: 1 })).toBeVisible()
   await expect(page.getByRole('heading', { name: 'Gemini (Google)' })).toBeVisible()
   await expect(page.getByTestId('key-source')).toContainText('No key yet')
@@ -49,8 +52,17 @@ test('keeps the renderer sandboxed and exposes only the typed bridge', async () 
   expect(exposed.require).toBe('undefined')
   expect(exposed.process).toBe('undefined')
   expect(exposed.bridge).toEqual([
+    'materials:add',
+    'materials:issues',
+    'materials:list',
+    'materials:renderPage',
+    'models:retry',
+    'models:status',
+    'on',
     'provider:listModels',
     'provider:test',
+    'search:query',
+    'sessions:current',
     'settings:clearKey',
     'settings:getState',
     'settings:saveKey',
