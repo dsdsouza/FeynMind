@@ -13,9 +13,14 @@ const vitest = join(dirname(vitestPkg), require(vitestPkg).bin.vitest)
 const upperDrive = (path) => path.replace(/^[a-z]:/, (drive) => drive.toUpperCase())
 const cwd = upperDrive(process.cwd())
 
-const child = spawn(electron, [upperDrive(vitest), ...process.argv.slice(2)], {
+// `--live` opts in to tests that make real provider calls (see tests/live).
+const args = process.argv.slice(2)
+const live = args.includes('--live')
+const env = { ...process.env, ELECTRON_RUN_AS_NODE: '1', ...(live ? { FEYNMIND_LIVE: '1' } : {}) }
+
+const child = spawn(electron, [upperDrive(vitest), ...args.filter((a) => a !== '--live')], {
   cwd,
   stdio: 'inherit',
-  env: { ...process.env, ELECTRON_RUN_AS_NODE: '1' }
+  env
 })
 child.on('exit', (code, signal) => process.exit(signal ? 1 : (code ?? 1)))
