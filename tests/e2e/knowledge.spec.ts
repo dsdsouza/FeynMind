@@ -133,7 +133,7 @@ test('imports a syllabus, runs a unit after the estimate, survives a kill mid-jo
   await expect(page.getByRole('heading', { name: 'Check the syllabus' })).toBeVisible({ timeout: 30_000 })
   expect(logLines(replayFile)).toHaveLength(2)
   const unit1 = page.getByRole('listitem', { name: 'Unit 1' })
-  await unit1.getByLabel('Title').fill('Functions and their domains')
+  await unit1.getByLabel('Title', { exact: true }).fill('Functions and their domains')
   const sections = unit1.getByLabel('Sections it covers')
   const values = await sections.locator('option').evaluateAll((options) => options.map((o) => o.getAttribute('value') ?? ''))
   await sections.selectOption(values)
@@ -192,5 +192,24 @@ test('imports a syllabus, runs a unit after the estimate, survives a kill mid-jo
   await relation.getByRole('combobox').selectOption({ label: 'domain of a function' })
   await relation.getByRole('button', { name: 'Add', exact: true }).click()
   await expect(page.getByRole('alert')).toContainText('already depends on')
+  }
+})
+
+test('reads a syllabus PDF on this computer and shows the estimate before anything is sent', async () => {
+  const replayFile = join(userDataDir, 'replay.json')
+  writeFileSync(replayFile, JSON.stringify(REPLAY))
+  const app = await launchApp(userDataDir, { FEYNMIND_PROVIDER_REPLAY: replayFile })
+  try {
+    const page = await app.firstWindow()
+    await selectModel(page)
+    await page.getByRole('button', { name: 'Course' }).click()
+    // Any PDF exercises the local text reading in the import worker; no model call is made.
+    await stubFilePicker(app, [join(FIXTURES, 'openstax-precalculus-text.pdf')])
+    await page.getByRole('button', { name: 'Import syllabus PDF…' }).click()
+    await expect(page.getByText('Source: openstax-precalculus-text.pdf')).toBeVisible({ timeout: 60_000 })
+    await expect(page.getByTestId('estimate-calls')).toHaveText('1')
+    expect(logLines(replayFile)).toHaveLength(0)
+  } finally {
+    await app.close()
   }
 })
