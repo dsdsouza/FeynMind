@@ -116,6 +116,7 @@ Ingestion runs in a separate background process (an Electron utility process), s
 
 - **English only.** The embedding model and the bundled text-recognition data are English-only. Courses in other languages will get poor search results and poor recognition of scanned pages. Supporting other languages means choosing a multilingual embedding model and downloading other Tesseract language data; not planned yet.
 - **PowerPoint.** Only .pptx is read (not the older .ppt). Slides cannot be rendered to images without extra software, so a picture-heavy slide is flagged but cannot be shown as an image; exporting the deck to PDF is the workaround.
+- **No Intel Macs (decided 2026-11-13).** The macOS build is Apple silicon (arm64) only. onnxruntime-node 1.31 ships no macOS x64 binary, and the release job runs on an arm64 runner without x64 builds of sqlite-vec and @napi-rs/canvas, so an x64 app would fail to open its database. Supporting Intel Macs would mean an Intel runner and an older ONNX runtime; not planned.
 - **Bundled PDF fonts.** The Liberation fonts that ship with PDF.js are GPL-2.0 with a font exception and are left out of the installer. PDFs that rely on non-embedded fonts render with PDF.js's BSD-licensed fallback fonts instead.
 
 ## Build plan
@@ -149,4 +150,3 @@ The two risks most likely to hurt the product are poor math extraction and unrel
 | A library's license conflicts with the project's | The project is MIT; check every dependency before adopting it, and never copy code from AGPL or GPL projects |
 | The download is large because of Electron and local models | Download the speech and embedding models on first use, not inside the installer |
 | The installer grew from 132 MB to 195 MB in milestone 2 (Windows), mostly the ONNX runtime, Tesseract's WASM core and English data, and the canvas library | Only the build's own platform and architecture of the ONNX runtime is packed; the embedding model is downloaded on first use. Tesseract's core still ships several WASM variants that could be trimmed |
-| Intel Macs: onnxruntime-node 1.31 ships no macOS x64 binary, and the release job builds the x64 app on an arm64 runner without the x64 builds of sqlite-vec and canvas | Not resolved: the x64 Mac app would fail to open its database. Either drop the Intel Mac build or build it on an Intel runner with an older ONNX runtime; decision pending |

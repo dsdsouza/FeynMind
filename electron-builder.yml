@@ -39,7 +39,8 @@ nsis:
 mac:
   target:
     - target: dmg
-      arch: [arm64, x64]
+      # Apple silicon only; Intel Macs are not supported (see docs/tech-plan.md, Known limitations).
+      arch: [arm64]
   category: public.app-category.education
   artifactName: ${productName}-${version}-mac-${arch}.${ext}
   # Unsigned for now; see docs/tech-plan.md, Risks.
