@@ -3,11 +3,12 @@ import type Database from 'better-sqlite3'
 import type { AddMaterialsResult, MaterialSummary, ModelStatus, PageIssue, SearchResponse, WorkerStatus } from '../../shared/ingestion'
 import { BGE_SMALL_EN, totalSize } from './modelStore'
 import type { MainToWorker, WorkerInit, WorkerRequests, WorkerRequestType, WorkerToMain } from './protocol'
+import { IngestionReader } from './reader'
 import { IngestionRepo } from './repo'
 
 const MAX_QUERY_LENGTH = 1000
 /** Search and page previews should answer quickly; imports can take as long as hashing big files takes. */
-const REQUEST_TIMEOUT_MS: Partial<Record<WorkerRequestType, number>> = { search: 60_000, renderPage: 60_000 }
+const REQUEST_TIMEOUT_MS: Partial<Record<WorkerRequestType, number>> = { search: 60_000, renderPage: 60_000, renderForVision: 60_000 }
 const RESTART_DELAYS_MS = [1_000, 5_000, 30_000]
 
 export interface IngestionServiceOptions {
@@ -110,6 +111,30 @@ export class IngestionService {
 
   retryModel(): Promise<ModelStatus> {
     return this.request('retryModel', {})
+  }
+
+  /** Reads a PDF's text on this machine, without importing it (for a syllabus). */
+  readText(path: string): Promise<{ name: string; sha256: string; text: string }> {
+    return this.request('readText', { path })
+  }
+
+  /** A page as PNG bytes for a vision model. */
+  async renderForVision(materialId: number, pageIndex: number): Promise<Uint8Array> {
+    return Buffer.from(await this.request('renderForVision', { materialId, pageIndex }), 'base64')
+  }
+
+  rechunkSections(sectionIds: number[]): Promise<{ chunks: number }> {
+    return this.request('rechunkSections', { sectionIds })
+  }
+
+  async embedTexts(texts: string[]): Promise<Float32Array[]> {
+    if (texts.length === 0) return []
+    return (await this.request('embedTexts', { texts })).map((v) => Float32Array.from(v))
+  }
+
+  /** Read access to sections and pages, for the knowledge module. */
+  get reader(): IngestionReader {
+    return new IngestionReader(this.repo)
   }
 
   private request<K extends WorkerRequestType>(kind: K, payload: WorkerRequests[K]['request']): Promise<WorkerRequests[K]['response']> {

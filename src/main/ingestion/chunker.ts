@@ -1,10 +1,13 @@
 import type { SectionStart, StoredPage } from './structure'
 import { contentLines } from './structure'
+import type { TextLine } from './types'
 
 export interface ChunkDraft {
   text: string
   pageStart: number
   pageEnd: number
+  /** The extracted text that transcribed lines in this chunk replaced, or null when none were transcribed. */
+  originalText: string | null
 }
 
 export interface ChunkOptions {
@@ -25,6 +28,8 @@ export const DEFAULT_CHUNK_OPTIONS: ChunkOptions = { targetWords: 250, maxWords:
 interface Word {
   text: string
   page: number
+  /** The transcribed line this word came from, when it came from one. */
+  line?: TextLine
 }
 
 interface Paragraph {
@@ -73,14 +78,14 @@ function sectionParagraphs(
       const gap = previous && previous.page === page.index ? line.y - previous.y : 0
       const sizeChange = previous !== null && Math.abs(line.size - previous.size) > 1
       if (previous && (gap > Math.max(line.size, previous.size) * 1.8 || gap < 0 || sizeChange)) flush()
-      let words = line.text.split(' ')
+      let words = line.text.split(/\s+/)
       // Rejoin a word hyphenated across lines: "deter-" + "mine".
       const last = current.at(-1)
       if (last && /\p{L}-$/u.test(last.text) && /^\p{Ll}/u.test(words[0] ?? '')) {
         last.text = last.text.slice(0, -1) + (words[0] ?? '')
         words = words.slice(1)
       }
-      for (const text of words) if (text !== '') current.push({ text, page: page.index })
+      for (const text of words) if (text !== '') current.push(line.original !== undefined ? { text, page: page.index, line } : { text, page: page.index })
       previous = { y: line.y, size: line.size, page: page.index }
     }
   }
@@ -116,10 +121,13 @@ function packChunks(paragraphs: Paragraph[], options: ChunkOptions): ChunkDraft[
   return chunks.map((words, i) => {
     const overlap = i > 0 ? overlapFrom(chunks[i - 1] ?? [], options.overlapWords) : []
     const all = [...overlap, ...words]
+    const transcribed = [...new Set(all.map((w) => w.line).filter((l): l is TextLine => l !== undefined))]
+    const originals = transcribed.map((l) => l.original ?? '').filter((t) => t.trim() !== '')
     return {
       text: all.map((w) => w.text).join(' '),
       pageStart: Math.min(...all.map((w) => w.page)),
-      pageEnd: Math.max(...all.map((w) => w.page))
+      pageEnd: Math.max(...all.map((w) => w.page)),
+      originalText: transcribed.length > 0 ? originals.join('\n') : null
     }
   })
 }
@@ -149,4 +157,24 @@ function overlapFrom(words: Word[], count: number): Word[] {
   const tail = words.slice(-count)
   const sentenceStart = tail.findIndex((w, i) => i > 0 && /[.!?]$/.test(tail[i - 1]?.text ?? ''))
   return sentenceStart > 0 && sentenceStart < count / 2 ? tail.slice(sentenceStart) : tail
+}
+
+/**
+ * The text of one section, page by page, without running heads and page numbers, for sending a
+ * whole section to a model. Pages with no text in the section are left out.
+ */
+export function sectionPageTexts(
+  pages: StoredPage[],
+  start: SectionStart,
+  next: SectionStart | null,
+  bodySize: number | null,
+  stripMargins: boolean
+): { index: number; text: string }[] {
+  const result: { index: number; text: string }[] = []
+  for (const page of [...pages].sort((a, b) => a.index - b.index)) {
+    const lines = (stripMargins ? contentLines(page, bodySize) : page.lines).filter((line) => inSection(page.index, line.y, start, next))
+    const text = lines.map((line) => line.text).join('\n').trim()
+    if (text !== '') result.push({ index: page.index, text })
+  }
+  return result
 }

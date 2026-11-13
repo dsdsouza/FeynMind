@@ -9,6 +9,11 @@ export interface TextLine {
   /** Font size of the line's dominant text. */
   size: number
   bold: boolean
+  /**
+   * Set only on a line made from a vision model's transcription: the extracted text it replaces.
+   * Keyword search indexes it alongside the transcription. Never stored in pages.lines.
+   */
+  original?: string
 }
 
 /** Raw measurements of a page, used to decide whether it is scanned, math-heavy or figure-heavy. */

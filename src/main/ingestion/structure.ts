@@ -158,6 +158,8 @@ function headingLevel(line: TextLine, bodySize: number, numberedOnly: boolean): 
 export function contentLines(page: StoredPage, bodySize: number | null): TextLine[] {
   if (page.height <= 0) return page.lines
   return page.lines.filter((line) => {
+    // Transcribed lines never include running heads or page numbers (the prompt leaves them out).
+    if (line.original !== undefined) return true
     const inMargin = line.y < page.height * TOP_MARGIN || line.y > page.height * BOTTOM_MARGIN
     if (!inMargin) return true
     const small = bodySize === null || line.size <= bodySize * 1.15

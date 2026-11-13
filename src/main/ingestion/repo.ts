@@ -2,6 +2,7 @@ import type Database from 'better-sqlite3'
 import type { MaterialKind, MaterialStage, MaterialStatus, MaterialSummary, PageIssue } from '../../shared/ingestion'
 import type { ChunkDraft } from './chunker'
 import type { SectionStart, StoredPage } from './structure'
+import { transcribedLines, type TranscriptBlock } from './transcripts'
 import type { TextLine } from './types'
 import type { PageText } from './wording'
 
@@ -62,6 +63,39 @@ export interface ChunkDetails {
   labelEnd: string | null
   text: string
 }
+
+export interface SectionRow {
+  id: number
+  sessionId: number
+  materialId: number
+  ordinal: number
+  chapter: string | null
+  section: string | null
+  startPage: number
+  startY: number
+}
+
+/** A section with what is needed to cut its text out of its pages. */
+export interface SectionBounds {
+  section: SectionRow
+  material: MaterialRow
+  start: SectionStart
+  next: SectionStart | null
+  /** The last page the section touches. */
+  lastPage: number
+}
+
+export interface PageForVision {
+  materialId: number
+  pageIndex: number
+  label: string | null
+  lines: TextLine[]
+  mathHeavy: boolean
+  figureHeavy: boolean
+}
+
+const SECTION_COLUMNS = `id, session_id AS sessionId, material_id AS materialId, ordinal, chapter, section,
+  start_page AS startPage, start_y AS startY`
 
 const MATERIAL_COLUMNS = `id, session_id AS sessionId, sha256, original_name AS originalName, stored_name AS storedName,
   kind, page_count AS pageCount, structure, body_font_size AS bodyFontSize,
@@ -248,14 +282,50 @@ export class IngestionRepo {
       )
   }
 
-  /** Pages `from`..`to` (inclusive) that have been read, in order. */
-  loadPages(materialId: number, from: number, to: number): StoredPage[] {
+  /**
+   * Pages `from`..`to` (inclusive) that have been read, in order. With `withTranscripts`, a page a
+   * vision model transcribed has its transcription in place of its extracted lines.
+   */
+  loadPages(materialId: number, from: number, to: number, withTranscripts = false): StoredPage[] {
     return this.db
-      .prepare<[number, number, number], { index: number; height: number; lines: string }>(
-        'SELECT page_index AS "index", height, lines FROM pages WHERE material_id = ? AND page_index BETWEEN ? AND ? ORDER BY page_index'
+      .prepare<[number, number, number], { index: number; height: number; lines: string; blocks: string | null }>(
+        `SELECT p.page_index AS "index", p.height, p.lines, t.blocks FROM pages p
+         LEFT JOIN page_transcripts t ON t.material_id = p.material_id AND t.page_index = p.page_index
+         WHERE p.material_id = ? AND p.page_index BETWEEN ? AND ? ORDER BY p.page_index`
       )
       .all(materialId, from, to)
-      .map((r) => ({ index: r.index, height: r.height, lines: JSON.parse(r.lines) as TextLine[] }))
+      .map((r) => {
+        const lines = JSON.parse(r.lines) as TextLine[]
+        const transcribed = withTranscripts && r.blocks !== null ? transcribedLines(lines, JSON.parse(r.blocks) as TranscriptBlock[]) : null
+        return { index: r.index, height: r.height, lines: transcribed ?? lines }
+      })
+  }
+
+  /** A page's extracted lines and flags, for sending it to a vision model. */
+  pageForVision(materialId: number, pageIndex: number): PageForVision | undefined {
+    const row = this.db
+      .prepare<[number, number], { label: string | null; lines: string; mathHeavy: number; figureHeavy: number }>(
+        `SELECT page_label AS label, lines, math_heavy AS mathHeavy, figure_heavy AS figureHeavy FROM pages
+         WHERE material_id = ? AND page_index = ? AND status = 'done'`
+      )
+      .get(materialId, pageIndex)
+    if (!row) return undefined
+    return { materialId, pageIndex, label: row.label, lines: JSON.parse(row.lines) as TextLine[], mathHeavy: row.mathHeavy === 1, figureHeavy: row.figureHeavy === 1 }
+  }
+
+  /** Pages from..to of a material that were flagged as math-heavy or figure-heavy. */
+  flaggedPages(materialId: number, from: number, to: number): number[] {
+    return this.db
+      .prepare<[number, number, number], { i: number }>(
+        `SELECT page_index AS i FROM pages WHERE material_id = ? AND page_index BETWEEN ? AND ? AND status = 'done'
+           AND (math_heavy = 1 OR figure_heavy = 1) ORDER BY page_index`
+      )
+      .all(materialId, from, to)
+      .map((r) => r.i)
+  }
+
+  hasTranscript(materialId: number, pageIndex: number): boolean {
+    return this.db.prepare('SELECT 1 FROM page_transcripts WHERE material_id = ? AND page_index = ?').get(materialId, pageIndex) !== undefined
   }
 
   /** Sets printed page numbers; pages not in `labels` keep theirs. */
@@ -292,6 +362,46 @@ export class IngestionRepo {
 
   // Sections and chunks
 
+  getSection(id: number): SectionRow | undefined {
+    return this.db.prepare<[number], SectionRow>(`SELECT ${SECTION_COLUMNS} FROM sections WHERE id = ?`).get(id)
+  }
+
+  sessionSections(sessionId: number): SectionRow[] {
+    return this.db.prepare<[number], SectionRow>(`SELECT ${SECTION_COLUMNS} FROM sections WHERE session_id = ? ORDER BY material_id, ordinal`).all(sessionId)
+  }
+
+  /** Where a section starts and ends, or undefined if the section or its material is gone. */
+  sectionBounds(id: number): SectionBounds | undefined {
+    const section = this.getSection(id)
+    if (!section) return undefined
+    const material = this.getMaterial(section.materialId)
+    if (!material) return undefined
+    const nextRow = this.db
+      .prepare<[number, number], SectionRow>(`SELECT ${SECTION_COLUMNS} FROM sections WHERE material_id = ? AND ordinal = ?`)
+      .get(section.materialId, section.ordinal + 1)
+    const toStart = (r: SectionRow): SectionStart => ({ chapter: r.chapter, section: r.section, startPage: r.startPage, startY: r.startY })
+    const next = nextRow ? toStart(nextRow) : null
+    // A section ends on the page where the next one starts when that one starts below the top.
+    const lastPage = next ? Math.max(section.startPage, next.startY > 0 ? next.startPage : next.startPage - 1) : (material.pageCount ?? section.startPage)
+    return { section, material, start: toStart(section), next, lastPage }
+  }
+
+  /** Replaces a section's chunks in one transaction; the new chunks wait for vectors. */
+  replaceSectionChunks(sectionId: number, chunks: ChunkDraft[]): void {
+    const section = this.getSection(sectionId)
+    if (!section) throw new Error(`Section ${sectionId} does not exist.`)
+    this.db.transaction(() => {
+      this.db.prepare('DELETE FROM chunks WHERE section_id = ?').run(sectionId)
+      const insert = this.db.prepare(
+        `INSERT INTO chunks (session_id, material_id, section_id, ordinal, chapter, section, page_start, page_end, text, original_text)
+         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
+      )
+      chunks.forEach((c, i) =>
+        insert.run(section.sessionId, section.materialId, sectionId, i, section.chapter, section.section, c.pageStart, c.pageEnd, c.text, c.originalText)
+      )
+    })()
+  }
+
   sectionCount(materialId: number): number {
     return this.db.prepare<[number], { n: number }>('SELECT count(*) AS n FROM sections WHERE material_id = ?').get(materialId)?.n ?? 0
   }
@@ -312,11 +422,11 @@ export class IngestionRepo {
         )
         .run(m.sessionId, m.materialId, ordinal, start.chapter, start.section, start.startPage, start.startY, source)
       const insertChunk = this.db.prepare(
-        `INSERT INTO chunks (session_id, material_id, section_id, ordinal, chapter, section, page_start, page_end, text)
-         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`
+        `INSERT INTO chunks (session_id, material_id, section_id, ordinal, chapter, section, page_start, page_end, text, original_text)
+         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
       )
       chunks.forEach((c, i) =>
-        insertChunk.run(m.sessionId, m.materialId, section.lastInsertRowid, i, start.chapter, start.section, c.pageStart, c.pageEnd, c.text)
+        insertChunk.run(m.sessionId, m.materialId, section.lastInsertRowid, i, start.chapter, start.section, c.pageStart, c.pageEnd, c.text, c.originalText)
       )
     })()
   }
@@ -354,7 +464,7 @@ export class IngestionRepo {
       .prepare<[string, number, number], { id: number }>(
         `SELECT c.id FROM chunks_fts JOIN chunks c ON c.id = chunks_fts.rowid
          WHERE chunks_fts MATCH ? AND c.session_id = ?
-         ORDER BY bm25(chunks_fts, 0.5, 1.5, 1.0) LIMIT ?`
+         ORDER BY bm25(chunks_fts, 0.5, 1.5, 1.0, 1.0) LIMIT ?`
       )
       .all(ftsQuery, sessionId, limit)
       .map((r) => r.id)
@@ -369,20 +479,26 @@ export class IngestionRepo {
       .map((r) => r.id)
   }
 
-  /** Passage texts by chunk id, for checking the query's wording against each candidate. */
-  chunkTexts(ids: number[]): Map<number, string> {
+  /**
+   * Passage texts by chunk id, for checking the query's wording against each candidate. `original`
+   * is the extracted text that a transcription replaced, or null.
+   */
+  chunkTexts(ids: number[]): Map<number, { text: string; original: string | null }> {
     const rows = this.db
-      .prepare<[string], { id: number; text: string }>('SELECT id, text FROM chunks WHERE id IN (SELECT value FROM json_each(?))')
+      .prepare<[string], { id: number; text: string; original: string | null }>(
+        'SELECT id, text, original_text AS original FROM chunks WHERE id IN (SELECT value FROM json_each(?))'
+      )
       .all(JSON.stringify(ids))
-    return new Map(rows.map((r) => [r.id, r.text]))
+    return new Map(rows.map((r) => [r.id, { text: r.text, original: r.original }]))
   }
 
-  /** Stored text of a range of pages, in order, with printed page numbers. */
+  /** Text of a range of pages (the transcription where there is one), in order, with printed page numbers. */
   pageTexts(materialId: number, from: number, to: number): PageText[] {
     return this.db
       .prepare<[number, number, number], PageText>(
-        `SELECT page_index AS "index", page_label AS label, coalesce(text, '') AS text FROM pages
-         WHERE material_id = ? AND page_index BETWEEN ? AND ? ORDER BY page_index`
+        `SELECT p.page_index AS "index", p.page_label AS label, coalesce(t.text, p.text, '') AS text FROM pages p
+         LEFT JOIN page_transcripts t ON t.material_id = p.material_id AND t.page_index = p.page_index
+         WHERE p.material_id = ? AND p.page_index BETWEEN ? AND ? ORDER BY p.page_index`
       )
       .all(materialId, from, to)
   }

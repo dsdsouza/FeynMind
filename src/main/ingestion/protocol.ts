@@ -17,6 +17,14 @@ export interface WorkerRequests {
   /** A PNG as base64, or null when the page cannot be rendered (slides). */
   renderPage: { request: { materialId: number; pageIndex: number }; response: string | null }
   retryModel: { request: Record<string, never>; response: ModelStatus }
+  /** Reads a document's text locally (with text recognition for scanned pages), without importing it. */
+  readText: { request: { path: string }; response: { name: string; sha256: string; text: string } }
+  /** A page rendered for a vision model, as base64 PNG. */
+  renderForVision: { request: { materialId: number; pageIndex: number }; response: string }
+  /** Rebuilds the chunks of these sections from their pages, using transcriptions where there are any. */
+  rechunkSections: { request: { sectionIds: number[] }; response: { chunks: number } }
+  /** Embeds short texts with the local model, for comparing concepts. */
+  embedTexts: { request: { texts: string[] }; response: number[][] }
 }
 
 export type WorkerRequestType = keyof WorkerRequests

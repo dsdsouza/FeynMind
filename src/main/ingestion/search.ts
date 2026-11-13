@@ -62,9 +62,11 @@ export async function searchPassages(
   // Passages repeating the query's wording come first, closest first; the rest keep the fused order.
   const queryWords = wordTokens(query)
   const wording = new Map<number, WordingMatch>()
-  for (const [id, text] of repo.chunkTexts([...new Set([...keywordIds, ...vectorIds])])) {
-    const match = wordingMatch(queryWords, text)
-    if (match) wording.set(id, match)
+  for (const [id, { text, original }] of repo.chunkTexts([...new Set([...keywordIds, ...vectorIds])])) {
+    // A transcribed passage can repeat the query's wording in either its transcription or the words it replaced.
+    const matches = [wordingMatch(queryWords, text), original ? wordingMatch(queryWords, original) : null].filter((m): m is WordingMatch => m !== null)
+    const best = matches.sort((a, b) => b.coverage - a.coverage)[0]
+    if (best) wording.set(id, best)
   }
   const fused = (id: number): number => scores.get(id) ?? 0
   const top = [
