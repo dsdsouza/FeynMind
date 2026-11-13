@@ -1,6 +1,6 @@
 # PRD: FeynMind
 
-As of 2026-11-12
+As of 2026-11-13
 
 ## Overview
 
@@ -89,7 +89,10 @@ Each course or subject is its own learning session, with its own materials, conc
 - Extract text on the user's machine, page by page. Send only math-heavy or figure-heavy pages to a model.
 - Split the book by its own chapters and sections. Every chunk keeps its page numbers.
 - Build a concept graph per session: concepts, prerequisite links, and the pages each comes from.
-- Process the first syllabus unit first, so learning starts within minutes. Process the rest in the background.
+- Process the first syllabus unit first, so learning starts within minutes. It runs once the user approves its estimate.
+- Process the remaining units in the background only if the user turns that on (off by default), and always under the session's cap. Otherwise each unit waits until the user asks for it.
+- Send only the pages of the unit being processed: transcribe its math-heavy and figure-heavy pages with a vision model, keep the original text, and search the better text.
+- Show a review screen per unit: its concepts in learning order, each with definition, prerequisites and page links. The user can rename, merge, delete and relink concepts. The graph never contains a prerequisite cycle.
 - Make ingestion resumable after a crash or restart, and never pay twice for the same pages.
 - Read the syllabus into topics, order, dates and exam weights. These set the path and the priorities.
 
@@ -207,7 +210,8 @@ The user's textbooks, progress and keys stay on their machine. The only outbound
 
 - **Local-first:** all data is stored locally. No account, no server, no telemetry by default.
 - **Privacy:** textbook content leaves the machine only inside model calls. Keys go only to their own provider.
-- **Cost control:** estimate before large jobs, cache every model result, and let the user set a spending cap per session.
+- **Consent before sending material:** before the first job in a session that sends course material to a provider, show a one-time notice naming the provider, saying that page text and page images will be sent, and noting that free tiers may use submitted content to improve the provider's products. The job does not start until the user confirms.
+- **Cost control:** estimate calls and tokens before every job, cache every model result, and let the user set a cap per session. The call cap is the primary cap (it also protects free-tier rate limits); a dollar cap is secondary and needs a known price for the model.
 - **Offline use:** reviewing history, the map and past canvas pages works without a connection. Teaching needs one.
 - **Portability:** export and import a session, including progress, as a single file. Textbook files are excluded from exports by default.
 - **Open source:** the MIT license, a documented provider interface so contributors can add providers, and no bundled copyrighted material.
