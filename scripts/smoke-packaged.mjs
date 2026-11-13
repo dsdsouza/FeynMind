@@ -65,6 +65,15 @@ const check = spawnSync(process.execPath, [join(root, 'scripts', 'check-runtime-
 })
 if (check.status !== 0) fail('app.asar is missing runtime dependencies (see above).')
 
+// 1b. Every prompt file ships unchanged next to app.asar (the app reads them at runtime).
+const promptsDir = join(build.dir, dirname(build.asar), 'prompts')
+for (const name of readdirSync(join(root, 'prompts'))) {
+  const shipped = join(promptsDir, name)
+  if (!existsSync(shipped)) fail(`The build is missing prompts/${name}.`)
+  if (!readFileSync(shipped).equals(readFileSync(join(root, 'prompts', name)))) fail(`prompts/${name} in the build differs from the repository.`)
+}
+console.log(`Prompts: ${readdirSync(join(root, 'prompts')).length} files present and unchanged.`)
+
 // 2. Copy outside the repository.
 const workDir = mkdtempSync(join(tmpdir(), 'feynmind-smoke-'))
 const appDir = join(workDir, 'app')
