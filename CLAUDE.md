@@ -11,7 +11,7 @@ If a request conflicts with either document, say so and ask before proceeding. I
 
 ## Current milestone
 
-**Milestone 1: Skeleton** (see `docs/tech-plan.md`, Build plan).
+**Milestone 2: Ingestion** (see `docs/tech-plan.md`, Build plan). Milestone 1 (Skeleton) is done.
 
 Work on one milestone at a time. Do not build features from later milestones, even when it seems convenient. A milestone is finished only when its "Done when" test passes. Update this section when a milestone is completed.
 
@@ -68,15 +68,17 @@ Keep this section current.
 ```
 npm install          # install dependencies; postinstall rebuilds better-sqlite3 for Electron
 npm run dev          # run the app in development (reads GEMINI_API_KEY from .env.local if no key is saved)
-npm test             # unit tests, run inside Electron's Node; no network
-npm run test:e2e     # builds, then Playwright opens the app with a throwaway profile; no network
+npm test             # unit tests, run inside Electron's Node; no network (about a minute: includes local OCR)
+npm run test:e2e     # builds, then Playwright opens the app with a throwaway profile; no network (model download off)
 npm run test:live    # opt-in: 2 real Gemini calls (list models + one short prompt) using .env.local
+npm run test:models  # opt-in: downloads the pinned embedding model once (~35 MB) and checks its vectors; no model API calls
+npm run bench:ingest -- <file> [...] [--queries q.json]  # real pipeline on your own files, throwaway database, prints timings
 npm run typecheck    # TypeScript check for main/preload and renderer
 npm run lint         # ESLint
 npm run build        # typecheck, then production build into out/
 npm run dist         # build, then package an installer for this OS into release/<version>/
 npm run check:deps   # fail if a runtime dependency would be left out of the package (e.g. a peer-only dependency)
-npm run smoke        # after dist: check app.asar, copy the app outside the repo, launch it, confirm it opens, quit
+npm run smoke        # after dist: check app.asar, copy the app outside the repo, launch it, import and search two fixture PDFs, quit
 ```
 
 Releases: set `version` in package.json, commit, then push a matching tag (`v0.0.2`). `.github/workflows/release.yml` builds Windows, macOS and Linux installers, smoke-tests each one, and only if all three pass uploads them to a draft GitHub Release. CI (`ci.yml`) runs typecheck, lint, `check:deps` and unit tests on every push. To check a release build locally the way CI does: `npm ci && npm run dist && npm run smoke`.
@@ -87,4 +89,8 @@ Gotchas:
 - If `npm run dev` fails with `Cannot read properties of undefined (reading 'isPackaged')`, the shell has `ELECTRON_RUN_AS_NODE` set (VS Code's extension host sets it). Unset it and retry.
 - electron-builder packages only packages listed under `dependencies`/`optionalDependencies`, never `peerDependencies`. When a runtime library has a required peer (the AI SDK needs `zod`), add the peer to our own `dependencies`. `npm run check:deps` enforces this.
 - Never judge a packaged build by launching it from inside the repo: Node's module lookup climbs out of `app.asar` into the repo's `node_modules` and hides missing packages. `npm run smoke` copies the app to a temp folder first.
-- The development database lives in Electron's userData folder (`%APPDATA%\feynmind` on Windows), not in the repo.
+- The development database lives in Electron's userData folder (`%APPDATA%\feynmind` on Windows), not in the repo. Imported files are copied to `materials/` and the embedding model to `models/` in the same folder.
+- Ingestion runs in an Electron utility process (`src/main/ingestion/worker.ts`). Unit tests run with `ELECTRON_RUN_AS_NODE`, so they miss problems specific to that process (PDF.js, for example, takes any non-main Electron process for a browser; see `loadPdfjs`). Check ingestion changes with `npm run test:e2e` and `npm run smoke` too.
+- `npm run smoke` downloads the embedding model into its throwaway profile; set `FEYNMIND_SMOKE_MODEL_CACHE` to a folder to reuse it between runs. `FEYNMIND_MODEL_DOWNLOAD=off` stops the app from downloading the model (search is then keyword-only); the e2e tests set it.
+- In `electron-builder.yml`, never put a `files:` list under `win`/`mac`/`linux` that only excludes: electron-builder then packs the whole project folder, old builds included. Keep file filters at the top level, where `${platform}` and `${arch}` work.
+- Native, WASM and worker-thread packages must be listed under `asarUnpack`. Tesseract's worker thread loads its own dependencies from the unpacked folder, so they are unpacked too.
