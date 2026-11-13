@@ -52,7 +52,21 @@ test('keeps the renderer sandboxed and exposes only the typed bridge', async () 
   expect(exposed.require).toBe('undefined')
   expect(exposed.process).toBe('undefined')
   expect(exposed.bridge).toEqual([
+    'concepts:delete',
+    'concepts:link',
+    'concepts:merge',
+    'concepts:rename',
+    'concepts:review',
+    'concepts:unlink',
+    'consent:get',
+    'consent:give',
     'ingestion:status',
+    'knowledge:approve',
+    'knowledge:cancel',
+    'knowledge:estimateUnit',
+    'knowledge:jobs',
+    'knowledge:pause',
+    'knowledge:resume',
     'materials:add',
     'materials:issues',
     'materials:list',
@@ -67,6 +81,13 @@ test('keeps the renderer sandboxed and exposes only the typed bridge', async () 
     'settings:clearKey',
     'settings:getState',
     'settings:saveKey',
-    'settings:selectModel'
+    'settings:selectModel',
+    'syllabus:get',
+    'syllabus:importFile',
+    'syllabus:importText',
+    'syllabus:save',
+    'units:list',
+    'usage:get',
+    'usage:setLimits'
   ])
 })

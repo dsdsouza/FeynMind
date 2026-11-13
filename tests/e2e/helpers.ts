@@ -9,7 +9,7 @@ export const FIXTURES = join(__dirname, '..', 'fixtures')
  * Launches the built app (npm run test:e2e builds first) with the given profile folder. No API key
  * and no model download: these tests make no network calls, so search is keyword-only here.
  */
-export function launchApp(userDataDir: string): Promise<ElectronApplication> {
+export function launchApp(userDataDir: string, extraEnv: Record<string, string> = {}): Promise<ElectronApplication> {
   const env: Record<string, string> = {}
   for (const [name, value] of Object.entries(process.env)) {
     if (value !== undefined && name !== 'GEMINI_API_KEY' && name !== 'ELECTRON_RENDERER_URL' && name !== 'ELECTRON_RUN_AS_NODE') {
@@ -18,7 +18,7 @@ export function launchApp(userDataDir: string): Promise<ElectronApplication> {
   }
   env['FEYNMIND_USER_DATA_DIR'] = userDataDir
   env['FEYNMIND_MODEL_DOWNLOAD'] = 'off'
-  return electron.launch({ args: ['.'], env })
+  return electron.launch({ args: ['.'], env: { ...env, ...extraEnv } })
 }
 
 /** Makes the next "Add files" pick the given files instead of showing the system dialog. */

@@ -1,3 +1,4 @@
+import { createHash } from 'node:crypto'
 import { appendFileSync, readFileSync } from 'node:fs'
 import type { AdapterFactory, GenerateRequest } from './types'
 
@@ -7,7 +8,9 @@ import type { AdapterFactory, GenerateRequest } from './types'
 // The file is JSON: { "delayMs"?: number, "rules": [{ "schema": "<a property of the reply's
 // JSON schema>", "contains"?: "<text in the prompt>", "reply": <JSON value> | "all-different" }] }.
 // The first matching rule answers. "all-different" answers every pair of a matching request with
-// same: false. Each request is appended to <file>.log as one line of JSON, so tests can count calls.
+// same: false. The string "FIRST_PAGE" in a reply becomes the number of the prompt's first
+// [page N] marker. Each request is appended to <file>.log as one line of JSON (with a hash of the
+// whole prompt and image), so tests can count calls and spot repeats.
 
 interface Rule {
   schema: string
@@ -28,7 +31,8 @@ function answer(rules: Rule[], request: GenerateRequest): string {
     const ids = [...request.prompt.matchAll(/^([PQ]\d+) \(/gm)].map((m) => m[1])
     return JSON.stringify({ answers: ids.map((pair) => ({ pair, same: false })) })
   }
-  return JSON.stringify(rule.reply)
+  const firstPage = /\[page (\d+)\]/.exec(request.prompt)?.[1] ?? '1'
+  return JSON.stringify(rule.reply).replaceAll('"FIRST_PAGE"', firstPage)
 }
 
 export function createReplayAdapter(file: string): AdapterFactory {
@@ -39,7 +43,10 @@ export function createReplayAdapter(file: string): AdapterFactory {
       const replay = JSON.parse(readFileSync(file, 'utf8')) as ReplayFile
       if (replay.delayMs) await new Promise((r) => setTimeout(r, replay.delayMs))
       const text = request.jsonSchema ? answer(replay.rules, request) : 'Replay reply.'
-      appendFileSync(`${file}.log`, `${JSON.stringify({ keys: Object.keys((request.jsonSchema?.['properties'] ?? {}) as object), images: request.images?.length ?? 0, prompt: request.prompt.slice(0, 200) })}\n`)
+      const hash = createHash('sha256').update(request.prompt)
+      for (const image of request.images ?? []) hash.update(image)
+      const keys = Object.keys((request.jsonSchema?.['properties'] ?? {}) as object)
+      appendFileSync(`${file}.log`, `${JSON.stringify({ keys, images: request.images?.length ?? 0, hash: hash.digest('hex') })}\n`)
       return { text, usage: { inputTokens: Math.ceil(request.prompt.length / 4) + (request.images?.length ?? 0) * 1120, outputTokens: Math.ceil(text.length / 4), thinkingTokens: 0 } }
     }
   })
