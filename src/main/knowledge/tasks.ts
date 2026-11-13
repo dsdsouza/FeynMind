@@ -27,9 +27,17 @@ export const VISION_RENDER = 'png@150dpi'
 /** Unclear pairs sent to the model in one request. */
 export const MATCH_BATCH = 30
 
-/** Rough token count of English text with some LaTeX; calibrated against real usage over time. */
+/**
+ * Token count of English text with math, without calling the provider: about 1.3 tokens a word,
+ * one per digit and one per other symbol. Fitted on the recorded Gemini calls in
+ * tests/fixtures/recorded (within -9% to +14% of the billed input); characters / 4 was off by up
+ * to 55% on pages full of numbers and labels. Calibrated further against real usage over time.
+ */
 export function textTokens(text: string): number {
-  return Math.ceil(text.length / 4)
+  const words = text.match(/[A-Za-z]+/g)?.length ?? 0
+  const digits = text.match(/\d/g)?.length ?? 0
+  const symbols = text.match(/[^\sA-Za-z\d]/gu)?.length ?? 0
+  return Math.ceil(words * 1.3 + digits + symbols)
 }
 
 export interface Calibration {
@@ -90,6 +98,25 @@ export function numberedLines(page: PageForVision): string {
   return page.lines.length === 0 ? '(no extracted text)' : page.lines.map((l, i) => `${i}: ${l.text}`).join('\n')
 }
 
+/**
+ * The output ratio for a page. On a figure-heavy page the extracted text is mostly axis labels and
+ * numbers, which the transcription replaces with short figure descriptions; this holds even when
+ * the labels made the page count as math-heavy too.
+ */
+export function transcriptionRatio(prompt: PromptFile, page: { mathHeavy: boolean; figureHeavy: boolean }): number {
+  return page.figureHeavy && prompt.outputRatioFigure !== null ? prompt.outputRatioFigure : prompt.outputRatio
+}
+
+/** Expected tokens to transcribe a page, before calibration. */
+export function transcriptionEstimate(prompt: PromptFile, page: PageForVision): { inputTokens: number; outputTokens: number } {
+  const lines = numberedLines(page)
+  const rendered = renderPrompt(prompt, { lines })
+  return {
+    inputTokens: textTokens(prompt.system) + textTokens(rendered) + IMAGE_TOKENS,
+    outputTokens: Math.round(prompt.outputBase + transcriptionRatio(prompt, page) * textTokens(lines))
+  }
+}
+
 /** The content a page's transcription depends on: the file, the page, how it was rendered and its extracted lines. */
 export function transcriptionKey(materialSha: string, page: PageForVision): string {
   return JSON.stringify(['transcribe', materialSha, page.pageIndex, VISION_RENDER, numberedLines(page)])
@@ -101,6 +128,7 @@ export function transcriptionTask(prompt: PromptFile, page: PageForVision, mater
   return finish(
     {
       ...base(prompt, rendered, lines, 1),
+      estimate: transcriptionEstimate(prompt, page),
       ...(image ? { images: [image] } : {}),
       jsonSchema: TRANSCRIPTION_JSON_SCHEMA,
       contentKey: transcriptionKey(materialSha, page),

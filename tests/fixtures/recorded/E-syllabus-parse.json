@@ -1,0 +1,77 @@
+{
+  "prompt": "syllabus-parse",
+  "version": 2,
+  "thinking": "minimal",
+  "model": "gemini-3.1-flash-lite",
+  "estimate": {
+    "inputTokens": 711,
+    "outputTokens": 613
+  },
+  "usage": {
+    "inputTokens": 669,
+    "outputTokens": 283,
+    "thinkingTokens": 0
+  },
+  "calls": 1,
+  "reply": {
+    "units": [
+      {
+        "title": "Functions, Domain and Range",
+        "topics": [
+          "Functions and function notation",
+          "Domain and range",
+          "Interval notation"
+        ],
+        "startDate": "2026-08-31",
+        "endDate": "2026-09-11",
+        "examWeight": null,
+        "readings": [
+          "1.1",
+          "1.2"
+        ]
+      },
+      {
+        "title": "Matrices and Systems of Equations",
+        "topics": [
+          "Matrices and matrix operations: addition, scalar multiples, matrix products",
+          "Solving systems with Gaussian elimination"
+        ],
+        "startDate": "2026-09-21",
+        "endDate": "2026-10-02",
+        "examWeight": null,
+        "readings": [
+          "9.5",
+          "9.6"
+        ]
+      }
+    ],
+    "exams": [
+      {
+        "title": "Quiz 1",
+        "date": "2026-09-18",
+        "weight": 10,
+        "units": [
+          0
+        ]
+      },
+      {
+        "title": "Midterm exam",
+        "date": "2026-10-09",
+        "weight": 30,
+        "units": [
+          0,
+          1
+        ]
+      },
+      {
+        "title": "Final exam",
+        "date": "2026-12-14",
+        "weight": 40,
+        "units": [
+          0,
+          1
+        ]
+      }
+    ]
+  }
+}

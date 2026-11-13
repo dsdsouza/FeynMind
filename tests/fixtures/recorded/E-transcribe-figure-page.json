@@ -1,0 +1,88 @@
+{
+  "prompt": "page-transcribe",
+  "version": 3,
+  "thinking": "minimal",
+  "model": "gemini-3.1-flash-lite",
+  "estimate": {
+    "inputTokens": 3292,
+    "outputTokens": 2810
+  },
+  "usage": {
+    "inputTokens": 3601,
+    "outputTokens": 608,
+    "thinkingTokens": 0
+  },
+  "calls": 1,
+  "reply": {
+    "blocks": [
+      {
+        "fromLine": 1,
+        "text": "A2 Graphs of the Trigonometric Functions"
+      },
+      {
+        "fromLine": 16,
+        "text": "[Figure: Graph of y=sin x, domain (-∞, ∞), range (-1, 1)]"
+      },
+      {
+        "fromLine": 254,
+        "text": "[Figure: Graph of y=cos x, domain (-∞, ∞), range (-1, 1)]"
+      },
+      {
+        "fromLine": 57,
+        "text": "[Figure: Graph of y=tan x, domain x ≠ πk/2 where k is an odd integer, range (-∞, ∞)]"
+      },
+      {
+        "fromLine": 15,
+        "text": "Figure A4"
+      },
+      {
+        "fromLine": 114,
+        "text": "[Figure: Graph of y=csc x, domain x ≠ πk where k is an integer, range (-∞, -1] ∪ [1, ∞)]"
+      },
+      {
+        "fromLine": 95,
+        "text": "[Figure: Graph of y=sec x, domain x ≠ πk/2 where k is an odd integer, range (-∞, -1] ∪ [1, ∞)]"
+      },
+      {
+        "fromLine": 76,
+        "text": "[Figure: Graph of y=cot x, domain x ≠ πk where k is an integer, range (-∞, ∞)]"
+      },
+      {
+        "fromLine": 15,
+        "text": "Figure A5"
+      },
+      {
+        "fromLine": 20,
+        "text": "[Figure: Graph of y=sin⁻¹ x, domain [-1, 1], range [-π/2, π/2]]"
+      },
+      {
+        "fromLine": 132,
+        "text": "[Figure: Graph of y=cos⁻¹ x, domain [-1, 1], range [0, π]]"
+      },
+      {
+        "fromLine": 132,
+        "text": "[Figure: Graph of y=tan⁻¹ x, domain (-∞, ∞), range (-π/2, π/2)]"
+      },
+      {
+        "fromLine": 19,
+        "text": "Figure A6"
+      },
+      {
+        "fromLine": 133,
+        "text": "[Figure: Graph of y=csc⁻¹ x, domain (-∞, -1] ∪ [1, ∞), range [-π/2, 0) ∪ (0, π/2]]"
+      },
+      {
+        "fromLine": 133,
+        "text": "[Figure: Graph of y=sec⁻¹ x, domain (-∞, -1] ∪ [1, ∞), range [0, π/2) ∪ (π/2, π]]"
+      },
+      {
+        "fromLine": 133,
+        "text": "[Figure: Graph of y=cot⁻¹ x, domain (-∞, ∞), range (0, π)]"
+      },
+      {
+        "fromLine": 29,
+        "text": "Figure A7"
+      }
+    ]
+  }
+}

@@ -1,0 +1,46 @@
+{
+  "prompt": "concept-extract",
+  "version": 1,
+  "thinking": "low",
+  "model": "gemini-3.1-flash-lite",
+  "estimate": {
+    "inputTokens": 1662,
+    "outputTokens": 380
+  },
+  "usage": {
+    "inputTokens": 1809,
+    "outputTokens": 290,
+    "thinkingTokens": 111
+  },
+  "calls": 1,
+  "reply": [
+    {
+      "name": "domain",
+      "definition": "The set of all possible input values for a given function.",
+      "pages": [
+        5,
+        6
+      ],
+      "prerequisites": []
+    },
+    {
+      "name": "range",
+      "definition": "The set of all possible output values produced by a given function.",
+      "pages": [
+        5
+      ],
+      "prerequisites": [
+        "domain"
+      ]
+    },
+    {
+      "name": "interval notation",
+      "definition": "A system of notation using brackets and parentheses to describe a set of numbers based on inclusion or exclusion of endpoints.",
+      "pages": [
+        5,
+        6
+      ],
+      "prerequisites": []
+    }
+  ]
+}

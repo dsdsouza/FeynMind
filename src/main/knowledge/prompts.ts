@@ -12,9 +12,15 @@ export interface PromptFile {
   /** Expected output tokens: outputBase + outputRatio × tokens of the filled-in placeholders. */
   outputBase: number
   outputRatio: number
+  /** Optional: the ratio for pages flagged only as figure-heavy (transcription), whose extracted text is mostly labels. */
+  outputRatioFigure: number | null
   system: string
   template: string
-  /** Hash of the whole file: any edit to the prompt changes the cache key of what it produces. */
+  /**
+   * Hash of everything that shapes the request: the version, thinking level, output limit and both
+   * parts. Editing any of them changes the cache key of what the prompt produces. The output-*
+   * fields only feed estimates, so retuning them never makes a paid result be asked for again.
+   */
   hash: string
 }
 
@@ -48,10 +54,20 @@ export function parsePromptFile(name: string, raw: string): PromptFile {
     maxOutputTokens: number('max-output-tokens'),
     outputBase: number('output-base'),
     outputRatio: number('output-ratio'),
+    outputRatioFigure: header.has('output-ratio-figure') ? number('output-ratio-figure') : null,
     system: text.slice(systemAt + '\n---system\n'.length, userAt).trim(),
     template: text.slice(userAt + '\n---user\n'.length).trim(),
-    hash: createHash('sha256').update(text).digest('hex')
+    hash: createHash('sha256').update(withoutEstimateFields(text, systemAt)).digest('hex')
   }
+}
+
+/** The prompt file without its output-* header lines, which only feed estimates. */
+function withoutEstimateFields(text: string, systemAt: number): string {
+  const header = text
+    .slice(0, systemAt)
+    .split('\n')
+    .filter((line) => !/^\s*output-/.test(line))
+  return [...header, text.slice(systemAt)].join('\n')
 }
 
 /** Fills the template's placeholders. Every placeholder needs a value, and every value a placeholder. */

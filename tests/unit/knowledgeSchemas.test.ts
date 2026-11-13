@@ -33,6 +33,9 @@ describe('prompt files', () => {
     expect(parsePromptFile('p', raw.replace(/\n/g, '\r\n')).hash).toBe(a.hash)
     expect(parsePromptFile('p', raw.replace('Be brief.', 'Be very brief.')).hash).not.toBe(a.hash)
     expect(parsePromptFile('p', raw.replace('version: 1', 'version: 2')).hash).not.toBe(a.hash)
+    expect(parsePromptFile('p', raw.replace('thinking: minimal', 'thinking: low')).hash).not.toBe(a.hash)
+    // Estimate-only fields do not change what is sent, so they do not invalidate cached results.
+    expect(parsePromptFile('p', raw.replace('output-ratio: 1', 'output-ratio: 2')).hash).toBe(a.hash)
   })
 
   it('rejects bad headers and mismatched placeholders', () => {
@@ -47,10 +50,11 @@ describe('prompt files', () => {
 const json = (value: unknown): string => JSON.stringify(value)
 
 describe('reply checks', () => {
-  it('accepts a transcription in page order and rejects lines that do not exist or go backwards', () => {
+  it('accepts a transcription anchored to real lines, in any order, and rejects lines that do not exist', () => {
     expect(parseTranscription(json({ blocks: [{ fromLine: 0, text: 'a' }, { fromLine: 2, text: '$x$' }] }), 3).blocks).toHaveLength(2)
     expect(() => parseTranscription(json({ blocks: [{ fromLine: 5, text: 'a' }] }), 3)).toThrow(InvalidOutputError)
-    expect(() => parseTranscription(json({ blocks: [{ fromLine: 2, text: 'a' }, { fromLine: 1, text: 'b' }] }), 3)).toThrow(/order/)
+    // On figure pages the text layer's order is not the reading order, so anchors may go back.
+    expect(parseTranscription(json({ blocks: [{ fromLine: 2, text: 'a' }, { fromLine: 1, text: 'b' }] }), 3).blocks).toHaveLength(2)
     expect(() => parseTranscription(json({ blocks: [] }), 3)).toThrow(/empty/)
     expect(() => parseTranscription('{"blocks": [', 3)).toThrow(/not JSON/)
     // A page without extracted lines anchors every block at 0.

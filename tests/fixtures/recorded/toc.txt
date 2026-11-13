@@ -1,0 +1,6 @@
+T1 | openstax-precalculus-text.pdf | Chapter 1. Functions | pages 1-2
+T2 | openstax-precalculus-text.pdf | Chapter 1. Functions | 1.1. Functions and Function Notation | pages 2-22
+T3 | openstax-precalculus-text.pdf | Chapter 1. Functions | 1.2. Domain and Range | pages 22-23
+T4 | openstax-precalculus-math-figures.pdf | Try It #1 | pages 808-808
+T5 | openstax-precalculus-math-figures.pdf | Finding Scalar Multiples of a Matrix | pages 808-1
+T6 | openstax-precalculus-math-figures.pdf | A2 Graphs of the Trigonometric Functions | pages 1-1

@@ -1,0 +1,57 @@
+{
+  "prompt": "concept-extract",
+  "version": 1,
+  "thinking": "minimal",
+  "model": "gemini-3.1-flash-lite",
+  "estimate": {
+    "inputTokens": 2234,
+    "outputTokens": 482
+  },
+  "usage": {
+    "inputTokens": 2745,
+    "outputTokens": 239,
+    "thinkingTokens": 0
+  },
+  "calls": 1,
+  "reply": [
+    {
+      "name": "relation",
+      "definition": "A relation is a set of ordered pairs.",
+      "pages": [
+        2
+      ],
+      "prerequisites": []
+    },
+    {
+      "name": "domain",
+      "definition": "The set of all first components of the ordered pairs in a relation.",
+      "pages": [
+        2
+      ],
+      "prerequisites": [
+        "relation"
+      ]
+    },
+    {
+      "name": "range",
+      "definition": "The set of all second components of the ordered pairs in a relation.",
+      "pages": [
+        2
+      ],
+      "prerequisites": [
+        "relation"
+      ]
+    },
+    {
+      "name": "function",
+      "definition": "A relation in which each possible input value from the domain leads to exactly one output value in the range.",
+      "pages": [
+        2
+      ],
+      "prerequisites": [
+        "domain",
+        "range"
+      ]
+    }
+  ]
+}

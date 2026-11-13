@@ -1,0 +1,84 @@
+{
+  "prompt": "page-transcribe",
+  "version": 1,
+  "thinking": "minimal",
+  "model": "gemini-3.1-flash-lite",
+  "estimate": {
+    "inputTokens": 1989,
+    "outputTokens": 729
+  },
+  "usage": {
+    "inputTokens": 2344,
+    "outputTokens": 1240,
+    "thinkingTokens": 0
+  },
+  "calls": 1,
+  "reply": {
+    "blocks": [
+      {
+        "fromLine": 0,
+        "text": "808 CHAPTER 9 SYSTEMS OF EQUATIONS AND INEQUALITIES"
+      },
+      {
+        "fromLine": 1,
+        "text": "### Example 5 Finding the Sum and Difference of Two 3 x 3 Matrices"
+      },
+      {
+        "fromLine": 2,
+        "text": "Given $A$ and $B$:"
+      },
+      {
+        "fromLine": 3,
+        "text": "a. Find the sum.\nb. Find the difference.\n$$A = \\begin{bmatrix} 2 & -10 & -2 \\\\ 14 & 12 & 10 \\\\ 4 & -2 & 2 \\end{bmatrix} \\text{ and } B = \\begin{bmatrix} 6 & 10 & -2 \\\\ 0 & -12 & -4 \\\\ -5 & 2 & -2 \\end{bmatrix}$$"
+      },
+      {
+        "fromLine": 11,
+        "text": "Solution"
+      },
+      {
+        "fromLine": 12,
+        "text": "a. Add the corresponding entries.\n$$A + B = \\begin{bmatrix} 2 & -10 & -2 \\\\ 14 & 12 & 10 \\\\ 4 & -2 & 2 \\end{bmatrix} + \\begin{bmatrix} 6 & 10 & -2 \\\\ 0 & -12 & -4 \\\\ -5 & 2 & -2 \\end{bmatrix}$$"
+      },
+      {
+        "fromLine": 19,
+        "text": "$$= \\begin{bmatrix} 2 + 6 & -10 + 10 & -2 - 2 \\\\ 14 + 0 & 12 - 12 & 10 - 4 \\\\ 4 - 5 & -2 + 2 & 2 - 2 \\end{bmatrix}$$"
+      },
+      {
+        "fromLine": 22,
+        "text": "$$= \\begin{bmatrix} 8 & 0 & -4 \\\\ 14 & 0 & 6 \\\\ -1 & 0 & 0 \\end{bmatrix}$$"
+      },
+      {
+        "fromLine": 25,
+        "text": "b. Subtract the corresponding entries.\n$$A - B = \\begin{bmatrix} 2 & -10 & -2 \\\\ 14 & 12 & 10 \\\\ 4 & -2 & 2 \\end{bmatrix} - \\begin{bmatrix} 6 & 10 & -2 \\\\ 0 & -12 & -4 \\\\ -5 & 2 & -2 \\end{bmatrix}$$"
+      },
+      {
+        "fromLine": 32,
+        "text": "$$= \\begin{bmatrix} 2 - 6 & -10 - 10 & -2 + 2 \\\\ 14 - 0 & 12 + 12 & 10 + 4 \\\\ 4 + 5 & -2 - 2 & 2 + 2 \\end{bmatrix}$$"
+      },
+      {
+        "fromLine": 35,
+        "text": "$$= \\begin{bmatrix} -4 & -20 & 0 \\\\ 14 & 24 & 14 \\\\ 9 & -4 & 4 \\end{bmatrix}$$"
+      },
+      {
+        "fromLine": 38,
+        "text": "### Try It #1\nAdd matrix $A$ and matrix $B$.\n$$A = \\begin{bmatrix} 2 & 6 \\\\ 1 & 0 \\\\ 1 & -3 \\end{bmatrix} \\text{ and } B = \\begin{bmatrix} 3 & -2 \\\\ 1 & 5 \\\\ -4 & 3 \\end{bmatrix}$$"
+      },
+      {
+        "fromLine": 46,
+        "text": "### Finding Scalar Multiples of a Matrix"
+      },
+      {
+        "fromLine": 47,
+        "text": "Besides adding and subtracting whole matrices, there are many situations in which we need to multiply a matrix by a constant called a scalar. Recall that a scalar is a real number quantity that has magnitude, but not direction. For example, time, temperature, and distance are scalar quantities. The process of scalar multiplication involves multiplying each entry in a matrix by a scalar. A scalar multiple is any entry of a matrix that results from scalar multiplication."
+      },
+      {
+        "fromLine": 51,
+        "text": "Consider a real-world scenario in which a university needs to add to its inventory of computers, computer tables, and chairs in two of the campus labs due to increased enrollment. They estimate that 15% more equipment is needed in both labs. The school’s current inventory is displayed in Table 2."
+      },
+      {
+        "fromLine": 54,
+        "text": "[Table 2: Table showing inventory of equipment with rows: Computers, Computer Tables, Chairs; and columns: Lab A, Lab B. Values: Computers (15, 27), Computer Tables (16, 34), Chairs (16, 34).]"
+      }
+    ]
+  }
+}

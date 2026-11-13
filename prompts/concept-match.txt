@@ -1,8 +1,8 @@
-version: 1
+version: 2
 thinking: minimal
 max-output-tokens: 2000
 output-base: 20
-output-ratio: 0.06
+output-ratio: 0.38
 ---system
 You check whether two items from a textbook's concept map refer to the same concept.
 

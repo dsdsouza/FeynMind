@@ -1,0 +1,58 @@
+{
+  "prompt": "concept-extract",
+  "version": 1,
+  "thinking": "low",
+  "model": "gemini-3.1-flash-lite",
+  "estimate": {
+    "inputTokens": 2234,
+    "outputTokens": 482
+  },
+  "usage": {
+    "inputTokens": 2745,
+    "outputTokens": 382,
+    "thinkingTokens": 94
+  },
+  "calls": 1,
+  "reply": [
+    {
+      "name": "relation",
+      "definition": "A relation is a set of ordered pairs, where the set of the first components is the domain and the set of the second components is the range.",
+      "pages": [
+        2
+      ],
+      "prerequisites": []
+    },
+    {
+      "name": "domain",
+      "definition": "The domain of a relation is the set of all first components of the ordered pairs, often referred to as input values or independent variables.",
+      "pages": [
+        2
+      ],
+      "prerequisites": [
+        "relation"
+      ]
+    },
+    {
+      "name": "range",
+      "definition": "The range of a relation is the set of all second components of the ordered pairs, often referred to as output values or dependent variables.",
+      "pages": [
+        2
+      ],
+      "prerequisites": [
+        "relation"
+      ]
+    },
+    {
+      "name": "function",
+      "definition": "A function is a relation in which each possible input value leads to exactly one output value.",
+      "pages": [
+        2
+      ],
+      "prerequisites": [
+        "relation",
+        "domain",
+        "range"
+      ]
+    }
+  ]
+}

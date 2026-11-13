@@ -1,0 +1,56 @@
+{
+  "prompt": "page-transcribe",
+  "version": 2,
+  "thinking": "minimal",
+  "model": "gemini-3.1-flash-lite",
+  "estimate": {
+    "inputTokens": 2246,
+    "outputTokens": 1043
+  },
+  "usage": {
+    "inputTokens": 3607,
+    "outputTokens": 268,
+    "thinkingTokens": 0
+  },
+  "calls": 3,
+  "reply": {
+    "blocks": [
+      {
+        "fromLine": 1,
+        "text": "A2 Graphs of the Trigonometric Functions"
+      },
+      {
+        "fromLine": 15,
+        "text": "[Figure A4: Plots of y=sin x, y=cos x, y=tan x with domains and ranges listed below each graph.]"
+      },
+      {
+        "fromLine": 15,
+        "text": "Figure A4"
+      },
+      {
+        "fromLine": 15,
+        "text": "[Figure A5: Plots of y=csc x, y=sec x, y=cot x with domains and ranges listed below each graph.]"
+      },
+      {
+        "fromLine": 15,
+        "text": "Figure A5"
+      },
+      {
+        "fromLine": 19,
+        "text": "[Figure A6: Plots of y=sin⁻¹ x, y=cos⁻¹ x, y=tan⁻¹ x with domains and ranges listed below each graph.]"
+      },
+      {
+        "fromLine": 19,
+        "text": "Figure A6"
+      },
+      {
+        "fromLine": 29,
+        "text": "[Figure A7: Plots of y=csc⁻¹ x, y=sec⁻¹ x, y=cot⁻¹ x with domains and ranges listed below each graph.]"
+      },
+      {
+        "fromLine": 29,
+        "text": "Figure A7"
+      }
+    ]
+  }
+}

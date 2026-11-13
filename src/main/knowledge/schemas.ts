@@ -128,12 +128,11 @@ export function parseTranscription(text: string, lineCount: number): Transcripti
   const value = check(z.object({ blocks: z.array(z.object({ fromLine: z.number().int(), text: z.string() })).max(400) }), text)
   const blocks = value.blocks.map((b) => ({ fromLine: b.fromLine, text: b.text.trim() })).filter((b) => b.text !== '')
   if (blocks.length === 0) throw new InvalidOutputError('the transcription is empty')
+  // Anchors need not increase: on figure pages the text layer's order is not the reading order.
+  // Blocks are placed by their anchor line when the page is chunked.
   const maxLine = Math.max(0, lineCount - 1)
-  let previous = 0
   for (const block of blocks) {
     if (block.fromLine < 0 || block.fromLine > maxLine) throw new InvalidOutputError(`fromLine ${block.fromLine} is not a line of this page`)
-    if (block.fromLine < previous) throw new InvalidOutputError('blocks are not in page order')
-    previous = block.fromLine
   }
   if (blocks.reduce((n, b) => n + b.text.length, 0) > 30_000) throw new InvalidOutputError('the transcription is far longer than a page')
   return { blocks }

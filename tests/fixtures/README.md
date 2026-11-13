@@ -34,3 +34,26 @@ PDF.js and saved as PDF with Pillow.
 | File | What it tests |
 | --- | --- |
 | `vectors-dot-product.pptx` | PowerPoint import: four slides with speaker notes on every slide. Slide 3 has only a title and a picture (figure-heavy). Built with python-pptx. |
+| `syllabus-precalculus.txt` | Syllabus import: a made-up MATH 120 syllabus with a weekly schedule, readings from the OpenStax fixtures' sections (1.1, 1.2, 9.5) and ones they do not contain (9.6), a review week, exams with weights, and policies to ignore. |
+
+## Recorded model replies (`recorded/`)
+
+Replies from real Gemini calls (`gemini-3.1-flash-lite`, free tier, 2026-11-13) made by
+`tests/live/knowledge.live.test.ts`, with each call's estimate and billed tokens. They were made
+only from the files above: the OpenStax pages (so the transcriptions and concept lists derived
+from them are adaptations of *Precalculus* by Jay Abramson et al., OpenStax, CC BY 4.0,
+<https://openstax.org/details/books/precalculus>), the syllabus written for this project, and the
+concept pairs in `tests/models/concept-pairs.json` (written for this project). Unit tests check
+that the app's validation accepts them; the token figures set the estimate ratios in `prompts/`.
+`toc.txt` is the fixtures' table of contents as the matching prompt sees it (no model call).
+
+| File | What it is |
+| --- | --- |
+| `A-transcribe-matrix-page.json` | Transcription of the matrix-arithmetic page (prompt version 1). |
+| `A-extract-1.1-minimal.json`, `C-extract-1.1-low.json` | Concepts of section 1.1 at thinking "minimal" and "low". |
+| `C-extract-1.2-minimal.json`, `C-extract-1.2-low.json` | Concepts of section 1.2 at the two levels. |
+| `C-transcribe-figure-page.json` | Figure-page transcription accepted on the third try by version 1's ordering rule (since removed). |
+| `E-transcribe-figure-page.json` | The same page with prompt version 3, accepted first time. |
+| `B-syllabus-parse.json`, `E-syllabus-parse.json` | The syllabus read with prompt versions 1 and 2. |
+| `B-syllabus-map.json` | Units of the version 1 reading matched to `toc.txt`. |
+| `D-match-minimal.json`, `D-match-low.json` | 38 pairs with known answers at the two thinking levels (both all correct). |

@@ -1,0 +1,29 @@
+{
+  "prompt": "syllabus-map",
+  "version": 1,
+  "thinking": "minimal",
+  "model": "gemini-3.1-flash-lite",
+  "estimate": {
+    "inputTokens": 461,
+    "outputTokens": 60
+  },
+  "usage": {
+    "inputTokens": 508,
+    "outputTokens": 46,
+    "thinkingTokens": 0
+  },
+  "calls": 1,
+  "reply": {
+    "0": [
+      "T2"
+    ],
+    "1": [
+      "T3"
+    ],
+    "2": [],
+    "3": [
+      "T5"
+    ],
+    "4": []
+  }
+}

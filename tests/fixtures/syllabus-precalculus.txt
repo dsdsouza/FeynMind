@@ -1,0 +1,24 @@
+MATH 120: Precalculus
+Fall 2026, Section 03. Monday, Wednesday and Friday, 10:00-10:50.
+
+Textbook: Precalculus by Jay Abramson et al., OpenStax (free online).
+
+Course description
+Functions and their graphs, matrices and systems of equations, in preparation for calculus.
+
+Schedule
+Week 1 (Aug 31 - Sep 4): Functions and function notation. Read 1.1.
+Week 2 (Sep 8 - Sep 11): Domain and range, interval notation. Read 1.2.
+Week 3 (Sep 14 - Sep 18): Review of Unit 1 and Quiz 1 (Friday).
+Week 4 (Sep 21 - Sep 25): Matrices and matrix operations: addition, scalar multiples, matrix products. Read 9.5.
+Week 5 (Sep 28 - Oct 2): Solving systems with Gaussian elimination. Read 9.6.
+Week 6 (Oct 5 - Oct 9): Midterm exam on Friday, October 9, covering weeks 1-5.
+
+Grading
+Homework 20%
+Quiz 1 10%
+Midterm exam 30%
+Final exam 40% (cumulative), December 14.
+
+Office hours: Tuesday 2-4 pm, Math building room 210.
+Academic integrity: all work you submit must be your own.

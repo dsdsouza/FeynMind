@@ -32,6 +32,8 @@ import {
   syllabusMapTask,
   syllabusParseTask,
   textTokens,
+  transcriptionEstimate,
+  transcriptionRatio,
   transcriptionKey,
   transcriptionTask,
   EXPECTED_PAIRS_PER_SECTION,
@@ -243,7 +245,8 @@ export class KnowledgeService {
     const steps: NewStep[] = []
 
     // Transcription of flagged pages.
-    const pending = new Set<string>()
+    /** Pages still to be transcribed, with how much longer their text becomes. */
+    const pending = new Map<string, number>()
     const t = { calls: 0, cached: 0, inputTokens: 0, outputTokens: 0 }
     const transcribeCal = damped(providers.calibration(ROLE, transcribe.name))
     const flagged = this.reader.flaggedPages(sectionIds)
@@ -257,9 +260,8 @@ export class KnowledgeService {
         t.cached++
         continue
       }
-      pending.add(`${materialId}:${pageIndex}`)
-      const lines = page.lines.map((l, i) => `${i}: ${l.text}`).join('\n')
-      const raw = rawEstimate(transcribe, `${transcribe.template}${lines}`, lines, 1)
+      pending.set(`${materialId}:${pageIndex}`, transcriptionRatio(transcribe, page))
+      const raw = transcriptionEstimate(transcribe, page)
       t.calls++
       t.inputTokens += Math.round((raw.inputTokens - IMAGE_TOKENS) * transcribeCal.input) + IMAGE_TOKENS
       t.outputTokens += Math.round(raw.outputTokens * transcribeCal.output)
@@ -283,7 +285,7 @@ export class KnowledgeService {
         continue
       }
       // Pages still to be transcribed will be sent as their transcription, which is longer than the extracted text.
-      const textTok = content.pages.reduce((n, p) => n + textTokens(`[page ${p.index}]\n${p.text}`) * (pending.has(`${content.materialId}:${p.index}`) ? transcribe.outputRatio : 1), 0)
+      const textTok = content.pages.reduce((n, p) => n + textTokens(`[page ${p.index}]\n${p.text}`) * (pending.get(`${content.materialId}:${p.index}`) ?? 1), 0)
       e.calls++
       e.inputTokens += Math.round((textTokens(extract.system) + textTokens(extract.template) + textTok) * extractCal.input)
       e.outputTokens += Math.round((extract.outputBase + extract.outputRatio * textTok) * extractCal.output)

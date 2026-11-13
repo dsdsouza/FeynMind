@@ -1,8 +1,8 @@
-version: 1
+version: 2
 thinking: minimal
 max-output-tokens: 4000
-output-base: 50
-output-ratio: 0.08
+output-base: 30
+output-ratio: 0.25
 ---system
 You match a course's units to the sections of its textbooks and slides, so that a study app knows which pages each unit covers.
 

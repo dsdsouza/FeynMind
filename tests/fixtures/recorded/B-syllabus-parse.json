@@ -1,0 +1,115 @@
+{
+  "prompt": "syllabus-parse",
+  "version": 1,
+  "thinking": "minimal",
+  "model": "gemini-3.1-flash-lite",
+  "estimate": {
+    "inputTokens": 563,
+    "outputTokens": 320
+  },
+  "usage": {
+    "inputTokens": 643,
+    "outputTokens": 613,
+    "thinkingTokens": 0
+  },
+  "calls": 1,
+  "reply": {
+    "units": [
+      {
+        "title": "Functions and function notation",
+        "topics": [
+          "Functions",
+          "function notation"
+        ],
+        "startDate": "2026-08-31",
+        "endDate": "2026-09-04",
+        "examWeight": null,
+        "readings": [
+          "1.1"
+        ]
+      },
+      {
+        "title": "Domain, range, and interval notation",
+        "topics": [
+          "Domain",
+          "range",
+          "interval notation"
+        ],
+        "startDate": "2026-09-08",
+        "endDate": "2026-09-11",
+        "examWeight": null,
+        "readings": [
+          "1.2"
+        ]
+      },
+      {
+        "title": "Review and Quiz 1",
+        "topics": [
+          "Review of Unit 1",
+          "Quiz 1"
+        ],
+        "startDate": "2026-09-14",
+        "endDate": "2026-09-18",
+        "examWeight": null,
+        "readings": []
+      },
+      {
+        "title": "Matrices and matrix operations",
+        "topics": [
+          "Matrices",
+          "matrix operations",
+          "addition",
+          "scalar multiples",
+          "matrix products"
+        ],
+        "startDate": "2026-09-21",
+        "endDate": "2026-09-25",
+        "examWeight": null,
+        "readings": [
+          "9.5"
+        ]
+      },
+      {
+        "title": "Solving systems with Gaussian elimination",
+        "topics": [
+          "Solving systems with Gaussian elimination"
+        ],
+        "startDate": "2026-09-28",
+        "endDate": "2026-10-02",
+        "examWeight": null,
+        "readings": [
+          "9.6"
+        ]
+      }
+    ],
+    "exams": [
+      {
+        "title": "Quiz 1",
+        "date": "2026-09-18",
+        "weight": 10,
+        "units": [
+          0,
+          1
+        ]
+      },
+      {
+        "title": "Midterm exam",
+        "date": "2026-10-09",
+        "weight": 30,
+        "units": [
+          0,
+          1,
+          2,
+          3,
+          4
+        ]
+      },
+      {
+        "title": "Final exam",
+        "date": "2026-12-14",
+        "weight": 40,
+        "units": []
+      }
+    ]
+  }
+}

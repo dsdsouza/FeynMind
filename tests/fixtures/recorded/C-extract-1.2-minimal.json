@@ -1,0 +1,46 @@
+{
+  "prompt": "concept-extract",
+  "version": 1,
+  "thinking": "minimal",
+  "model": "gemini-3.1-flash-lite",
+  "estimate": {
+    "inputTokens": 1662,
+    "outputTokens": 380
+  },
+  "usage": {
+    "inputTokens": 1809,
+    "outputTokens": 198,
+    "thinkingTokens": 0
+  },
+  "calls": 1,
+  "reply": [
+    {
+      "name": "domain",
+      "definition": "The domain of a function is the set of all possible input values for which the function is defined.",
+      "pages": [
+        5,
+        6
+      ],
+      "prerequisites": []
+    },
+    {
+      "name": "range",
+      "definition": "The range of a function is the set of all possible output values that the function can produce.",
+      "pages": [
+        5
+      ],
+      "prerequisites": [
+        "domain"
+      ]
+    },
+    {
+      "name": "interval notation",
+      "definition": "A mathematical convention used to describe a set of numbers by using square brackets to include endpoints and parentheses to exclude them or represent unbounded intervals.",
+      "pages": [
+        5,
+        6
+      ],
+      "prerequisites": []
+    }
+  ]
+}
