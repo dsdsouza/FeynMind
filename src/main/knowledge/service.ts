@@ -34,7 +34,8 @@ import {
   textTokens,
   transcriptionKey,
   transcriptionTask,
-  typicalMatchEstimate,
+  EXPECTED_PAIRS_PER_SECTION,
+  matchEstimate,
   type MatchPair,
   type TaskContext,
   type TocLine
@@ -269,11 +270,13 @@ export class KnowledgeService {
 
     // Extraction, one call per section with text.
     const e = { calls: 0, cached: 0, inputTokens: 0, outputTokens: 0 }
+    let sectionsWithText = 0
     const extractCal = damped(providers.calibration(ROLE, extract.name))
     for (const id of sectionIds) {
       steps.push({ kind: 'extract', sectionId: id })
       const content = this.reader.sectionContent(id)
       if (!content || content.pages.length === 0) continue
+      sectionsWithText++
       const willChange = content.pages.some((p) => pending.has(`${content.materialId}:${p.index}`))
       if (!willChange && providers.isCached(ROLE, extract, extractionKey(extract, content))) {
         e.cached++
@@ -288,14 +291,14 @@ export class KnowledgeService {
     steps.push({ kind: 'build' })
 
     // Matching: how many unclear pairs there will be is unknown until the concepts exist.
-    const matchCalls = e.calls + e.cached === 0 ? 0 : Math.max(1, Math.ceil(sectionIds.length / 6)) + 1
-    const m = this.calibrated(match.name, typicalMatchEstimate(match))
+    const m = matchEstimate(match, sectionsWithText * EXPECTED_PAIRS_PER_SECTION)
+    const mTokens = this.calibrated(match.name, m)
 
     return {
       parts: [
         part('transcribe', 'Transcribe flagged pages', t.calls, t.cached, t, false),
         part('extract', 'Find concepts in each section', e.calls, e.cached, e, false),
-        part('match', 'Check unclear duplicates and prerequisites', matchCalls, 0, { inputTokens: m.inputTokens * matchCalls, outputTokens: m.outputTokens * matchCalls }, true)
+        part('match', 'Check unclear duplicates and prerequisites', m.calls, 0, mTokens, true)
       ],
       steps
     }

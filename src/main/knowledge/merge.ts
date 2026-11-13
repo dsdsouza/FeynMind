@@ -5,13 +5,17 @@ import { normalizeName } from './schemas'
 
 /**
  * Similarity bands for bge-small-en-v1.5 (cosine), measured on the pairs in
- * tests/models/concept-pairs.json (see tests/models/thresholds.models.test.ts).
+ * tests/models/concept-pairs.json (tests/models/thresholds.models.test.ts, 2026-11-13).
+ * Duplicate concepts scored 0.76-0.87 and related but distinct ones up to 0.84, so vectors alone
+ * cannot tell them apart in that range: only pairs above every distinct pair seen merge on their
+ * own, and the wide band below goes to the model. Prerequisite names: duplicates 0.70-0.99,
+ * distinct names up to 0.88.
  */
 export const THRESHOLDS = {
   /** "name: definition" of two concepts. */
-  concept: { same: 0.93, unclear: 0.86 },
+  concept: { same: 0.9, unclear: 0.75 },
   /** A prerequisite's name against a concept's name. */
-  prereq: { same: 0.92, unclear: 0.8 }
+  prereq: { same: 0.92, unclear: 0.69 }
 } as const
 
 /** At most this many unclear candidates per concept or prerequisite name are checked with the model. */

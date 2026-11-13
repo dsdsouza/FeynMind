@@ -1,0 +1,53 @@
+{
+  "about": "Written for this project (MIT). Pairs of concepts as two different textbook sections might describe them, used to set the similarity bands for merging duplicates (src/main/knowledge/merge.ts). 'same' pairs are one concept; 'different' pairs are related but distinct and must never be merged without the model or the user.",
+  "concept": {
+    "same": [
+      [["inverse of a matrix", "The matrix A^{-1} such that A A^{-1} = A^{-1} A = I."], ["inverse matrix", "A square matrix B with AB = BA = I, the identity matrix."]],
+      [["dot product", "The sum of the products of matching components of two vectors."], ["inner product of vectors", "Multiply corresponding entries of u and v and add the results."]],
+      [["Gaussian elimination", "Subtracting multiples of one equation from others to reach an upper triangular system."], ["elimination", "A method that uses row operations to turn Ax = b into an upper triangular system Ux = c."]],
+      [["linear independence", "Vectors are independent when no combination except the zero combination gives the zero vector."], ["linearly independent vectors", "A set of vectors in which the only solution of c1v1 + ... + cnvn = 0 is all c = 0."]],
+      [["domain of a function", "The set of all input values for which the function is defined."], ["domain", "All inputs x that a function accepts."]],
+      [["determinant", "A number computed from a square matrix that is zero exactly when the matrix is singular."], ["determinant of a square matrix", "The scalar det A, which changes sign when two rows are exchanged and is zero for singular A."]],
+      [["eigenvalue", "A number lambda with Ax = lambda x for some nonzero vector x."], ["eigenvalues of a matrix", "Scalars lambda for which A - lambda I is singular."]],
+      [["column space", "All linear combinations of the columns of A."], ["column space of a matrix", "The subspace C(A) spanned by the columns of A."]],
+      [["slope of a line", "The ratio of the change in y to the change in x between two points on the line."], ["slope", "Rise over run: how much y changes for each unit change in x."]],
+      [["matrix multiplication", "The entry in row i, column j of AB is the dot product of row i of A with column j of B."], ["product of two matrices", "AB is defined when A has as many columns as B has rows; each entry is a row times a column."]]
+    ],
+    "different": [
+      [["dot product", "The sum of the products of matching components of two vectors."], ["cross product", "A vector perpendicular to two vectors in three dimensions, with length |u||v| sin theta."]],
+      [["inverse of a matrix", "The matrix A^{-1} such that A A^{-1} = I."], ["inverse function", "The function f^{-1} that undoes f, so f^{-1}(f(x)) = x."]],
+      [["domain of a function", "The set of all input values for which the function is defined."], ["range of a function", "The set of all output values a function produces."]],
+      [["column space", "All linear combinations of the columns of A."], ["null space", "All solutions x of Ax = 0."]],
+      [["eigenvalue", "A number lambda with Ax = lambda x for some nonzero vector x."], ["eigenvector", "A nonzero vector x whose direction is unchanged by A: Ax = lambda x."]],
+      [["determinant", "A number computed from a square matrix that is zero exactly when the matrix is singular."], ["trace", "The sum of the diagonal entries of a square matrix."]],
+      [["linear independence", "No combination except the zero combination gives the zero vector."], ["span", "The set of all linear combinations of a set of vectors."]],
+      [["Gaussian elimination", "Row operations that reach an upper triangular system."], ["back substitution", "Solving an upper triangular system from the last equation upward."]],
+      [["symmetric matrix", "A matrix equal to its transpose."], ["transpose", "The matrix whose rows are the columns of A."]],
+      [["rank", "The number of pivots, equal to the dimension of the column space."], ["dimension of a subspace", "The number of vectors in any basis of the subspace."]],
+      [["slope of a line", "Rise over run between two points."], ["y-intercept", "The value of y where the line crosses the y-axis."]],
+      [["matrix multiplication", "Each entry of AB is a row of A times a column of B."], ["matrix addition", "Adding two matrices of the same size entry by entry."]]
+    ]
+  },
+  "prereq": {
+    "same": [
+      ["matrix multiplication", "product of matrices"],
+      ["inverse matrix", "matrix inverse"],
+      ["vectors", "vector"],
+      ["linear combination", "linear combinations of vectors"],
+      ["functions", "function"],
+      ["Gaussian elimination", "elimination"],
+      ["dot product", "inner product"],
+      ["identity matrix", "the identity matrix I"]
+    ],
+    "different": [
+      ["dot product", "cross product"],
+      ["matrix inverse", "inverse function"],
+      ["domain", "range"],
+      ["eigenvalue", "eigenvector"],
+      ["column space", "null space"],
+      ["rank", "nullity"],
+      ["matrix addition", "matrix multiplication"],
+      ["linear function", "linear combination"]
+    ]
+  }
+}

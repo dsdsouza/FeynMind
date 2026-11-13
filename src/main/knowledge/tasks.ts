@@ -174,11 +174,27 @@ export function matchTask(prompt: PromptFile, pairs: MatchPair[], ctx: TaskConte
   )
 }
 
-/** A typical request's size, for estimating the matching calls before the concepts exist. */
-export function typicalMatchEstimate(prompt: PromptFile): { inputTokens: number; outputTokens: number } {
+/**
+ * Unclear pairs expected per section with text, before the concepts exist: about six concepts a
+ * section, each with about one unclear duplicate candidate and one unclear prerequisite candidate
+ * (bands in merge.ts). Calibrated against real runs through the ledger like every other estimate.
+ */
+export const EXPECTED_PAIRS_PER_SECTION = 12
+
+/** Calls and tokens for matching `pairs` unclear pairs, sent in two rounds (duplicates, then prerequisites). */
+export function matchEstimate(prompt: PromptFile, pairs: number): { calls: number; inputTokens: number; outputTokens: number } {
+  if (pairs === 0) return { calls: 0, inputTokens: 0, outputTokens: 0 }
+  const perRound = Math.ceil(pairs / 2)
+  const calls = 2 * Math.ceil(perRound / MATCH_BATCH)
   const perPair = 'P1 (concept)\nA: inverse of a matrix: The matrix that multiplied by A gives the identity matrix.\nB: matrix inverse: A matrix B with AB = BA = I.\n\n'
-  const sample = perPair.repeat(12)
-  return rawEstimate(prompt, `${prompt.template}${sample}`, sample, 0)
+  const sample = perPair.repeat(pairs)
+  const all = rawEstimate(prompt, `${prompt.template}${sample}`, sample, 0)
+  const overhead = rawEstimate(prompt, prompt.template, '', 0)
+  return {
+    calls,
+    inputTokens: all.inputTokens + overhead.inputTokens * (calls - 1),
+    outputTokens: all.outputTokens + prompt.outputBase * (calls - 1)
+  }
 }
 
 // Syllabus
