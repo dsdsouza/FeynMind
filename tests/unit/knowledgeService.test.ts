@@ -1,0 +1,347 @@
+import { readFileSync } from 'node:fs'
+import { join } from 'node:path'
+import { describe, expect, it } from 'vitest'
+import { chunkSection } from '../../src/main/ingestion/chunker'
+import { IngestionReader } from '../../src/main/ingestion/reader'
+import { IngestionRepo } from '../../src/main/ingestion/repo'
+import type { TextLine } from '../../src/main/ingestion/types'
+import { KnowledgeService, PromptLibrary } from '../../src/main/knowledge'
+import { ProviderError, ProviderService, UsageStore, type GenerateRequest } from '../../src/main/providers'
+import { openDatabase, SessionStore, SettingsStore } from '../../src/main/storage'
+import type Database from 'better-sqlite3'
+import { createFakeEmbedder } from './fakes/fakeEmbedder'
+import { FakeClock } from './fakes/fakeClock'
+import { FakeEncryptor, FakeProvider, type FakeAnswer } from './fakes/fakeProvider'
+
+const PROMPTS = join(import.meta.dirname, '..', '..', 'prompts')
+const line = (text: string, y: number): TextLine => ({ text, x: 72, y, size: 10, bold: false })
+
+/** A small book: section 1.1 on pages 1-2 (page 2 math-heavy), section 1.2 on pages 3-4. */
+function seedBook(db: Database.Database, sessionId: number): { repo: IngestionRepo; materialId: number } {
+  const repo = new IngestionRepo(db)
+  const materialId = repo.insertMaterial({ sessionId, sha256: 'book-sha', originalName: 'book.pdf', storedName: 'book-sha.pdf', kind: 'pdf', byteSize: 1 })
+  repo.startMaterial(materialId, 4, 'outline')
+  const pages: [number, string[], boolean][] = [
+    [1, ['A vector has a length and a direction.'], false],
+    [2, ['The dot product u v = u1 v1 + u2 v2.', 'Length is the square root of the dot product.'], true],
+    [3, ['Dot products of columns give matrix entries.'], false],
+    [4, ['A matrix is a table of numbers built from vectors.'], false]
+  ]
+  for (const [index, lines, math] of pages) {
+    repo.insertPage({
+      sessionId, materialId, pageIndex: index, pageLabel: String(index + 10), status: 'done', method: 'text',
+      lines: lines.map((t, i) => line(t, 100 + 20 * i)), height: 792, scanned: false, mathHeavy: math, figureHeavy: false, ocrConfidence: null, error: null
+    })
+  }
+  const sections = [
+    { chapter: '1 Vectors', section: '1.1 Vectors and lengths', startPage: 1, startY: 0 },
+    { chapter: '1 Vectors', section: '1.2 Matrices', startPage: 3, startY: 0 }
+  ]
+  sections.forEach((s, i) => {
+    const next = sections[i + 1] ?? null
+    const chunks = chunkSection(repo.loadPages(materialId, s.startPage, next ? next.startPage : 4), s, next, 10)
+    repo.insertSectionWithChunks({ sessionId, materialId }, i, s, 'outline', chunks)
+  })
+  return { repo, materialId }
+}
+
+const reply = (value: unknown): FakeAnswer => ({ text: JSON.stringify(value), inputTokens: 500, outputTokens: 100 })
+
+/** Answers each kind of request the way a well-behaved model would. */
+function answer(request: GenerateRequest): FakeAnswer {
+  const keys = Object.keys((request.jsonSchema?.['properties'] ?? {}) as object)
+  if (keys.includes('exams')) {
+    return reply({
+      units: [
+        { title: 'Vectors', topics: ['vectors', 'dot product'], startDate: '2026-09-01', endDate: '2026-09-14', examWeight: null, readings: ['1.1'] },
+        { title: 'Matrices', topics: ['matrices'], startDate: null, endDate: null, examWeight: null, readings: ['1.2'] }
+      ],
+      exams: [{ title: 'Midterm', date: '2026-10-15', weight: 30, units: [0, 1] }]
+    })
+  }
+  if (keys.includes('units')) return reply({ units: [{ unit: 0, toc: ['T1'] }, { unit: 1, toc: ['T2'] }] })
+  if (keys.includes('blocks')) return reply({ blocks: [{ fromLine: 0, text: 'The dot product $u \\cdot v = u_1 v_1 + u_2 v_2$.' }, { fromLine: 1, text: 'Length is $\\|v\\| = \\sqrt{v \\cdot v}$.' }] })
+  if (keys.includes('answers')) {
+    const ids = [...request.prompt.matchAll(/^([PQ]\d+) \(/gm)].map((m) => m[1])
+    return reply({ answers: ids.map((pair) => ({ pair, same: false })) })
+  }
+  if (request.prompt.includes('[page 1]')) {
+    return reply({
+      concepts: [
+        { name: 'vector', definition: 'A quantity with length and direction.', pages: [1], prerequisites: [] },
+        { name: 'dot product', definition: 'The sum $u_1v_1 + u_2v_2$.', pages: [2], prerequisites: ['vectors', 'length'] },
+        { name: 'length', definition: 'The square root of $v \\cdot v$.', pages: [2], prerequisites: ['dot product'] }
+      ]
+    })
+  }
+  return reply({
+    concepts: [
+      { name: 'Dot products', definition: 'Multiply matching components and add.', pages: [3], prerequisites: ['vector'] },
+      { name: 'matrix', definition: 'A rectangular table of numbers.', pages: [4], prerequisites: ['vector', 'set theory'] }
+    ]
+  })
+}
+
+function setup(db = openDatabase(':memory:'), provider = new FakeProvider()) {
+  const sessions = new SessionStore(db)
+  const session = sessions.current()
+  const settings = new SettingsStore(db)
+  settings.set('provider.gemini.model', 'gemini-3.1-flash-lite')
+  provider.respond = answer
+  const providers = new ProviderService({
+    settings,
+    encryptor: new FakeEncryptor(),
+    createAdapter: provider.factory,
+    devKey: 'dev-key',
+    loadPrompt: () => '',
+    usage: new UsageStore(db),
+    limits: (id) => sessions.limits(id),
+    clock: new FakeClock()
+  })
+  const ingestionRepo = new IngestionRepo(db)
+  const embedder = createFakeEmbedder()
+  const rechunked: number[] = []
+  const jobs: string[] = []
+  const knowledge = new KnowledgeService({
+    db,
+    providers,
+    ingestion: {
+      reader: new IngestionReader(ingestionRepo),
+      readText: async () => ({ name: 'syllabus.pdf', sha256: 'syl', text: 'Syllabus text' }),
+      renderForVision: async () => new Uint8Array([137, 80, 78, 71]),
+      rechunkSections: async (ids) => {
+        for (const id of ids) {
+          const b = ingestionRepo.sectionBounds(id)
+          if (!b) throw new Error('gone')
+          ingestionRepo.replaceSectionChunks(id, chunkSection(ingestionRepo.loadPages(b.material.id, b.start.startPage, b.next?.startPage ?? b.lastPage, true), b.start, b.next, 10))
+          rechunked.push(id)
+        }
+        return { chunks: 1 }
+      },
+      embedTexts: (texts) => embedder.embedPassages(texts)
+    },
+    prompts: new PromptLibrary((name) => readFileSync(join(PROMPTS, `${name}.txt`), 'utf8').trim()),
+    settings,
+    limits: (id) => sessions.limits(id),
+    onJob: (job) => jobs.push(`${job.id}:${job.status}`),
+    onUsage: () => undefined
+  })
+  return { db, session, sessions, settings, provider, providers, knowledge, rechunked, jobs }
+}
+
+const SYLLABUS = 'MATH 101 Linear algebra. Week 1-2: Vectors (read 1.1). Week 3: Matrices (read 1.2). Midterm Oct 15, 30%.'
+
+async function confirmSyllabus(t: ReturnType<typeof setup>): Promise<number[]> {
+  const state = t.knowledge.startSyllabusFromText(t.session.id, SYLLABUS)
+  t.knowledge.giveConsent(t.session.id)
+  t.knowledge.approve(state.job?.id ?? 0)
+  await t.knowledge.idle()
+  const read = t.knowledge.syllabusState(t.session.id)
+  if (!read?.draft) throw new Error('no draft')
+  return t.knowledge.saveSyllabus(read.id, read.draft).map((u) => u.id)
+}
+
+describe('syllabus import', () => {
+  it('estimates, waits for approval and consent, reads the syllabus, maps units to sections, and saves the corrected version', async () => {
+    const t = setup()
+    seedBook(t.db, t.session.id)
+    const state = t.knowledge.startSyllabusFromText(t.session.id, SYLLABUS)
+    expect(state.status).toBe('awaiting-approval')
+    expect(state.job?.estimate.calls).toBe(2)
+    expect(state.toc.map((e) => e.section)).toEqual(['1.1 Vectors and lengths', '1.2 Matrices'])
+    expect(t.provider.generateCalls).toHaveLength(0)
+
+    expect(() => t.knowledge.approve(state.job?.id ?? 0)).toThrow(/notice/)
+    expect(t.knowledge.consent(t.session.id)).toMatchObject({ provider: 'Google Gemini', given: false })
+    t.knowledge.giveConsent(t.session.id)
+    t.knowledge.approve(state.job?.id ?? 0)
+    await t.knowledge.idle()
+
+    const read = t.knowledge.syllabusState(t.session.id)
+    expect(read?.status).toBe('draft')
+    expect(read?.job?.status).toBe('done')
+    expect(read?.draft?.units.map((u) => [u.title, u.tocKeys.length])).toEqual([['Vectors', 1], ['Matrices', 1]])
+    expect(t.provider.generateCalls).toHaveLength(2)
+
+    // The user corrects a title before saving.
+    const draft = read?.draft ?? { units: [], exams: [] }
+    draft.units[1] = { ...(draft.units[1] as (typeof draft.units)[number]), title: 'Matrices and tables' }
+    const units = t.knowledge.saveSyllabus(read?.id ?? 0, draft)
+    expect(units.map((u) => [u.title, u.sections.length, u.startDate])).toEqual([['Vectors', 1, '2026-09-01'], ['Matrices and tables', 1, null]])
+    expect(() => t.knowledge.saveSyllabus(read?.id ?? 0, { units: [{ ...(draft.units[0] as (typeof draft.units)[number]), startDate: 'soon' }], exams: [] })).toThrow(/date/)
+  })
+})
+
+describe('unit processing', () => {
+  it('estimates, then transcribes, re-chunks, extracts, merges duplicates and breaks loops', async () => {
+    const t = setup()
+    seedBook(t.db, t.session.id)
+    const [unit1] = await confirmSyllabus(t)
+    const callsBefore = t.provider.generateCalls.length
+
+    // Unit 1 is section 1.1 only; make it cover both sections to see merging across sections.
+    t.db.prepare('INSERT OR IGNORE INTO unit_sections (unit_id, section_id) SELECT ?, id FROM sections').run(unit1)
+    const job = t.knowledge.estimateUnit(unit1 ?? 0)
+    expect(job.status).toBe('awaiting-approval')
+    const byKind = Object.fromEntries(job.estimate.parts.map((p) => [p.kind, p]))
+    expect(byKind['transcribe']).toMatchObject({ calls: 1, cached: 0, approximate: false })
+    expect(byKind['extract']).toMatchObject({ calls: 2, cached: 0 })
+    expect(byKind['match']?.approximate).toBe(true)
+    expect(job.estimate.inputTokens).toBeGreaterThan(1120)
+    expect(t.provider.generateCalls.length).toBe(callsBefore)
+
+    t.knowledge.approve(job.id)
+    await t.knowledge.idle()
+    const done = t.knowledge.jobs(t.session.id).find((j) => j.id === job.id)
+    expect(done?.status).toBe('done')
+    expect(done?.failures).toEqual([])
+    expect(t.rechunked).toEqual([1])
+
+    // The transcription was stored and is what search and extraction now see.
+    const transcriptRequest = t.provider.generateCalls.find((r) => r.images?.length)
+    expect(transcriptRequest?.prompt).toContain('0: The dot product u v')
+    const extractS1 = t.provider.generateCalls.find((r) => r.prompt.includes('[page 1]'))
+    expect(extractS1?.prompt).toContain('$u \\cdot v = u_1 v_1 + u_2 v_2$')
+
+    const review = t.knowledge.review(unit1 ?? 0)
+    const names = review.concepts.map((c) => c.name)
+    expect(names.sort()).toEqual(['dot product', 'length', 'matrix', 'vector'])
+    const dot = review.concepts.find((c) => c.name === 'dot product')
+    expect(dot?.pages.map((p) => p.page)).toEqual([{ index: 2, label: '12' }, { index: 3, label: '13' }])
+    const matrix = review.concepts.find((c) => c.name === 'matrix')
+    expect(matrix?.prerequisites.map((p) => p.name)).toEqual(['vector'])
+    expect(matrix?.unresolved).toEqual(['set theory'])
+
+    // The dot product / length loop was broken: exactly one of the two links remains.
+    const length = review.concepts.find((c) => c.name === 'length')
+    const dotNeedsLength = dot?.prerequisites.some((p) => p.name === 'length') ?? false
+    const lengthNeedsDot = length?.prerequisites.some((p) => p.name === 'dot product') ?? false
+    expect(dotNeedsLength !== lengthNeedsDot).toBe(true)
+    expect([...(dot?.removed ?? []), ...(length?.removed ?? [])].map((r) => r.status)).toEqual(['removed-cycle'])
+
+    // Learning order puts every concept after its prerequisites.
+    const order = review.concepts.map((c) => c.id)
+    for (const c of review.concepts) for (const p of c.prerequisites) if (order.includes(p.id)) expect(order.indexOf(p.id)).toBeLessThan(order.indexOf(c.id))
+
+    // Estimating again finds everything cached: nothing is paid for twice.
+    const again = t.knowledge.estimateUnit(unit1 ?? 0)
+    const parts = Object.fromEntries(again.estimate.parts.map((p) => [p.kind, p]))
+    expect(parts['transcribe']).toMatchObject({ calls: 0, cached: 1 })
+    expect(parts['extract']).toMatchObject({ calls: 0, cached: 2 })
+    const callsAfterFirstRun = t.provider.generateCalls.length
+    t.knowledge.approve(again.id)
+    await t.knowledge.idle()
+    expect(t.provider.generateCalls.length).toBe(callsAfterFirstRun)
+    expect(t.knowledge.review(unit1 ?? 0).concepts).toHaveLength(4)
+  })
+
+  it('pauses on an exhausted quota and resumes after a restart without repeating any paid call', async () => {
+    const db = openDatabase(':memory:')
+    const first = setup(db)
+    seedBook(db, first.session.id)
+    const [unit1] = await confirmSyllabus(first)
+    t_bothSections(db, unit1 ?? 0)
+    const job = first.knowledge.estimateUnit(unit1 ?? 0)
+    // The second extraction hits the daily quota.
+    first.provider.respond = (request) => (request.prompt.includes('[page 3]') ? new ProviderError('daily', 'quota-daily') : answer(request))
+    first.knowledge.approve(job.id)
+    await first.knowledge.idle()
+    const paused = first.knowledge.jobs(first.session.id).find((j) => j.id === job.id)
+    expect(paused?.status).toBe('paused')
+    expect(paused?.pauseReason).toMatch(/daily/)
+    expect(paused?.resumeAt).not.toBeNull()
+    await first.knowledge.stop()
+    const paidBefore = first.provider.generateCalls.filter((r) => !r.prompt.includes('[page 3]')).map((r) => r.prompt)
+
+    // A new app start on the same database.
+    const second = setup(db)
+    second.knowledge.start()
+    second.knowledge.resume(job.id)
+    await second.knowledge.idle()
+    expect(second.knowledge.jobs(second.session.id).find((j) => j.id === job.id)?.status).toBe('done')
+    const repeated = second.provider.generateCalls.filter((r) => paidBefore.includes(r.prompt))
+    expect(repeated).toEqual([])
+    expect(second.provider.generateCalls.some((r) => r.prompt.includes('[page 3]'))).toBe(true)
+    await second.knowledge.stop()
+  })
+
+  it('continues a job that was running when the app stopped', async () => {
+    const db = openDatabase(':memory:')
+    const first = setup(db)
+    seedBook(db, first.session.id)
+    const [unit1] = await confirmSyllabus(first)
+    const job = first.knowledge.estimateUnit(unit1 ?? 0)
+    // Simulate a crash right after approval: the job is marked running but nothing ran.
+    db.prepare("UPDATE knowledge_jobs SET status = 'running' WHERE id = ?").run(job.id)
+    const second = setup(db)
+    second.knowledge.start()
+    await second.knowledge.idle()
+    expect(second.knowledge.jobs(second.session.id).find((j) => j.id === job.id)?.status).toBe('done')
+    await second.knowledge.stop()
+  })
+
+  it('marks a step failed after three malformed replies and still builds the graph', async () => {
+    const t = setup()
+    seedBook(t.db, t.session.id)
+    const [unit1] = await confirmSyllabus(t)
+    const job = t.knowledge.estimateUnit(unit1 ?? 0)
+    t.provider.respond = (request) => (request.images?.length ? { text: '{"blocks":[{"fromLine":99,"text":"x"}]}' } : answer(request))
+    t.knowledge.approve(job.id)
+    await t.knowledge.idle()
+    const done = t.knowledge.jobs(t.session.id).find((j) => j.id === job.id)
+    expect(done?.status).toBe('done')
+    expect(done?.failures).toHaveLength(1)
+    expect(done?.failures[0]?.label).toMatch(/Transcribe page 12/)
+    expect(t.provider.generateCalls.filter((r) => r.images?.length)).toHaveLength(3)
+    expect(t.knowledge.review(unit1 ?? 0).concepts.length).toBeGreaterThan(0)
+    expect(t.db.prepare('SELECT count(*) AS n FROM page_transcripts').get()).toEqual({ n: 0 })
+  })
+
+  it('refuses an estimate that does not fit under the call cap', async () => {
+    const t = setup()
+    seedBook(t.db, t.session.id)
+    const [unit1] = await confirmSyllabus(t)
+    t.sessions.setLimits(t.session.id, { callCap: 3, spendCapUsd: null })
+    const job = t.knowledge.estimateUnit(unit1 ?? 0)
+    expect(() => t.knowledge.approve(job.id)).toThrow(/cap of 3/)
+  })
+})
+
+function t_bothSections(db: Database.Database, unitId: number): void {
+  db.prepare('INSERT OR IGNORE INTO unit_sections (unit_id, section_id) SELECT ?, id FROM sections').run(unitId)
+}
+
+describe('review edits', () => {
+  async function built() {
+    const t = setup()
+    seedBook(t.db, t.session.id)
+    const [unit1] = await confirmSyllabus(t)
+    t_bothSections(t.db, unit1 ?? 0)
+    t.knowledge.approve(t.knowledge.estimateUnit(unit1 ?? 0).id)
+    await t.knowledge.idle()
+    const id = (name: string): number => t.knowledge.review(unit1 ?? 0).concepts.find((c) => c.name === name)?.id ?? -1
+    return { t, unit: unit1 ?? 0, id }
+  }
+
+  it('renames, merges, deletes and relinks, refusing a loop', async () => {
+    const { t, unit, id } = await built()
+    let review = t.knowledge.renameConcept(unit, id('vector'), 'Vector', 'A quantity with size and direction.')
+    expect(review.concepts.find((c) => c.name === 'Vector')?.edited).toBe(true)
+
+    expect(() => t.knowledge.linkConcepts(unit, id('Vector'), id('matrix'))).toThrow(/already depends/)
+    review = t.knowledge.unlinkConcepts(unit, id('matrix'), id('Vector'))
+    expect(review.concepts.find((c) => c.name === 'matrix')?.removed.map((r) => r.status)).toEqual(['removed-user'])
+    review = t.knowledge.linkConcepts(unit, id('Vector'), id('matrix'))
+    expect(review.concepts.find((c) => c.name === 'Vector')?.prerequisites.map((p) => [p.name, p.source])).toEqual([['matrix', 'user']])
+
+    const lengthPages = review.concepts.find((c) => c.name === 'length')?.pages.length ?? 0
+    review = t.knowledge.mergeConcepts(unit, id('length'), id('dot product'))
+    expect(review.concepts.map((c) => c.name)).not.toContain('length')
+    const dot = review.concepts.find((c) => c.name === 'dot product')
+    expect(dot?.pages.length).toBeGreaterThanOrEqual(lengthPages)
+    expect(dot?.prerequisites.map((p) => p.name)).not.toContain('dot product')
+
+    review = t.knowledge.deleteConcept(unit, id('matrix'))
+    expect(review.concepts.map((c) => c.name).sort()).toEqual(['Vector', 'dot product'])
+  })
+})

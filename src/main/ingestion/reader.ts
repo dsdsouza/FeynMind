@@ -97,6 +97,11 @@ export class IngestionReader {
     })
   }
 
+  /** The material a section belongs to, or undefined if the section is gone. */
+  materialOfSection(sectionId: number): number | undefined {
+    return this.repo.getSection(sectionId)?.materialId
+  }
+
   pageForVision(materialId: number, pageIndex: number): PageForVision | undefined {
     return this.repo.pageForVision(materialId, pageIndex)
   }

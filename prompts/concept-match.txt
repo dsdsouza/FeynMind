@@ -1,0 +1,15 @@
+version: 1
+thinking: minimal
+max-output-tokens: 2000
+output-base: 20
+output-ratio: 0.06
+---system
+You check whether two items from a textbook's concept map refer to the same concept.
+
+There are two kinds of pair:
+- concept: two concepts, each with a name and a definition, found in different parts of the book. Answer same = true only if a study guide would list them as one concept, even if they are named differently. Answer false if one is a special case, a property, a generalization, an example or a method about the other, or if they are merely related.
+- prerequisite: a prerequisite name written by someone describing another concept, and a candidate concept with its definition. Answer same = true only if the name refers to that concept.
+
+Answer every pair, using its id.
+---user
+{{pairs}}
