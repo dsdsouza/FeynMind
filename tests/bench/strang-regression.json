@@ -1,0 +1,37 @@
+{
+  "about": "Search regression set for Strang, Introduction to Linear Algebra, 5th edition (2016). The book is not in the repository. Run: npm run bench:ingest -- \"<path to the book's PDF>\" --queries tests/bench/strang-regression.json. Pages are 1-based PDF pages; each check needs the first result's matching sentences on that page (or inside the range) and, where given, in that section.",
+  "queries": [
+    {
+      "query": "Find the inverses directly or from the two by 2 formula for AB and C",
+      "section": "2.5 Inverse Matrices",
+      "page": 102,
+      "note": "Problem Set 2.5, exercise 1. Reported as PDF 101; the exercise text is on PDF 102 (printed p. 92), in a passage that starts on PDF 101."
+    },
+    {
+      "query": "Suppose a linear T transform (1,1) to (2,2)",
+      "section": "8.1 The Idea of a Linear Transformation",
+      "page": 419,
+      "note": "Problem Set 8.1, exercise 12."
+    },
+    {
+      "query": "suppose you know that the three by four matrix a has the vector s 2, 3, 1, 0.",
+      "section": "3.3 The Complete Solution to Ax = b",
+      "page": 173,
+      "note": "Problem Set 3.3, challenge problem 34."
+    },
+    {
+      "query": "What is the dot product of two vectors and how is it related to the angle between them?",
+      "section": "1.2 Lengths and Dot Products",
+      "pages": [21, 31]
+    },
+    { "query": "When does elimination break down?", "section": "2.2 The Idea of Elimination", "pages": [56, 67] },
+    { "query": "What is the column space of a matrix?", "section": "3.1 Spaces of Vectors", "pages": [133, 144] },
+    { "query": "How do you factor A into L times U?", "section": "2.6 Elimination = Factorization: A = LU", "pages": [107, 118] },
+    { "query": "What does the Gram-Schmidt process do?", "section": "4.4 Orthonormal Bases and Gram-Schmidt", "pages": [243, 256] },
+    { "query": "How do you compute a determinant using cofactors?", "section": "5.2 Permutations and Cofactors", "pages": [268, 282] },
+    { "query": "least squares fitting a straight line to data points", "section": "4.3 Least Squares Approximations", "pages": [229, 242] },
+    { "query": "steady state of a Markov matrix", "section": "10.3 Markov Matrices, Population, and Economics", "pages": [484, 492] },
+    { "query": "singular value decomposition", "section": "7.2 Bases and Matrices in the SVD", "pages": [381, 391] },
+    { "query": "eigenvalues of a projection matrix", "section": "6.1 Introduction to Eigenvalues", "pages": [298, 313] }
+  ]
+}

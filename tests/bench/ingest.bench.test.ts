@@ -11,6 +11,7 @@ import { openPptx } from '../../src/main/ingestion/pptx'
 import { IngestionRepo } from '../../src/main/ingestion/repo'
 import { IngestionRunner } from '../../src/main/ingestion/runner'
 import { searchPassages } from '../../src/main/ingestion/search'
+import { MATCH_END, MATCH_START, type PageRef, type SearchResult } from '../../src/shared/ingestion'
 import { openDatabase, SessionStore } from '../../src/main/storage'
 
 // Runs the real ingestion pipeline on files you choose and reports how long each stage took.
@@ -66,16 +67,8 @@ it('ingests and searches', async () => {
     console.log(`\nTotal wall time: ${seconds(wall)}`)
 
     if (queriesFile) {
-      const queries = JSON.parse(readFileSync(queriesFile, 'utf8')) as string[]
-      for (const query of queries) {
-        const t = performance.now()
-        const response = await searchPassages(repo, sessionId, query, embedder, 3)
-        console.log(`\nQ: ${query}  (${Math.round(performance.now() - t)} ms)`)
-        for (const r of response.results) {
-          const page = r.pageStart.label ? `p. ${r.pageStart.label}${r.pageEnd.label && r.pageEnd.label !== r.pageStart.label ? `–${r.pageEnd.label}` : ''}` : ''
-          console.log(`  - ${r.section ?? r.chapter ?? '(no section)'} | ${page} (PDF ${r.pageStart.index}${r.pageEnd.index !== r.pageStart.index ? `–${r.pageEnd.index}` : ''})`)
-        }
-      }
+      const failures = await runQueries(loadQueries(queriesFile), async (query) => (await searchPassages(repo, sessionId, query, embedder)).results)
+      if (failures > 0) throw new Error(`${failures} search check(s) failed; see the lines marked FAIL above.`)
     }
     await embedder.close()
   } finally {
@@ -84,3 +77,66 @@ it('ingests and searches', async () => {
     rmSync(workDir, { recursive: true, force: true })
   }
 }, 3 * 60 * 60 * 1000)
+
+/**
+ * A search to try. `page` (a 1-based PDF page) or `pages` (an inclusive range) is where the first
+ * result's matching sentences must be; `section` is the section it must come from. Without any of
+ * them, the top results are only printed.
+ */
+interface QueryCheck {
+  query: string
+  page?: number
+  pages?: [number, number]
+  section?: string
+  note?: string
+}
+
+/** Reads a JSON array of question strings or QueryChecks, or an object with such an array under `queries`. */
+function loadQueries(file: string): QueryCheck[] {
+  const raw = JSON.parse(readFileSync(file, 'utf8')) as unknown
+  const list = Array.isArray(raw) ? raw : (raw as { queries?: unknown }).queries
+  if (!Array.isArray(list)) throw new Error(`${file}: expected a JSON array of questions, or an object with a "queries" array`)
+  return list.map((q) => (typeof q === 'string' ? { query: q } : (q as QueryCheck)))
+}
+
+const pdfPages = (start: PageRef, end: PageRef): string => `PDF ${start.index}${end.index !== start.index ? `–${end.index}` : ''}`
+const printedPages = (start: PageRef, end: PageRef): string =>
+  start.label === null ? '' : `p. ${start.label}${end.label && end.label !== start.label ? `–${end.label}` : ''} `
+const plain = (text: string): string => text.replaceAll(MATCH_START, '').replaceAll(MATCH_END, '').replace(/\s+/g, ' ')
+
+/** Whether a result is from the expected section, with its matching sentences inside the expected pages. */
+function meets(r: SearchResult, check: QueryCheck): boolean {
+  const [from, to] = check.pages ?? (check.page !== undefined ? [check.page, check.page] : [-Infinity, Infinity])
+  const onPages = r.matchStart.index <= to && r.matchEnd.index >= from
+  return onPages && (check.section === undefined || r.section === check.section)
+}
+
+/** Prints the top 3 results for each query and checks the first against any expectation. Returns the number of failures. */
+async function runQueries(checks: QueryCheck[], search: (query: string) => Promise<SearchResult[]>): Promise<number> {
+  let failures = 0
+  let checked = 0
+  for (const check of checks) {
+    const started = performance.now()
+    const results = await search(check.query)
+    console.log(`\nQ: ${check.query}  (${Math.round(performance.now() - started)} ms)`)
+    for (const r of results.slice(0, 3)) {
+      const match = pdfPages(r.matchStart, r.matchEnd)
+      const passage = pdfPages(r.pageStart, r.pageEnd) === match ? '' : `, passage ${pdfPages(r.pageStart, r.pageEnd)}`
+      console.log(`  - ${r.section ?? r.chapter ?? '(no section)'} | ${printedPages(r.matchStart, r.matchEnd)}(${match}${passage}) [${r.focusKind}]`)
+      console.log(`      ${plain(r.context.focus).slice(0, 160)}`)
+    }
+    if (check.page === undefined && check.pages === undefined && check.section === undefined) continue
+    checked++
+    const where = check.page !== undefined ? `PDF ${check.page}` : check.pages ? `PDF ${check.pages[0]}–${check.pages[1]}` : undefined
+    const expected = [check.section, where].filter(Boolean).join(', ')
+    const rank = results.findIndex((r) => meets(r, check)) + 1
+    if (rank === 1) {
+      console.log(`  PASS: first result is ${expected}`)
+    } else {
+      failures++
+      console.log(`  FAIL: expected ${expected} first; ${rank === 0 ? `not in the top ${results.length}` : `found at rank ${rank}`}`)
+    }
+  }
+  if (checked > 0) console.log(`\nSearch checks: ${checked - failures} of ${checked} passed`)
+  return failures
+}

@@ -72,7 +72,8 @@ npm test             # unit tests, run inside Electron's Node; no network (about
 npm run test:e2e     # builds, then Playwright opens the app with a throwaway profile; no network (model download off)
 npm run test:live    # opt-in: 2 real Gemini calls (list models + one short prompt) using .env.local
 npm run test:models  # opt-in: downloads the pinned embedding model once (~35 MB) and checks its vectors; no model API calls
-npm run bench:ingest -- <file> [...] [--queries q.json]  # real pipeline on your own files, throwaway database, prints timings
+npm run bench:ingest -- <file> [...] [--queries q.json]  # real pipeline on your own files, throwaway database, prints timings; checks expected pages in q.json
+npm run bench:ingest -- "<Strang PDF>" --queries tests/bench/strang-regression.json  # search regression set (13 checks, ~8 min); run after any search change
 npm run typecheck    # TypeScript check for main/preload and renderer
 npm run lint         # ESLint
 npm run build        # typecheck, then production build into out/

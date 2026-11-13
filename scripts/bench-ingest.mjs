@@ -3,7 +3,11 @@
 // embedding model is downloaded once into a cache folder if it is not there yet.
 //
 // Usage: npm run bench:ingest -- <file.pdf|file.pptx> [...] [--queries questions.json]
-//   questions.json is a JSON array of question strings; the top 3 passages for each are printed.
+//   questions.json is a JSON array of question strings, or of checks such as
+//   {"query": "...", "section": "2.5 Inverse Matrices", "page": 102} ("pages": [from, to] for a range),
+//   or an object holding that array under "queries". The top 3 passages for each are printed; a
+//   check fails unless the first result is from that section with its matching sentences on those
+//   PDF pages, and any failure makes the command fail. See tests/bench/strang-regression.json.
 //   FEYNMIND_MODEL_CACHE sets the model cache folder (default: <temp>/feynmind-model-cache).
 import { spawnSync } from 'node:child_process'
 import { resolve } from 'node:path'
