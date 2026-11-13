@@ -66,7 +66,8 @@ function handlersFor(services: IpcServices): Handlers {
     },
     'search:query': (req) => ingestion.search(requireSession(services, req), requireString(requireObject(req).query, 'query')),
     'models:status': () => ingestion.getModelStatus(),
-    'models:retry': () => ingestion.retryModel()
+    'models:retry': () => ingestion.retryModel(),
+    'ingestion:status': () => ingestion.getWorkerStatus()
   }
 }
 

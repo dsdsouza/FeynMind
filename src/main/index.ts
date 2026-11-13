@@ -3,6 +3,7 @@ import { join } from 'node:path'
 import { parseEnv } from 'node:util'
 import { app, BrowserWindow, dialog, safeStorage, shell } from 'electron'
 import type { IpcEvent, IpcEvents } from '../shared/ipc'
+import { ExitLog } from './exitLog'
 import { IngestionService } from './ingestion'
 import ingestionWorkerPath from './ingestion/worker?modulePath'
 import { registerIpcHandlers } from './ipc'
@@ -96,8 +97,54 @@ function isAppUrl(url: string): boolean {
   return url.startsWith('file://')
 }
 
+/** Error stack frames without the message (which could hold anything); the message is added redacted. */
+function stackFrames(error: unknown): string {
+  const stack = error instanceof Error ? (error.stack ?? '') : ''
+  return stack
+    .split('\n')
+    .filter((line) => line.trimStart().startsWith('at '))
+    .slice(0, 8)
+    .join('\n')
+}
+
+/**
+ * Records unexpected exits and crashes in <data folder>/logs/exits.log: helper and window processes
+ * that go away, uncaught errors, termination signals, a non-zero exit code, and a previous run that
+ * never quit cleanly. `describe` turns an error into a message with any API key removed.
+ */
+function watchForUnexpectedExits(exitLog: ExitLog, describe: () => (error: unknown) => string): void {
+  exitLog.startRun(process.pid)
+  app.on('child-process-gone', (_event, details) => {
+    if (details.reason === 'clean-exit') return
+    const name = details.name ?? details.serviceName ?? details.type
+    exitLog.record(`${details.type} process (${name}) gone: reason ${details.reason}, exit code ${details.exitCode}.`)
+  })
+  app.on('render-process-gone', (_event, _contents, details) => {
+    exitLog.record(`Window process gone: reason ${details.reason}, exit code ${details.exitCode}.`)
+  })
+  process.on('uncaughtExceptionMonitor', (error, origin) => {
+    exitLog.record(`Main process ${origin}: ${describe()(error)}\n${stackFrames(error)}`)
+  })
+  process.on('unhandledRejection', (reason) => {
+    exitLog.record(`Main process unhandled promise rejection: ${describe()(reason)}\n${stackFrames(reason)}`)
+  })
+  for (const signal of ['SIGTERM', 'SIGINT', 'SIGHUP'] as const) {
+    process.on(signal, () => {
+      exitLog.record(`Main process received ${signal}; quitting.`)
+      app.quit()
+    })
+  }
+  app.on('quit', (_event, exitCode) => {
+    if (exitCode !== 0) exitLog.record(`FeynMind quit with exit code ${exitCode}.`)
+    exitLog.endRun()
+  })
+}
+
 void app.whenReady().then(() => {
   const dataDir = app.getPath('userData')
+  const exitLog = new ExitLog(join(dataDir, 'logs'))
+  let describeError = (error: unknown): string => (error instanceof Error ? error.name : 'Unknown error')
+  watchForUnexpectedExits(exitLog, () => describeError)
   const dbPath = join(dataDir, 'feynmind.db')
   const db = openDatabase(dbPath)
   app.on('will-quit', () => db.close())
@@ -113,7 +160,10 @@ void app.whenReady().then(() => {
       allowModelDownload: process.env['FEYNMIND_MODEL_DOWNLOAD'] !== 'off'
     },
     onProgress: (summary) => broadcast('ingestion:progress', summary),
-    onModelStatus: (status) => broadcast('models:progress', status)
+    onModelStatus: (status) => broadcast('models:progress', status),
+    onWorkerStatus: (status) => broadcast('ingestion:worker', status),
+    recordExit: (message) => exitLog.record(message),
+    exitLogPath: exitLog.path
   })
   ingestion.start()
   // Let the worker finish its current page before the app exits; anything unfinished resumes next time.
@@ -134,6 +184,7 @@ void app.whenReady().then(() => {
     devKey: readDevKey(),
     loadPrompt
   })
+  describeError = (error) => providers.safeErrorMessage(error)
   registerIpcHandlers({ providers, ingestion, sessions: new SessionStore(db), pickMaterialFiles }, (event) =>
     isAppUrl(event.senderFrame?.url ?? '')
   )

@@ -1,4 +1,4 @@
-import { mkdtempSync, rmSync } from 'node:fs'
+import { existsSync, mkdtempSync, readFileSync, rmSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { expect, test, type ElectronApplication, type Page } from '@playwright/test'
@@ -133,7 +133,50 @@ test('continues an interrupted import after the app is killed and reopened', asy
     // Each file was added once, and each page stored once.
     await expect(page.getByTestId('material')).toHaveCount(2)
     await expect(scanned().getByTestId('material-counts')).toContainText('2 recognized from images')
+    // The killed run never quit cleanly, and the exit log says so.
+    expect(readFileSync(join(userDataDir, 'logs', 'exits.log'), 'utf8')).toContain('did not shut down cleanly last time')
   } finally {
     await app.close()
   }
+})
+
+test('keeps the app running when the import process crashes, logs it, says so and carries on', async () => {
+  test.setTimeout(180_000)
+  const app = await launchApp(userDataDir)
+  try {
+    const page = await app.firstWindow()
+    await stubFilePicker(app, [join(FIXTURES, 'openstax-precalculus-scanned.pdf'), join(FIXTURES, 'openstax-precalculus-text.pdf')])
+    await page.getByRole('button', { name: 'Add files' }).click()
+    const scanned = material(page, 'openstax-precalculus-scanned.pdf')
+    await expect(scanned.getByTestId('material-counts')).toContainText('1 of 2 pages read', { timeout: 60_000 })
+
+    // Kill only the import worker, as a crash would.
+    const killed = await app.evaluate(({ app: electronApp }) => {
+      const worker = electronApp.getAppMetrics().find((m) => m.type === 'Utility' && m.name === 'FeynMind ingestion')
+      if (worker) process.kill(worker.pid)
+      return worker?.pid ?? null
+    })
+    expect(killed).not.toBeNull()
+
+    // The window stays up and explains what happened.
+    const notice = page.getByTestId('worker-status')
+    await expect(notice).toContainText('The background import stopped unexpectedly')
+    await expect(notice).toContainText('It was restarted and continues where it left off', { timeout: 30_000 })
+    await expect(notice).toContainText(join(userDataDir, 'logs', 'exits.log'))
+    expect(app.process().exitCode).toBeNull()
+
+    // The import finishes after the restart.
+    await expect(scanned.getByTestId('material-counts')).toContainText('2 of 2 pages read', { timeout: 120_000 })
+    await expect(material(page, 'openstax-precalculus-text.pdf').getByTestId('material-counts')).toContainText('6 of 6 pages read', {
+      timeout: 60_000
+    })
+    expect(readFileSync(join(userDataDir, 'logs', 'exits.log'), 'utf8')).toMatch(/Ingestion worker exited unexpectedly with code -?\d+/)
+
+    await notice.getByRole('button', { name: 'Dismiss' }).click()
+    await expect(notice).toHaveCount(0)
+  } finally {
+    await app.close()
+  }
+  // A clean quit leaves no "did not shut down cleanly" line for the next start.
+  expect(existsSync(join(userDataDir, 'logs', 'running'))).toBe(false)
 })

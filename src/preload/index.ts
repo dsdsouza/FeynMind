@@ -34,6 +34,7 @@ const api: FeynMindApi = {
   'search:query': (request) => invoke('search:query', request),
   'models:status': () => invoke('models:status'),
   'models:retry': () => invoke('models:retry'),
+  'ingestion:status': () => invoke('ingestion:status'),
   on
 }
 

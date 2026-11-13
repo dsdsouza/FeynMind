@@ -52,6 +52,7 @@ test('keeps the renderer sandboxed and exposes only the typed bridge', async () 
   expect(exposed.require).toBe('undefined')
   expect(exposed.process).toBe('undefined')
   expect(exposed.bridge).toEqual([
+    'ingestion:status',
     'materials:add',
     'materials:issues',
     'materials:list',

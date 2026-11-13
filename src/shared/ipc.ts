@@ -8,7 +8,8 @@ import type {
   ModelStatus,
   PageIssue,
   SearchResponse,
-  Session
+  Session,
+  WorkerStatus
 } from './ingestion'
 
 export type ProviderId = 'gemini'
@@ -59,17 +60,19 @@ export interface IpcContract {
   'search:query': { request: { sessionId: number; query: string }; response: SearchResponse }
   'models:status': { request: undefined; response: ModelStatus }
   'models:retry': { request: undefined; response: ModelStatus }
+  'ingestion:status': { request: undefined; response: WorkerStatus }
 }
 
 /** Events the main process pushes to the renderer. */
 export interface IpcEvents {
   'ingestion:progress': MaterialSummary
   'models:progress': ModelStatus
+  'ingestion:worker': WorkerStatus
 }
 
 export type IpcEvent = keyof IpcEvents
 
-export const IPC_EVENTS = ['ingestion:progress', 'models:progress'] as const satisfies readonly IpcEvent[]
+export const IPC_EVENTS = ['ingestion:progress', 'models:progress', 'ingestion:worker'] as const satisfies readonly IpcEvent[]
 
 export type IpcChannel = keyof IpcContract
 export type IpcRequest<C extends IpcChannel> = IpcContract[C]['request']
@@ -89,7 +92,8 @@ export const IPC_CHANNELS = [
   'materials:renderPage',
   'search:query',
   'models:status',
-  'models:retry'
+  'models:retry',
+  'ingestion:status'
 ] as const satisfies readonly IpcChannel[]
 
 /** The API the preload script exposes on window.feynmind. */

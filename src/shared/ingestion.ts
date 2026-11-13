@@ -99,6 +99,21 @@ export interface SearchResponse {
   mode: 'hybrid' | 'keyword'
 }
 
+/** The background import process: whether it is running, and its last unexpected exit in this app session. */
+export interface WorkerStatus {
+  state: 'running' | 'restarting'
+  lastExit: {
+    /** The worker's exit code. */
+    code: number
+    /** ISO time of the exit. */
+    at: string
+    /** Unexpected exits so far in this app session. */
+    count: number
+  } | null
+  /** Where unexpected exits are recorded. */
+  logPath: string
+}
+
 export interface IngestionProgress {
   material: MaterialSummary
 }

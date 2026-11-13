@@ -1,6 +1,6 @@
 import { utilityProcess, type UtilityProcess } from 'electron'
 import type Database from 'better-sqlite3'
-import type { AddMaterialsResult, MaterialSummary, ModelStatus, PageIssue, SearchResponse } from '../../shared/ingestion'
+import type { AddMaterialsResult, MaterialSummary, ModelStatus, PageIssue, SearchResponse, WorkerStatus } from '../../shared/ingestion'
 import { BGE_SMALL_EN, totalSize } from './modelStore'
 import type { MainToWorker, WorkerInit, WorkerRequests, WorkerRequestType, WorkerToMain } from './protocol'
 import { IngestionRepo } from './repo'
@@ -17,6 +17,11 @@ export interface IngestionServiceOptions {
   init: Omit<WorkerInit, 'type'>
   onProgress: (summary: MaterialSummary) => void
   onModelStatus: (status: ModelStatus) => void
+  onWorkerStatus: (status: WorkerStatus) => void
+  /** Records an unexpected worker exit in the exit log. */
+  recordExit: (message: string) => void
+  /** The exit log's path, shown to the user after a restart. */
+  exitLogPath: string
 }
 
 interface Pending {
@@ -37,10 +42,12 @@ export class IngestionService {
   private nextId = 1
   private restarts = 0
   private stopping = false
+  private workerStatus: WorkerStatus
   private modelStatus: ModelStatus = { state: 'missing', name: BGE_SMALL_EN.name, receivedBytes: 0, totalBytes: totalSize(BGE_SMALL_EN), error: null }
 
   constructor(private readonly options: IngestionServiceOptions) {
     this.repo = new IngestionRepo(options.db)
+    this.workerStatus = { state: 'running', lastExit: null, logPath: options.exitLogPath }
   }
 
   start(): void {
@@ -51,6 +58,7 @@ export class IngestionService {
     worker.on('message', (message: WorkerToMain) => this.handle(message))
     worker.on('exit', (code) => this.onExit(worker, code))
     this.post({ type: 'init', ...this.options.init })
+    if (this.workerStatus.state !== 'running') this.setWorkerStatus({ ...this.workerStatus, state: 'running' })
   }
 
   /** Asks the worker to finish its current page and exit; kills it if it does not within `timeoutMs`. */
@@ -77,6 +85,10 @@ export class IngestionService {
 
   pageIssues(materialId: number): PageIssue[] {
     return this.repo.pageIssues(materialId)
+  }
+
+  getWorkerStatus(): WorkerStatus {
+    return this.workerStatus
   }
 
   getModelStatus(): ModelStatus {
@@ -159,9 +171,18 @@ export class IngestionService {
     // The worker resumes from the database, so restarting it continues the import.
     const delay = RESTART_DELAYS_MS[Math.min(this.restarts, RESTART_DELAYS_MS.length - 1)] ?? 30_000
     this.restarts++
-    console.error(`[ingestion] worker exited with code ${code}; restarting in ${delay / 1000} s`)
+    const count = (this.workerStatus.lastExit?.count ?? 0) + 1
+    const message = `Ingestion worker exited unexpectedly with code ${code}; restarting in ${delay / 1000} s (unexpected exit ${count} this session).`
+    console.error(`[ingestion] ${message}`)
+    this.options.recordExit(message)
+    this.setWorkerStatus({ ...this.workerStatus, state: 'restarting', lastExit: { code, at: new Date().toISOString(), count } })
     setTimeout(() => {
       if (!this.stopping) this.start()
     }, delay)
+  }
+
+  private setWorkerStatus(status: WorkerStatus): void {
+    this.workerStatus = status
+    this.options.onWorkerStatus(status)
   }
 }

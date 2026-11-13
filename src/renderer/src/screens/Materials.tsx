@@ -9,7 +9,8 @@ import {
   type PageRef,
   type SearchResponse,
   type SearchResult,
-  type Session
+  type Session,
+  type WorkerStatus
 } from '../../../shared/ingestion'
 import type { Result } from '../../../shared/ipc'
 
@@ -114,6 +115,7 @@ export function Materials() {
       )}
 
       {model && <ModelBanner status={model} onStatus={setModel} />}
+      <WorkerBanner />
 
       <div className="card">
         <div className="row">
@@ -170,6 +172,41 @@ function ModelBanner({ status, onStatus }: { status: ModelStatus; onStatus: (s: 
           Try again
         </button>
       )}
+    </div>
+  )
+}
+
+/** Tells the user when the background import process stopped unexpectedly and was restarted. */
+function WorkerBanner() {
+  const [status, setStatus] = useState<WorkerStatus | null>(null)
+  const [dismissedAt, setDismissedAt] = useState<string | null>(null)
+  useEffect(() => {
+    let cancelled = false
+    void api['ingestion:status']().then((result) => {
+      if (!cancelled && result.ok) setStatus(result.value)
+    })
+    const off = api.on('ingestion:worker', setStatus)
+    return () => {
+      cancelled = true
+      off()
+    }
+  }, [])
+  const exit = status?.lastExit
+  if (!status || !exit || exit.at === dismissedAt) return null
+  const time = new Date(exit.at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
+  return (
+    <div className="card" role="status" data-testid="worker-status">
+      <p className="warning">
+        The background import stopped unexpectedly at {time} (exit code {exit.code}
+        {exit.count > 1 ? `; ${exit.count} times this session` : ''}).{' '}
+        {status.state === 'restarting'
+          ? 'Restarting it…'
+          : 'It was restarted and continues where it left off; nothing already read is lost.'}
+      </p>
+      <p className="muted small">Details were saved to {status.logPath}</p>
+      <button type="button" className="secondary small" onClick={() => setDismissedAt(exit.at)}>
+        Dismiss
+      </button>
     </div>
   )
 }
