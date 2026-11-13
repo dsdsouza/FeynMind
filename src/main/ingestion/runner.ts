@@ -311,7 +311,8 @@ class SectionPlan {
       this.headings.push(...findHeadings(pages, this.style, this.headings.at(-1)?.chapter ?? null))
       this.scannedUpTo = readUpTo
     }
-    return splitLongSections(withLeadingStart(this.headings), this.pageCount, SPLIT_EVERY_PAGES)
+    const firstPage = repo.loadPages(this.material.id, 1, 1)[0] ?? null
+    return splitLongSections(withLeadingStart(this.headings, firstPage, this.style?.bodySize ?? null), this.pageCount, SPLIT_EVERY_PAGES)
   }
 }
 

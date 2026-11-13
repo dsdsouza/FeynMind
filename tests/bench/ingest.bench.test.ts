@@ -1,4 +1,5 @@
 import { mkdtempSync, readFileSync, rmSync } from 'node:fs'
+import Database from 'better-sqlite3'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { it } from 'vitest'
@@ -8,6 +9,7 @@ import { BGE_SMALL_EN, ensureModel } from '../../src/main/ingestion/modelStore'
 import { createTesseractOcr } from '../../src/main/ingestion/ocr'
 import { openPdf } from '../../src/main/ingestion/pdf'
 import { openPptx } from '../../src/main/ingestion/pptx'
+import { rechunkSection, sectionsTouching } from '../../src/main/ingestion/rechunk'
 import { IngestionRepo } from '../../src/main/ingestion/repo'
 import { IngestionRunner } from '../../src/main/ingestion/runner'
 import { searchPassages } from '../../src/main/ingestion/search'
@@ -20,6 +22,7 @@ import { openDatabase, SessionStore } from '../../src/main/storage'
 
 const files = (process.env['FEYNMIND_BENCH_FILES'] ?? '').split('\n').filter(Boolean)
 const queriesFile = process.env['FEYNMIND_BENCH_QUERIES']
+const transcriptsDb = process.env['FEYNMIND_BENCH_TRANSCRIPTS']
 const cacheDir = process.env['FEYNMIND_MODEL_CACHE'] ?? join(tmpdir(), 'feynmind-model-cache')
 
 const seconds = (ms: number): string => `${(ms / 1000).toFixed(1)} s`
@@ -66,6 +69,12 @@ it('ingests and searches', async () => {
     }
     console.log(`\nTotal wall time: ${seconds(wall)}`)
 
+    if (transcriptsDb) {
+      const copied = copyTranscripts(transcriptsDb, db, repo, sessionId)
+      console.log(`\nTranscriptions copied from ${transcriptsDb}: ${copied.pages} pages; re-chunked ${copied.sections} sections`)
+      await runner.run()
+    }
+
     if (queriesFile) {
       const failures = await runQueries(loadQueries(queriesFile), async (query) => (await searchPassages(repo, sessionId, query, embedder)).results)
       if (failures > 0) throw new Error(`${failures} search check(s) failed; see the lines marked FAIL above.`)
@@ -77,6 +86,36 @@ it('ingests and searches', async () => {
     rmSync(workDir, { recursive: true, force: true })
   }
 }, 3 * 60 * 60 * 1000)
+
+/**
+ * Copies vision transcriptions for the same files (matched by SHA-256) from an app database,
+ * opened read-only, then re-chunks the sections they touch. The source database is never changed.
+ */
+function copyTranscripts(sourcePath: string, db: Database.Database, repo: IngestionRepo, sessionId: number): { pages: number; sections: number } {
+  const source = new Database(sourcePath, { readonly: true, fileMustExist: true })
+  let pages = 0
+  let sections = 0
+  try {
+    const rows = source.prepare<[string], { pageIndex: number; blocks: string; text: string; cacheKey: string }>(
+      `SELECT t.page_index AS pageIndex, t.blocks, t.text, t.cache_key AS cacheKey FROM page_transcripts t
+       JOIN materials m ON m.id = t.material_id WHERE m.sha256 = ? ORDER BY t.page_index`
+    )
+    const insert = db.prepare('INSERT OR REPLACE INTO page_transcripts (session_id, material_id, page_index, blocks, text, cache_key) VALUES (?, ?, ?, ?, ?, ?)')
+    for (const m of repo.listMaterials(sessionId, true)) {
+      const sha = repo.getMaterial(m.id)?.sha256 ?? ''
+      const found = rows.all(sha)
+      for (const r of found) insert.run(sessionId, m.id, r.pageIndex, r.blocks, r.text, r.cacheKey)
+      pages += found.length
+      for (const id of sectionsTouching(repo, m.id, found.map((r) => r.pageIndex))) {
+        rechunkSection(repo, id)
+        sections++
+      }
+    }
+  } finally {
+    source.close()
+  }
+  return { pages, sections }
+}
 
 /**
  * A search to try. `page` (a 1-based PDF page) or `pages` (an inclusive range) is where the first

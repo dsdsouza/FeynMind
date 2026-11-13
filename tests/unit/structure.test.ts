@@ -5,6 +5,7 @@ import {
   bodyFontSize,
   contentLines,
   detectHeadings,
+  withLeadingStart,
   headingStyleOf,
   inferPageLabels,
   isUsableOutline,
@@ -174,5 +175,24 @@ describe('heading style', () => {
     const style = headingStyleOf(pages)
     expect(style).toEqual({ bodySize: 10, numbered: false })
     expect(detectHeadings(pages, must(style)).map((s) => s.section)).toEqual(['Topic One', 'Topic Two'])
+  })
+})
+
+describe('withLeadingStart', () => {
+  const line = (text: string, y: number, size = 10) => ({ text, x: 72, y, size, bold: false })
+  const heading = { chapter: null, section: 'Try It', startPage: 1, startY: 400 }
+
+  it('keeps text that comes before the first heading on page 1 in an untitled section', () => {
+    const page = { index: 1, height: 792, lines: [line('Example 5 Finding the sum of two matrices', 120), line('Try It', 400, 14)] }
+    expect(withLeadingStart([heading], page, 10).map((s) => [s.startPage, s.startY, s.section])).toEqual([[1, 0, null], [1, 400, 'Try It']])
+  })
+
+  it('adds nothing when only a running head sits above the first heading', () => {
+    const page = { index: 1, height: 792, lines: [line('808 CHAPTER 9', 30, 9), line('Try It', 400, 14)] }
+    expect(withLeadingStart([heading], page, 10)).toEqual([heading])
+  })
+
+  it('adds a leading section when the first heading is on a later page', () => {
+    expect(withLeadingStart([{ ...heading, startPage: 3 }], null, 10)[0]).toEqual({ chapter: null, section: null, startPage: 1, startY: 0 })
   })
 })

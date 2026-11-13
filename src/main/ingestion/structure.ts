@@ -100,13 +100,21 @@ export function headingStyleOf(sample: StoredPage[]): HeadingStyle | null {
 
 /** Finds chapter and section headings by their size, position and numbering, for documents without an outline. */
 export function detectHeadings(pages: StoredPage[], style: HeadingStyle): SectionStart[] {
-  return withLeadingStart(findHeadings(pages, style, null))
+  return withLeadingStart(findHeadings(pages, style, null), pages.find((p) => p.index === 1) ?? null, style.bodySize)
 }
 
-/** Adds an untitled start at the top of page 1 when the first heading comes later. */
-export function withLeadingStart(starts: SectionStart[]): SectionStart[] {
+/**
+ * Adds an untitled start at the top of page 1 when the first heading comes later: on a later
+ * page, or below text on page 1 (running heads, page numbers and lone numbers do not count). Without it, the
+ * text before the first heading would belong to no section and never be searchable.
+ */
+export function withLeadingStart(starts: SectionStart[], firstPage: StoredPage | null, bodySize: number | null): SectionStart[] {
   const first = starts[0]
-  return !first || first.startPage > 1 ? [{ chapter: null, section: null, startPage: 1, startY: 0 }, ...starts] : starts
+  const leading: SectionStart = { chapter: null, section: null, startPage: 1, startY: 0 }
+  if (!first || first.startPage > 1) return [leading, ...starts]
+  // A big chapter number or a lone label above the heading is decoration, not text worth a section.
+  const textAbove = firstPage !== null && contentLines(firstPage, bodySize).some((line) => line.y < first.startY && /\p{L}{3,}/u.test(line.text))
+  return textAbove ? [leading, ...starts] : starts
 }
 
 /**

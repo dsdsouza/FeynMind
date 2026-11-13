@@ -8,7 +8,6 @@ import { basename, join } from 'node:path'
 import type Database from 'better-sqlite3'
 import type { ModelStatus } from '../../shared/ingestion'
 import { openDatabase } from '../storage'
-import { chunkSection, DEFAULT_CHUNK_OPTIONS } from './chunker'
 import { createBgeEmbedder, type Embedder } from './embedder'
 import { importFiles } from './importer'
 import { BGE_SMALL_EN, ensureModel, isModelReady, modelFolder, totalSize } from './modelStore'
@@ -17,6 +16,7 @@ import { analyzePage } from './pageAnalysis'
 import { openPdf } from './pdf'
 import { openPptx } from './pptx'
 import type { MainToWorker, WorkerInit, WorkerRequests, WorkerRequestType, WorkerToMain } from './protocol'
+import { rechunkSection } from './rechunk'
 import { IngestionRepo } from './repo'
 import { IngestionRunner, OCR_DPI } from './runner'
 import { searchPassages } from './search'
@@ -200,17 +200,9 @@ const handlers: { [K in WorkerRequestType]: (payload: WorkerRequests[K]['request
     if (!state) throw new Error('The ingestion worker is not ready.')
     let chunks = 0
     for (const id of sectionIds) {
-      const bounds = state.repo.sectionBounds(id)
-      if (!bounds) throw new Error(`Section ${id} no longer exists.`)
-      const lastPage = bounds.next?.startPage ?? bounds.material.pageCount ?? bounds.lastPage
-      const pages = state.repo.loadPages(bounds.material.id, bounds.start.startPage, lastPage, true)
-      const drafts = chunkSection(pages, bounds.start, bounds.next, bounds.material.bodyFontSize, {
-        ...DEFAULT_CHUNK_OPTIONS,
-        stripMargins: bounds.material.kind === 'pdf'
-      })
-      state.repo.replaceSectionChunks(id, drafts)
-      chunks += drafts.length
-      reportProgress(bounds.material.id)
+      chunks += rechunkSection(state.repo, id)
+      const materialId = state.repo.getSection(id)?.materialId
+      if (materialId !== undefined) reportProgress(materialId)
     }
     // Embed the new chunks in the background, as for an import.
     void loadModel()
