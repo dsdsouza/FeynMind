@@ -11,7 +11,7 @@ If a request conflicts with either document, say so and ask before proceeding. I
 
 ## Current milestone
 
-**Milestone 2: Ingestion** (see `docs/tech-plan.md`, Build plan). Milestone 1 (Skeleton) is done.
+**Milestone 3: Knowledge** (see `docs/tech-plan.md`, Build plan). Milestones 1 (Skeleton) and 2 (Ingestion) are done.
 
 Work on one milestone at a time. Do not build features from later milestones, even when it seems convenient. A milestone is finished only when its "Done when" test passes. Update this section when a milestone is completed.
 
