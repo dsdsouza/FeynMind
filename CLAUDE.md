@@ -69,11 +69,13 @@ Keep this section current.
 npm install          # install dependencies; postinstall rebuilds better-sqlite3 for Electron
 npm run dev          # run the app in development (reads GEMINI_API_KEY from .env.local if no key is saved)
 npm test             # unit tests, run inside Electron's Node; no network (about a minute: includes local OCR)
-npm run test:e2e     # builds, then Playwright opens the app with a throwaway profile; no network (model download off)
+npm run test:e2e     # builds, then Playwright opens the app with a throwaway profile; no network (model download off, model replies replayed)
 npm run test:live    # opt-in: 2 real Gemini calls (list models + one short prompt) using .env.local
+FEYNMIND_LIVE_BATCH=A node scripts/run-vitest.mjs --live run --config vitest.live.config.mts tests/live/knowledge.live.test.ts  # opt-in: one batch of real knowledge calls (A/B/E 2, C 4, D 2, models 1; toc and dump 0) on fixtures only; writes tests/fixtures/recorded/
 npm run test:models  # opt-in: downloads the pinned embedding model once (~35 MB) and checks its vectors; no model API calls
 npm run bench:ingest -- <file> [...] [--queries q.json]  # real pipeline on your own files, throwaway database, prints timings; checks expected pages in q.json
 npm run bench:ingest -- "<Strang PDF>" --queries tests/bench/strang-regression.json  # search regression set (13 checks, ~8 min); run after any search change
+npm run bench:ingest -- "<Strang PDF>" --queries tests/bench/strang-regression.json --transcripts-from "%APPDATA%eynmindeynmind.db"  # the same with the app's vision transcriptions of that book loaded (read-only, no model calls)
 npm run typecheck    # TypeScript check for main/preload and renderer
 npm run lint         # ESLint
 npm run build        # typecheck, then production build into out/
@@ -94,5 +96,9 @@ Gotchas:
 - Unexpected exits (worker crashes, killed or crashed app, uncaught main-process errors) are logged to `logs/exits.log` in the same folder. Check it first when the app or an import stops on its own.
 - Ingestion runs in an Electron utility process (`src/main/ingestion/worker.ts`). Unit tests run with `ELECTRON_RUN_AS_NODE`, so they miss problems specific to that process (PDF.js, for example, takes any non-main Electron process for a browser; see `loadPdfjs`). Check ingestion changes with `npm run test:e2e` and `npm run smoke` too.
 - `npm run smoke` downloads the embedding model into its throwaway profile; set `FEYNMIND_SMOKE_MODEL_CACHE` to a folder to reuse it between runs. `FEYNMIND_MODEL_DOWNLOAD=off` stops the app from downloading the model (search is then keyword-only); the e2e tests set it.
+- Knowledge jobs (syllabus, unit processing) run in the main process, not the worker, because they need the decrypted key; the worker still renders pages, re-chunks and embeds for them. Every model request goes through `ProviderService.run`, which checks the cache, the session's caps and the rate limiter, and records the ledger (`model_calls`).
+- Prompt files start with a header (`version`, `thinking`, `max-output-tokens`, `output-*`). The cache key hashes everything except the `output-*` lines, which only feed estimates: retuning a ratio never re-bills, any other edit invalidates only that prompt's results.
+- `FEYNMIND_PROVIDER_REPLAY=<file.json>` makes an unpackaged app answer model requests from a file (see `src/main/providers/replay.ts`); the knowledge e2e test uses it. The test also needs the embedding model on disk: it copies it from `FEYNMIND_SMOKE_MODEL_CACHE` or the development profile, and skips (saying why) when neither has it.
+- Vitest hides console output of passing tests here; add `--silent=false` to see it.
 - In `electron-builder.yml`, never put a `files:` list under `win`/`mac`/`linux` that only excludes: electron-builder then packs the whole project folder, old builds included. Keep file filters at the top level, where `${platform}` and `${arch}` work.
 - Native, WASM and worker-thread packages must be listed under `asarUnpack`. Tesseract's worker thread loads its own dependencies from the unpacked folder, so they are unpacked too.
