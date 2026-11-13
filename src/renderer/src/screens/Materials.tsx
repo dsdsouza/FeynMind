@@ -366,6 +366,9 @@ function Search({ sessionId, kinds }: { sessionId: number; kinds: Map<number, 'p
 function ResultItem({ result: r, kind }: { result: SearchResult; kind: 'pdf' | 'pptx' }) {
   const [expanded, setExpanded] = useState(false)
   const where = [r.chapter, r.section].filter(Boolean).join(' › ')
+  const matchPages = formatPages(r.matchStart, r.matchEnd, kind)
+  const passagePages = formatPages(r.pageStart, r.pageEnd, kind)
+  const { before, focus, after } = r.context
   return (
     <li className="result" data-testid="search-result">
       <p className="result-source">
@@ -373,15 +376,28 @@ function ResultItem({ result: r, kind }: { result: SearchResult; kind: 'pdf' | '
         {where && <span> · {where}</span>}
         <span className="pages" data-testid="result-pages">
           {' '}
-          · {formatPages(r.pageStart, r.pageEnd, kind)}
+          · {matchPages}
         </span>
+        {passagePages !== matchPages && (
+          <span className="pages passage-pages" data-testid="result-passage-pages">
+            {' '}
+            (passage {passagePages})
+          </span>
+        )}
       </p>
-      <p className={expanded ? 'snippet' : 'snippet clamped'}>
-        <Highlighted text={r.snippet} />
+      {r.focusKind === 'none' && <p className="muted small">Related by meaning; it shares no words with your question.</p>}
+      <p className="snippet" data-testid="result-snippet">
+        {before && (expanded ? <Highlighted text={before + ' '} /> : '… ')}
+        <span className="focus" data-testid="result-focus">
+          <Highlighted text={focus} />
+        </span>
+        {after && (expanded ? <Highlighted text={' ' + after} /> : ' …')}
       </p>
-      <button type="button" className="link small" onClick={() => setExpanded((v) => !v)} aria-expanded={expanded}>
-        {expanded ? 'Show less' : 'Show the whole passage'}
-      </button>
+      {(before || after) && (
+        <button type="button" className="link small" onClick={() => setExpanded((v) => !v)} aria-expanded={expanded}>
+          {expanded ? 'Show less' : 'Show the whole passage'}
+        </button>
+      )}
     </li>
   )
 }

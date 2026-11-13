@@ -90,6 +90,19 @@ test('imports files without freezing the window, shows progress and flagged page
     await expect(first.getByTestId('result-pages')).toContainText('p. 22 (PDF 5)')
     await expect(page.getByText('Keyword search only')).toBeVisible()
 
+    // Quoting an exercise from deep inside a two-page passage: the result opens on that sentence,
+    // with the quoted wording highlighted, and gives the page the exercise is printed on.
+    await page.getByLabel('Search your materials').fill('evaluate the function f at the values f(−2), f(−1), f(0), f(1), and f(2)')
+    await page.getByRole('button', { name: 'Search' }).click()
+    const quoted = page.getByTestId('search-result').first()
+    await expect(quoted.getByTestId('result-focus')).toHaveText(/^For the following exercises, evaluate the function f at the values/)
+    await expect(quoted.getByTestId('result-focus').locator('mark').first()).toHaveText(/^evaluate the function f at the values/)
+    await expect(quoted.getByTestId('result-pages')).toContainText('p. 21 (PDF 4)')
+    await expect(quoted.getByTestId('result-passage-pages')).toContainText('passage pp. 3–21 (PDF 3–4)')
+    await expect(quoted.getByTestId('result-snippet')).not.toContainText('If we consider the prices')
+    await quoted.getByRole('button', { name: 'Show the whole passage' }).click()
+    await expect(quoted.getByTestId('result-snippet')).toContainText('If we consider the prices')
+
     await page.getByLabel('Search your materials').fill('students forget to add the products')
     await page.getByRole('button', { name: 'Search' }).click()
     await expect(page.getByTestId('search-result').first().getByTestId('result-pages')).toContainText('slide 2')

@@ -3,6 +3,7 @@ import type { MaterialKind, MaterialStage, MaterialStatus, MaterialSummary, Page
 import type { ChunkDraft } from './chunker'
 import type { SectionStart, StoredPage } from './structure'
 import type { TextLine } from './types'
+import type { PageText } from './wording'
 
 // All SQL for the ingestion tables. Used by the worker (reads and writes) and by the main
 // process (reads only).
@@ -366,6 +367,24 @@ export class IngestionRepo {
       )
       .all(vector, limit, sessionId)
       .map((r) => r.id)
+  }
+
+  /** Passage texts by chunk id, for checking the query's wording against each candidate. */
+  chunkTexts(ids: number[]): Map<number, string> {
+    const rows = this.db
+      .prepare<[string], { id: number; text: string }>('SELECT id, text FROM chunks WHERE id IN (SELECT value FROM json_each(?))')
+      .all(JSON.stringify(ids))
+    return new Map(rows.map((r) => [r.id, r.text]))
+  }
+
+  /** Stored text of a range of pages, in order, with printed page numbers. */
+  pageTexts(materialId: number, from: number, to: number): PageText[] {
+    return this.db
+      .prepare<[number, number, number], PageText>(
+        `SELECT page_index AS "index", page_label AS label, coalesce(text, '') AS text FROM pages
+         WHERE material_id = ? AND page_index BETWEEN ? AND ? ORDER BY page_index`
+      )
+      .all(materialId, from, to)
   }
 
   chunkDetails(ids: number[]): Map<number, ChunkDetails> {

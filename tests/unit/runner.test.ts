@@ -13,6 +13,7 @@ import { IngestionRunner, type RunnerDeps } from '../../src/main/ingestion/runne
 import { searchPassages } from '../../src/main/ingestion/search'
 import type { DocumentSource } from '../../src/main/ingestion/types'
 import { openDatabase, SessionStore } from '../../src/main/storage'
+import { MATCH_START } from '../../src/shared/ingestion'
 import { createFakeEmbedder } from './fakes/fakeEmbedder'
 import { fixture, must } from './helpers'
 
@@ -140,6 +141,22 @@ describe('the ingestion queue', () => {
     expect(top).toMatchObject({ fileName: 'openstax-precalculus-text.pdf', section: '1.2. Domain and Range', matchedBy: { keyword: true, vector: true } })
     // Printed page numbers come from the PDF's page labels: PDF page 5 is printed page 22.
     expect(top.pageStart).toEqual({ index: 5, label: '22' })
+
+    // Quoting an exercise from deep inside a passage that spans two pages: the passage comes first,
+    // opens on the exercise rather than the passage start, and gives the page the exercise is on.
+    const exercise = await searchPassages(repo, sessionId, 'evaluate the function f at the values f(−2), f(−1), f(0), f(1), and f(2)', embedder)
+    const quoted = must(exercise.results[0], 'a result')
+    expect(quoted).toMatchObject({
+      section: '1.1. Functions and Function Notation',
+      focusKind: 'wording',
+      matchedBy: { wording: true },
+      pageStart: { index: 3, label: '3' },
+      pageEnd: { index: 4, label: '21' },
+      matchStart: { index: 4, label: '21' },
+      matchEnd: { index: 4, label: '21' }
+    })
+    expect(quoted.context.before).toMatch(/^If we consider the prices/)
+    expect(quoted.context.focus).toMatch(new RegExp(`^For the following exercises, ${MATCH_START}evaluate the function f at the values`))
 
     const notes = await searchPassages(repo, sessionId, 'students forget to add the products', embedder)
     expect(notes.results[0]).toMatchObject({ fileName: 'vectors-dot-product.pptx', section: 'Computing the dot product', pageStart: { index: 2, label: null } })

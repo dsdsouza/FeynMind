@@ -261,11 +261,14 @@ progress {
   white-space: pre-wrap;
 }
 
-.snippet.clamped {
-  display: -webkit-box;
-  -webkit-line-clamp: 4;
-  -webkit-box-orient: vertical;
-  overflow: hidden;
+/* The sentences a result opens on; set off from the rest of the passage when it is expanded. */
+.snippet .focus {
+  background: color-mix(in srgb, var(--accent) 8%, transparent);
+  border-radius: 2px;
+}
+
+.passage-pages {
+  font-size: 0.85rem;
 }
 
 mark {

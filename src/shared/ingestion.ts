@@ -71,11 +71,23 @@ export interface SearchResult {
   fileName: string
   chapter: string | null
   section: string | null
+  /** The whole passage's page range. */
   pageStart: PageRef
   pageEnd: PageRef
-  /** Passage text. Matched query words are wrapped in MATCH_START and MATCH_END. */
-  snippet: string
-  matchedBy: { keyword: boolean; vector: boolean }
+  /** The pages holding the sentences the result opens on; the passage's range if they could not be placed. */
+  matchStart: PageRef
+  matchEnd: PageRef
+  /**
+   * The passage split around the sentences to open on (`focus`). Matched query words, and a run of
+   * the query's exact wording, are wrapped in MATCH_START and MATCH_END in all three parts.
+   */
+  context: { before: string; focus: string; after: string }
+  /**
+   * What the focus sentences are: 'wording' repeats the query's wording, 'words' holds the most
+   * query words, 'none' shares no words with the query (found by meaning) and is the passage start.
+   */
+  focusKind: 'wording' | 'words' | 'none'
+  matchedBy: { keyword: boolean; vector: boolean; wording: boolean }
 }
 
 export const MATCH_START = '\u{E000}'
