@@ -7,7 +7,7 @@ import { ExitLog } from './exitLog'
 import { IngestionService } from './ingestion'
 import ingestionWorkerPath from './ingestion/worker?modulePath'
 import { registerIpcHandlers } from './ipc'
-import { createGeminiAdapter, ProviderService } from './providers'
+import { createGeminiAdapter, ProviderService, UsageStore } from './providers'
 import { openDatabase, SessionStore, SettingsStore } from './storage'
 
 // Lets end-to-end tests run against a throwaway profile instead of the user's real data.
@@ -177,15 +177,18 @@ void app.whenReady().then(() => {
     })
   })
 
+  const sessions = new SessionStore(db)
   const providers = new ProviderService({
     settings: new SettingsStore(db),
     encryptor: safeStorage,
     createAdapter: createGeminiAdapter,
     devKey: readDevKey(),
-    loadPrompt
+    loadPrompt,
+    usage: new UsageStore(db),
+    limits: (sessionId) => sessions.limits(sessionId)
   })
   describeError = (error) => providers.safeErrorMessage(error)
-  registerIpcHandlers({ providers, ingestion, sessions: new SessionStore(db), pickMaterialFiles }, (event) =>
+  registerIpcHandlers({ providers, ingestion, sessions, pickMaterialFiles }, (event) =>
     isAppUrl(event.senderFrame?.url ?? '')
   )
 

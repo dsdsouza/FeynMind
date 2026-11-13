@@ -1,16 +1,37 @@
 import type { ModelInfo } from '../../../src/shared/ipc'
-import type { AdapterFactory, AdapterOptions, Encryptor, ProviderAdapter } from '../../../src/main/providers'
+import type { AdapterFactory, AdapterOptions, Encryptor, GenerateRequest, GenerateResult, ProviderAdapter } from '../../../src/main/providers'
 
 export function model(id: string): ModelInfo {
   return { id, displayName: id, description: '', inputTokenLimit: null, outputTokenLimit: null }
 }
 
-/** A provider that never touches the network. Records every call so tests can assert on them. */
+/** A scripted answer: a reply (text and optional usage) or an error to throw. */
+export type FakeAnswer = { text: string; inputTokens?: number; outputTokens?: number; thinkingTokens?: number } | Error
+
+/**
+ * A provider that never touches the network. Records every call so tests can assert on them.
+ * `generate` answers from `queue` first, then from `respond`, then with `reply`.
+ */
 export class FakeProvider {
   models: ModelInfo[] = [model('fake-pro'), model('gemini-3.5-flash-lite')]
   reply = 'Hello from the fake model.'
   failWith: Error | null = null
-  readonly calls: { method: 'listModels' | 'generateText'; apiKey: string; modelId?: string; prompt?: string }[] = []
+  queue: FakeAnswer[] = []
+  respond: ((request: GenerateRequest) => FakeAnswer) | null = null
+  readonly calls: { method: 'listModels' | 'generate'; apiKey: string; modelId?: string; prompt?: string; request?: GenerateRequest }[] = []
+
+  get generateCalls(): GenerateRequest[] {
+    return this.calls.filter((c) => c.method === 'generate').map((c) => c.request as GenerateRequest)
+  }
+
+  private answer(request: GenerateRequest): GenerateResult {
+    const next = this.queue.shift() ?? this.respond?.(request) ?? { text: this.reply }
+    if (next instanceof Error) throw next
+    const inputTokens = next.inputTokens ?? Math.ceil(request.prompt.length / 4)
+    const thinkingTokens = next.thinkingTokens ?? 0
+    const outputTokens = (next.outputTokens ?? Math.ceil(next.text.length / 4)) + thinkingTokens
+    return { text: next.text, usage: { inputTokens, outputTokens, thinkingTokens } }
+  }
 
   readonly factory: AdapterFactory = (options: AdapterOptions): ProviderAdapter => ({
     id: 'gemini',
@@ -19,10 +40,10 @@ export class FakeProvider {
       if (this.failWith) throw this.failWith
       return this.models
     },
-    generateText: async ({ modelId, prompt }) => {
-      this.calls.push({ method: 'generateText', apiKey: options.apiKey, modelId, prompt })
+    generate: async (request) => {
+      this.calls.push({ method: 'generate', apiKey: options.apiKey, modelId: request.modelId, prompt: request.prompt, request })
       if (this.failWith) throw this.failWith
-      return this.reply
+      return this.answer(request)
     }
   })
 }

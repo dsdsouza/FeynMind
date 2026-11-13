@@ -32,8 +32,8 @@ describe.runIf(live)('Gemini (live)', () => {
     const modelId = PREFERRED_DEFAULT_MODELS.find((id) => ids.includes(id))
     if (!modelId) throw new Error('None of the preferred cheap models is available for this key')
 
-    const reply = await adapter.generateText({ modelId, prompt: 'Reply with the single word: pong' })
-    console.log(`${modelId} replied: ${reply.trim()}`)
-    expect(reply.trim().length).toBeGreaterThan(0)
+    const reply = await adapter.generate({ modelId, prompt: 'Reply with the single word: pong' })
+    console.log(`${modelId} replied: ${reply.text.trim()}`)
+    expect(reply.text.trim().length).toBeGreaterThan(0)
   }, 60_000)
 })

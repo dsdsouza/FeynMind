@@ -1,15 +1,17 @@
 import { createGoogleGenerativeAI } from '@ai-sdk/google'
-import { APICallError, generateText } from 'ai'
+import { APICallError, generateText, jsonSchema, NoObjectGeneratedError, Output, type LanguageModelUsage } from 'ai'
 import type { ModelInfo } from '../../shared/ipc'
 import { describeHttpStatus } from './errors'
-import { ProviderError, type AdapterFactory, type FetchFn } from './types'
+import { ProviderError, type AdapterFactory, type FetchFn, type GenerateRequest, type GenerateResult, type TokenUsage } from './types'
 
 // Endpoint and resource shape from Google's API reference (models.list), checked 2026-11-12:
 // GET {base}/models?pageSize=&pageToken=, with the key in the x-goog-api-key header.
 export const GEMINI_BASE_URL = 'https://generativelanguage.googleapis.com/v1beta'
 const PAGE_SIZE = 1000
 const MAX_PAGES = 20
-const REQUEST_TIMEOUT_MS = 30_000
+const LIST_TIMEOUT_MS = 30_000
+/** Long enough for a page image or a whole section; the rate limiter retries a timeout. */
+const GENERATE_TIMEOUT_MS = 180_000
 
 interface RawModel {
   name?: unknown
@@ -39,6 +41,71 @@ function toModelInfo(raw: RawModel): ModelInfo | null {
   }
 }
 
+interface GoogleErrorBody {
+  error?: { code?: unknown; message?: unknown; status?: unknown; details?: unknown }
+}
+
+function parseBody(text: string | undefined): GoogleErrorBody | null {
+  if (!text) return null
+  try {
+    return JSON.parse(text) as GoogleErrorBody
+  } catch {
+    return null
+  }
+}
+
+/** "34s" or "1.5s" (protobuf Duration as JSON) to milliseconds. */
+function durationMs(value: unknown): number | null {
+  if (typeof value !== 'string') return null
+  const match = /^(\d+(?:\.\d+)?)s$/.exec(value.trim())
+  return match ? Math.ceil(Number(match[1]) * 1000) : null
+}
+
+/**
+ * Classifies an error response from the Gemini API.
+ *
+ * Google documents 429 RESOURCE_EXHAUSTED and 503 UNAVAILABLE as transient and to be retried with
+ * backoff (troubleshooting page, checked 2026-11-13), and that daily quotas reset at midnight
+ * Pacific time (rate-limits page). It does not publish a full 429 body. Observed bodies carry a
+ * `details` array with a google.rpc.RetryInfo (`retryDelay`, e.g. "21s") and a
+ * google.rpc.QuotaFailure whose violations name the quota (`quotaId`, e.g.
+ * "GenerateRequestsPerDayPerProjectPerModel-FreeTier"). A per-day quota is treated as exhausted
+ * until the reset; anything else as a short-term limit. Many 429s carry no details at all, so
+ * those are a short-term limit with no known delay.
+ */
+export function classifyGeminiError(status: number, bodyText: string | undefined): ProviderError {
+  const body = parseBody(bodyText)
+  const providerMessage = typeof body?.error?.message === 'string' ? body.error.message : undefined
+  const message = describeHttpStatus(status, providerMessage ? shorten(providerMessage) : undefined)
+  if (status === 429) {
+    const details = Array.isArray(body?.error?.details) ? (body.error.details as Record<string, unknown>[]) : []
+    let retryAfterMs: number | null = null
+    let daily = false
+    for (const detail of details) {
+      const type = typeof detail['@type'] === 'string' ? detail['@type'] : ''
+      if (type.endsWith('google.rpc.RetryInfo')) retryAfterMs = durationMs(detail['retryDelay'])
+      if (type.endsWith('google.rpc.QuotaFailure') && Array.isArray(detail['violations'])) {
+        for (const violation of detail['violations'] as Record<string, unknown>[]) {
+          const id = `${String(violation['quotaId'] ?? '')} ${String(violation['quotaMetric'] ?? '')}`
+          if (/PerDay|Daily/i.test(id)) daily = true
+        }
+      }
+    }
+    return daily
+      ? new ProviderError('The daily request quota for this model is used up. It resets at midnight Pacific time.', 'quota-daily')
+      : new ProviderError(message, 'rate-limit', retryAfterMs)
+  }
+  if (status === 401 || status === 403) return new ProviderError(message, 'auth')
+  if (status === 404) return new ProviderError(message, 'not-found')
+  if (status === 408) return new ProviderError(message, 'timeout')
+  if (status >= 500) return new ProviderError(message, 'overloaded')
+  return new ProviderError(message, 'bad-request')
+}
+
+function shorten(text: string): string {
+  return text.length > 200 ? `${text.slice(0, 200)}…` : text
+}
+
 async function providerMessageOf(response: Response): Promise<string | undefined> {
   try {
     const body = (await response.json()) as { error?: { message?: unknown } }
@@ -46,6 +113,24 @@ async function providerMessageOf(response: Response): Promise<string | undefined
   } catch {
     return undefined
   }
+}
+
+/**
+ * Billed tokens. Google bills thinking as output; its raw usage reports the reply
+ * (candidatesTokenCount) and thinking (thoughtsTokenCount) separately, so they are added here
+ * rather than relying on how the SDK combines them.
+ */
+export function usageOf(usage: LanguageModelUsage | undefined): TokenUsage {
+  const raw = (usage?.raw ?? {}) as Record<string, unknown>
+  const num = (v: unknown): number | null => (typeof v === 'number' && Number.isFinite(v) ? v : null)
+  const prompt = num(raw['promptTokenCount'])
+  const candidates = num(raw['candidatesTokenCount'])
+  const thoughts = num(raw['thoughtsTokenCount']) ?? 0
+  if (prompt !== null && candidates !== null) {
+    return { inputTokens: prompt, outputTokens: candidates + thoughts, thinkingTokens: thoughts }
+  }
+  const thinking = usage?.outputTokenDetails.reasoningTokens ?? 0
+  return { inputTokens: usage?.inputTokens ?? 0, outputTokens: usage?.outputTokens ?? 0, thinkingTokens: thinking }
 }
 
 export const createGeminiAdapter: AdapterFactory = ({ apiKey, fetch }) => {
@@ -66,10 +151,10 @@ export const createGeminiAdapter: AdapterFactory = ({ apiKey, fetch }) => {
 
         const response = await doFetch(url, {
           headers: { 'x-goog-api-key': apiKey },
-          signal: AbortSignal.timeout(REQUEST_TIMEOUT_MS)
+          signal: AbortSignal.timeout(LIST_TIMEOUT_MS)
         })
         if (!response.ok) {
-          throw new ProviderError(describeHttpStatus(response.status, await providerMessageOf(response)))
+          throw new ProviderError(describeHttpStatus(response.status, await providerMessageOf(response)), response.status === 429 ? 'rate-limit' : 'bad-request')
         }
         const body = (await response.json()) as RawListResponse
         for (const raw of body.models ?? []) {
@@ -82,20 +167,40 @@ export const createGeminiAdapter: AdapterFactory = ({ apiKey, fetch }) => {
       return models.sort((a, b) => a.id.localeCompare(b.id))
     },
 
-    async generateText({ modelId, prompt }) {
+    async generate(request: GenerateRequest): Promise<GenerateResult> {
+      const images = request.images ?? []
+      const content = [
+        { type: 'text' as const, text: request.prompt },
+        ...images.map((data) => ({ type: 'file' as const, mediaType: 'image/png', data }))
+      ]
       try {
         const result = await generateText({
-          model: google(modelId),
-          prompt,
-          // One attempt only: retries would multiply calls against low free-tier rate limits.
+          model: google(request.modelId),
+          ...(request.system ? { system: request.system } : {}),
+          messages: [{ role: 'user', content }],
+          ...(request.jsonSchema ? { output: Output.object({ schema: jsonSchema(request.jsonSchema) }) } : {}),
+          ...(request.maxOutputTokens ? { maxOutputTokens: request.maxOutputTokens } : {}),
+          providerOptions: {
+            google: {
+              ...(request.thinking ? { thinkingConfig: { thinkingLevel: request.thinking } } : {}),
+              // 1120 tokens per image on Gemini 3 (media-resolution page, checked 2026-11-13): small
+              // subscripts and matrix entries need the high setting, and a fixed count keeps estimates exact.
+              ...(images.length > 0 ? { mediaResolution: 'MEDIA_RESOLUTION_HIGH' } : {})
+            }
+          },
+          // One attempt only: the rate limiter decides when to try again.
           maxRetries: 0,
-          timeout: REQUEST_TIMEOUT_MS
+          timeout: GENERATE_TIMEOUT_MS
         })
-        return result.text
+        return { text: result.text, usage: usageOf(result.usage) }
       } catch (error) {
-        if (APICallError.isInstance(error) && error.statusCode !== undefined) {
-          throw new ProviderError(describeHttpStatus(error.statusCode, error.message))
+        // The reply arrived (and was billed) but was not valid JSON for the schema: return it, the caller validates.
+        if (NoObjectGeneratedError.isInstance(error)) return { text: error.text ?? '', usage: usageOf(error.usage) }
+        if (APICallError.isInstance(error) && error.statusCode !== undefined) throw classifyGeminiError(error.statusCode, error.responseBody)
+        if (error instanceof Error && (error.name === 'TimeoutError' || error.name === 'AbortError')) {
+          throw new ProviderError('The provider did not answer in time.', 'timeout')
         }
+        if (APICallError.isInstance(error)) throw new ProviderError('Could not reach the provider. Check the connection.', 'network')
         throw error
       }
     }
