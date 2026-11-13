@@ -25,7 +25,8 @@ export interface Embedder {
 /** BGE models expect this instruction in front of a search question (not in front of passages). */
 const BGE_QUERY_INSTRUCTION = 'Represent this sentence for searching relevant passages: '
 const MAX_TOKENS = 512
-const BATCH_SIZE = 16
+/** Small batches keep memory low: a batch of long passages needs several hundred MB of activations. */
+const BATCH_SIZE = 8
 
 /**
  * Runs bge-small-en-v1.5 with onnxruntime-node and the Hugging Face tokenizer. The embedding is the

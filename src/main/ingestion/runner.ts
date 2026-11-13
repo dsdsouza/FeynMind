@@ -135,6 +135,8 @@ export class IngestionRunner {
       this.deps.onProgress(material.id)
     } finally {
       await source.close()
+      // Text recognition holds a large WASM heap; release it between files (it restarts when needed).
+      await this.deps.ocr.close()
     }
   }
 
