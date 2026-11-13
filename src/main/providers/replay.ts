@@ -1,0 +1,46 @@
+import { appendFileSync, readFileSync } from 'node:fs'
+import type { AdapterFactory, GenerateRequest } from './types'
+
+// A provider that answers from a file instead of the network, for end-to-end tests of the built
+// app. It is used only when FEYNMIND_PROVIDER_REPLAY names a file and the app is not packaged.
+//
+// The file is JSON: { "delayMs"?: number, "rules": [{ "schema": "<a property of the reply's
+// JSON schema>", "contains"?: "<text in the prompt>", "reply": <JSON value> | "all-different" }] }.
+// The first matching rule answers. "all-different" answers every pair of a matching request with
+// same: false. Each request is appended to <file>.log as one line of JSON, so tests can count calls.
+
+interface Rule {
+  schema: string
+  contains?: string
+  reply: unknown
+}
+
+interface ReplayFile {
+  delayMs?: number
+  rules: Rule[]
+}
+
+function answer(rules: Rule[], request: GenerateRequest): string {
+  const keys = Object.keys((request.jsonSchema?.['properties'] ?? {}) as object)
+  const rule = rules.find((r) => keys.includes(r.schema) && (r.contains === undefined || request.prompt.includes(r.contains)))
+  if (!rule) throw new Error(`Replay file has no rule for a request with ${keys.join(', ') || 'no schema'}.`)
+  if (rule.reply === 'all-different') {
+    const ids = [...request.prompt.matchAll(/^([PQ]\d+) \(/gm)].map((m) => m[1])
+    return JSON.stringify({ answers: ids.map((pair) => ({ pair, same: false })) })
+  }
+  return JSON.stringify(rule.reply)
+}
+
+export function createReplayAdapter(file: string): AdapterFactory {
+  return () => ({
+    id: 'gemini',
+    listModels: async () => [{ id: 'replay-model', displayName: 'Replay model', description: '', inputTokenLimit: null, outputTokenLimit: null }],
+    generate: async (request) => {
+      const replay = JSON.parse(readFileSync(file, 'utf8')) as ReplayFile
+      if (replay.delayMs) await new Promise((r) => setTimeout(r, replay.delayMs))
+      const text = request.jsonSchema ? answer(replay.rules, request) : 'Replay reply.'
+      appendFileSync(`${file}.log`, `${JSON.stringify({ keys: Object.keys((request.jsonSchema?.['properties'] ?? {}) as object), images: request.images?.length ?? 0, prompt: request.prompt.slice(0, 200) })}\n`)
+      return { text, usage: { inputTokens: Math.ceil(request.prompt.length / 4) + (request.images?.length ?? 0) * 1120, outputTokens: Math.ceil(text.length / 4), thinkingTokens: 0 } }
+    }
+  })
+}

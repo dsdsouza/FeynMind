@@ -6,24 +6,13 @@ import {
   type MaterialSummary,
   type ModelStatus,
   type PageIssue,
-  type PageRef,
   type SearchResponse,
   type SearchResult,
   type Session,
   type WorkerStatus
 } from '../../../shared/ingestion'
-import type { Result } from '../../../shared/ipc'
-
-const api = window.feynmind
-
-function unwrap<T>(result: Result<T>): T {
-  if (!result.ok) throw new Error(result.error)
-  return result.value
-}
-
-function messageOf(error: unknown): string {
-  return error instanceof Error ? error.message : 'Something went wrong.'
-}
+import { PagePreview } from '../components/PagePreview'
+import { api, formatPages, messageOf, unwrap } from '../lib'
 
 function formatBytes(bytes: number): string {
   if (bytes >= 1e9) return `${(bytes / 1e9).toFixed(1)} GB`
@@ -35,15 +24,6 @@ function formatDuration(ms: number): string {
   const seconds = Math.round(ms / 1000)
   if (seconds < 60) return `${seconds} s`
   return `${Math.floor(seconds / 60)} min ${seconds % 60} s`
-}
-
-/** "p. 22 (PDF 5)", "pp. 22–23 (PDF 5–6)", or "slide 3" for decks. */
-function formatPages(start: PageRef, end: PageRef, kind: 'pdf' | 'pptx' = 'pdf'): string {
-  if (kind === 'pptx') return start.index === end.index ? `slide ${start.index}` : `slides ${start.index}–${end.index}`
-  const pdf = start.index === end.index ? `PDF ${start.index}` : `PDF ${start.index}–${end.index}`
-  if (start.label === null) return start.index === end.index ? `page ${start.index}` : `pages ${start.index}–${end.index}`
-  const printed = start.index === end.index || start.label === end.label ? `p. ${start.label}` : `pp. ${start.label}–${end.label ?? '?'}`
-  return `${printed} (${pdf})`
 }
 
 export function Materials() {
@@ -281,7 +261,7 @@ function MaterialItem({ material: m }: { material: MaterialSummary }) {
 function PageIssues({ material }: { material: MaterialSummary }) {
   const [issues, setIssues] = useState<PageIssue[] | null>(null)
   const [error, setError] = useState<string | null>(null)
-  const [preview, setPreview] = useState<{ page: PageIssue; src: string | null; error: string | null } | null>(null)
+  const [preview, setPreview] = useState<PageIssue | null>(null)
 
   useEffect(() => {
     let cancelled = false
@@ -293,16 +273,6 @@ function PageIssues({ material }: { material: MaterialSummary }) {
       cancelled = true
     }
   }, [material.id, material.pagesDone])
-
-  async function show(page: PageIssue) {
-    setPreview({ page, src: null, error: null })
-    try {
-      const src = unwrap(await api['materials:renderPage']({ materialId: material.id, pageIndex: page.pageIndex }))
-      setPreview({ page, src, error: src ? null : 'Slides cannot be shown as images. Export the deck to PDF to see them.' })
-    } catch (e) {
-      setPreview({ page, src: null, error: messageOf(e) })
-    }
-  }
 
   if (error) return <p className="error">{error}</p>
   if (!issues) return <p className="muted">Loading…</p>
@@ -323,7 +293,7 @@ function PageIssues({ material }: { material: MaterialSummary }) {
                 .join(', ')}
             </span>
             {material.kind === 'pdf' && (
-              <button type="button" className="secondary small" onClick={() => void show(p)}>
+              <button type="button" className="secondary small" onClick={() => setPreview(p)}>
                 View
               </button>
             )}
@@ -331,19 +301,7 @@ function PageIssues({ material }: { material: MaterialSummary }) {
         ))}
       </ul>
       {preview && (
-        <figure className="preview">
-          {preview.src && <img src={preview.src} alt={`Page ${preview.page.pageLabel ?? preview.page.pageIndex} of ${material.name}`} />}
-          {preview.error && <p className="error">{preview.error}</p>}
-          {!preview.src && !preview.error && <p className="muted">Rendering…</p>}
-          <figcaption className="row">
-            <span className="grow muted">
-              {formatPages({ index: preview.page.pageIndex, label: preview.page.pageLabel }, { index: preview.page.pageIndex, label: preview.page.pageLabel })}
-            </span>
-            <button type="button" className="secondary small" onClick={() => setPreview(null)}>
-              Close
-            </button>
-          </figcaption>
-        </figure>
+        <PagePreview materialId={material.id} page={preview.pageIndex} label={preview.pageLabel} fileName={material.name} onClose={() => setPreview(null)} />
       )}
     </div>
   )

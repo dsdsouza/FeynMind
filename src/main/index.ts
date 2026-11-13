@@ -7,7 +7,8 @@ import { ExitLog } from './exitLog'
 import { IngestionService } from './ingestion'
 import ingestionWorkerPath from './ingestion/worker?modulePath'
 import { registerIpcHandlers } from './ipc'
-import { createGeminiAdapter, ProviderService, UsageStore } from './providers'
+import { KnowledgeService, PromptLibrary } from './knowledge'
+import { createGeminiAdapter, createReplayAdapter, ProviderService, UsageStore } from './providers'
 import { openDatabase, SessionStore, SettingsStore } from './storage'
 
 // Lets end-to-end tests run against a throwaway profile instead of the user's real data.
@@ -16,6 +17,8 @@ if (userDataOverride) app.setPath('userData', userDataOverride)
 
 const rendererDevUrl = process.env['ELECTRON_RENDERER_URL']
 const isDev = !app.isPackaged && rendererDevUrl !== undefined
+/** End-to-end tests answer model requests from a file. Never honoured in a packaged app. */
+const replayFile = !app.isPackaged ? (process.env['FEYNMIND_PROVIDER_REPLAY'] ?? null) : null
 
 /**
  * In development only, read GEMINI_API_KEY from .env.local without copying it into process.env.
@@ -79,6 +82,13 @@ function broadcast<E extends IpcEvent>(event: E, payload: IpcEvents[E]): void {
   for (const window of BrowserWindow.getAllWindows()) {
     if (!window.isDestroyed()) window.webContents.send(event, payload)
   }
+}
+
+async function pickSyllabusFile(): Promise<string | null> {
+  const window = BrowserWindow.getFocusedWindow() ?? BrowserWindow.getAllWindows()[0]
+  const options: Electron.OpenDialogOptions = { title: 'Import syllabus', properties: ['openFile'], filters: [{ name: 'PDF', extensions: ['pdf'] }] }
+  const result = window ? await dialog.showOpenDialog(window, options) : await dialog.showOpenDialog(options)
+  return result.canceled ? null : (result.filePaths[0] ?? null)
 }
 
 async function pickMaterialFiles(): Promise<string[]> {
@@ -166,29 +176,44 @@ void app.whenReady().then(() => {
     exitLogPath: exitLog.path
   })
   ingestion.start()
-  // Let the worker finish its current page before the app exits; anything unfinished resumes next time.
-  let stopped = false
-  app.on('before-quit', (event) => {
-    if (stopped) return
-    event.preventDefault()
-    void ingestion.stop().finally(() => {
-      stopped = true
-      app.quit()
-    })
-  })
 
   const sessions = new SessionStore(db)
+  const settings = new SettingsStore(db)
   const providers = new ProviderService({
-    settings: new SettingsStore(db),
+    settings,
     encryptor: safeStorage,
-    createAdapter: createGeminiAdapter,
-    devKey: readDevKey(),
+    createAdapter: replayFile ? createReplayAdapter(replayFile) : createGeminiAdapter,
+    devKey: replayFile ? 'replay-key' : readDevKey(),
     loadPrompt,
     usage: new UsageStore(db),
     limits: (sessionId) => sessions.limits(sessionId)
   })
   describeError = (error) => providers.safeErrorMessage(error)
-  registerIpcHandlers({ providers, ingestion, sessions, pickMaterialFiles }, (event) =>
+  const knowledge = new KnowledgeService({
+    db,
+    providers,
+    ingestion,
+    prompts: new PromptLibrary(loadPrompt),
+    settings,
+    limits: (sessionId) => sessions.limits(sessionId),
+    onJob: (job) => broadcast('knowledge:job', job),
+    onUsage: (usage) => broadcast('usage:changed', usage)
+  })
+  knowledge.start()
+
+  // Let the worker finish its current page, and a model request in flight be cached, before the
+  // app exits; anything unfinished resumes next time.
+  let stopped = false
+  app.on('before-quit', (event) => {
+    if (stopped) return
+    event.preventDefault()
+    void Promise.allSettled([knowledge.stop(), ingestion.stop()]).finally(() => {
+      stopped = true
+      app.quit()
+    })
+  })
+
+  registerIpcHandlers({ providers, ingestion, sessions, knowledge, pickMaterialFiles, pickSyllabusFile }, (event) =>
     isAppUrl(event.senderFrame?.url ?? '')
   )
 

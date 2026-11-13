@@ -1,6 +1,7 @@
 // Providers module: adapters, model listing, key storage, the rate limiter, the model cache and
 // the usage ledger. This is the only module allowed to import a provider SDK.
 export { createGeminiAdapter, GEMINI_BASE_URL } from './gemini'
+export { createReplayAdapter } from './replay'
 export {
   cacheKeyOf,
   DEFAULT_REQUESTS_PER_MINUTE,

@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useState, type FormEvent } from 'react'
 import type { KeySource, ModelInfo, ProviderSettingsState, Result, TestResult } from '../../../shared/ipc'
+import type { UsageSummary } from '../../../shared/knowledge'
 
 const api = window.feynmind
 
@@ -229,6 +230,110 @@ export function Settings() {
           {test.kind === 'error' && <p className="error" role="alert">{test.message}</p>}
         </div>
       </div>
+
+      <UsageLimits selectedModel={state.selectedModel} />
     </section>
+  )
+}
+
+/** Caps on model use for the course session, the request pace, and the price used for dollar amounts. */
+function UsageLimits({ selectedModel }: { selectedModel: string | null }) {
+  const [usage, setUsage] = useState<UsageSummary | null>(null)
+  const [form, setForm] = useState({ callCap: '', spendCap: '', rpm: '', priceIn: '', priceOut: '' })
+  const [status, setStatus] = useState<Status<null>>({ kind: 'idle' })
+
+  useEffect(() => {
+    let cancelled = false
+    void (async () => {
+      try {
+        const session = unwrap(await api['sessions:current']())
+        const u = unwrap(await api['usage:get']({ sessionId: session.id }))
+        if (cancelled) return
+        setUsage(u)
+        setForm({
+          callCap: u.callCap === null ? '' : String(u.callCap),
+          spendCap: u.spendCapUsd === null ? '' : String(u.spendCapUsd),
+          rpm: String(u.requestsPerMinute),
+          priceIn: u.price?.source === 'user' ? String(u.price.inputPerMillion) : '',
+          priceOut: u.price?.source === 'user' ? String(u.price.outputPerMillion) : ''
+        })
+      } catch (error) {
+        if (!cancelled) setStatus({ kind: 'error', message: messageOf(error) })
+      }
+    })()
+    return () => {
+      cancelled = true
+    }
+  }, [selectedModel])
+
+  async function save(event: FormEvent) {
+    event.preventDefault()
+    if (!usage) return
+    const num = (s: string): number | null => (s.trim() === '' ? null : Number(s))
+    const priceIn = num(form.priceIn)
+    const priceOut = num(form.priceOut)
+    setStatus({ kind: 'loading' })
+    try {
+      const next = unwrap(
+        await api['usage:setLimits']({
+          sessionId: usage.sessionId,
+          callCap: num(form.callCap),
+          spendCapUsd: num(form.spendCap),
+          requestsPerMinute: Number(form.rpm),
+          price: priceIn !== null && priceOut !== null ? { input: priceIn, output: priceOut } : null
+        })
+      )
+      setUsage(next)
+      setStatus({ kind: 'done', value: null })
+    } catch (error) {
+      setStatus({ kind: 'error', message: messageOf(error) })
+    }
+  }
+
+  if (!usage) return status.kind === 'error' ? <p className="error">{status.message}</p> : null
+  const set = (key: keyof typeof form) => (e: { target: { value: string } }) => setForm((f) => ({ ...f, [key]: e.target.value }))
+  return (
+    <form className="card" onSubmit={(e) => void save(e)} aria-labelledby="limits-title">
+      <h2 id="limits-title">Usage limits</h2>
+      <p className="muted">
+        This course has used {usage.calls} model calls ({usage.requests} requests including refused ones, {usage.cacheHits} answered from the cache).
+      </p>
+      <label htmlFor="call-cap">Call cap for this course (empty for none)</label>
+      <input id="call-cap" type="number" min={0} step={1} value={form.callCap} onChange={set('callCap')} />
+      <label htmlFor="spend-cap">Spending cap in dollars (empty for none; needs a known price)</label>
+      <input id="spend-cap" type="number" min={0} step="0.01" value={form.spendCap} onChange={set('spendCap')} />
+      <label htmlFor="rpm">Requests per minute</label>
+      <input id="rpm" type="number" min={1} step={1} value={form.rpm} onChange={set('rpm')} />
+      <p className="muted">The app also waits whenever the provider says its limit is reached, and pauses a job when the daily quota runs out.</p>
+      {selectedModel && (
+        <>
+          <p className="muted">
+            Price of {selectedModel}:{' '}
+            {usage.price
+              ? `$${usage.price.inputPerMillion} in, $${usage.price.outputPerMillion} out per million tokens (${usage.price.source === 'user' ? 'entered by you' : `from the provider’s price list, checked ${usage.price.checked}`}).`
+              : 'unknown. Enter it to see dollar amounts and use a spending cap.'}
+          </p>
+          <div className="row">
+            <label>
+              Your price in ($/M tokens)
+              <input type="number" min={0} step="0.001" value={form.priceIn} onChange={set('priceIn')} />
+            </label>
+            <label>
+              Your price out ($/M tokens)
+              <input type="number" min={0} step="0.001" value={form.priceOut} onChange={set('priceOut')} />
+            </label>
+          </div>
+        </>
+      )}
+      <button type="submit" disabled={status.kind === 'loading'}>
+        Save limits
+      </button>
+      {status.kind === 'done' && <p className="success">Saved.</p>}
+      {status.kind === 'error' && (
+        <p className="error" role="alert">
+          {status.message}
+        </p>
+      )}
+    </form>
   )
 }

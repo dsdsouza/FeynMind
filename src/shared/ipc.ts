@@ -11,6 +11,16 @@ import type {
   Session,
   WorkerStatus
 } from './ingestion'
+import type {
+  ConsentState,
+  JobSummary,
+  SyllabusDraft,
+  SyllabusState,
+  UnitReview,
+  UnitSummary,
+  UsageLimitsInput,
+  UsageSummary
+} from './knowledge'
 
 export type ProviderId = 'gemini'
 
@@ -61,6 +71,28 @@ export interface IpcContract {
   'models:status': { request: undefined; response: ModelStatus }
   'models:retry': { request: undefined; response: ModelStatus }
   'ingestion:status': { request: undefined; response: WorkerStatus }
+  'consent:get': { request: { sessionId: number }; response: ConsentState }
+  'consent:give': { request: { sessionId: number }; response: ConsentState }
+  'usage:get': { request: { sessionId: number }; response: UsageSummary }
+  'usage:setLimits': { request: UsageLimitsInput; response: UsageSummary }
+  'syllabus:get': { request: { sessionId: number }; response: SyllabusState | null }
+  /** Opens a file picker for a syllabus PDF; null when the user cancels. */
+  'syllabus:importFile': { request: { sessionId: number }; response: SyllabusState | null }
+  'syllabus:importText': { request: { sessionId: number; text: string }; response: SyllabusState }
+  'syllabus:save': { request: { syllabusId: number; draft: SyllabusDraft }; response: UnitSummary[] }
+  'units:list': { request: { sessionId: number }; response: UnitSummary[] }
+  'knowledge:estimateUnit': { request: { unitId: number }; response: JobSummary }
+  'knowledge:approve': { request: { jobId: number }; response: JobSummary }
+  'knowledge:pause': { request: { jobId: number }; response: JobSummary }
+  'knowledge:resume': { request: { jobId: number }; response: JobSummary }
+  'knowledge:cancel': { request: { jobId: number }; response: JobSummary }
+  'knowledge:jobs': { request: { sessionId: number }; response: JobSummary[] }
+  'concepts:review': { request: { unitId: number }; response: UnitReview }
+  'concepts:rename': { request: { unitId: number; conceptId: number; name: string; definition: string | null }; response: UnitReview }
+  'concepts:merge': { request: { unitId: number; fromId: number; intoId: number }; response: UnitReview }
+  'concepts:delete': { request: { unitId: number; conceptId: number }; response: UnitReview }
+  'concepts:link': { request: { unitId: number; conceptId: number; prereqId: number }; response: UnitReview }
+  'concepts:unlink': { request: { unitId: number; conceptId: number; prereqId: number }; response: UnitReview }
 }
 
 /** Events the main process pushes to the renderer. */
@@ -68,11 +100,13 @@ export interface IpcEvents {
   'ingestion:progress': MaterialSummary
   'models:progress': ModelStatus
   'ingestion:worker': WorkerStatus
+  'knowledge:job': JobSummary
+  'usage:changed': UsageSummary
 }
 
 export type IpcEvent = keyof IpcEvents
 
-export const IPC_EVENTS = ['ingestion:progress', 'models:progress', 'ingestion:worker'] as const satisfies readonly IpcEvent[]
+export const IPC_EVENTS = ['ingestion:progress', 'models:progress', 'ingestion:worker', 'knowledge:job', 'usage:changed'] as const satisfies readonly IpcEvent[]
 
 export type IpcChannel = keyof IpcContract
 export type IpcRequest<C extends IpcChannel> = IpcContract[C]['request']
@@ -93,7 +127,28 @@ export const IPC_CHANNELS = [
   'search:query',
   'models:status',
   'models:retry',
-  'ingestion:status'
+  'ingestion:status',
+  'consent:get',
+  'consent:give',
+  'usage:get',
+  'usage:setLimits',
+  'syllabus:get',
+  'syllabus:importFile',
+  'syllabus:importText',
+  'syllabus:save',
+  'units:list',
+  'knowledge:estimateUnit',
+  'knowledge:approve',
+  'knowledge:pause',
+  'knowledge:resume',
+  'knowledge:cancel',
+  'knowledge:jobs',
+  'concepts:review',
+  'concepts:rename',
+  'concepts:merge',
+  'concepts:delete',
+  'concepts:link',
+  'concepts:unlink'
 ] as const satisfies readonly IpcChannel[]
 
 /** The API the preload script exposes on window.feynmind. */

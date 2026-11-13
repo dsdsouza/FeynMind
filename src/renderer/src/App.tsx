@@ -1,11 +1,13 @@
 import { useState } from 'react'
+import { Course } from './screens/Course'
 import { Materials } from './screens/Materials'
 import { Settings } from './screens/Settings'
 
-type Screen = 'materials' | 'settings'
+type Screen = 'materials' | 'course' | 'settings'
 
 const SCREENS: { id: Screen; label: string }[] = [
   { id: 'materials', label: 'Materials' },
+  { id: 'course', label: 'Course' },
   { id: 'settings', label: 'Settings' }
 ]
 
@@ -29,7 +31,11 @@ export function App() {
           ))}
         </nav>
       </header>
-      <main className="app-main">{screen === 'materials' ? <Materials /> : <Settings />}</main>
+      <main className="app-main">
+        {screen === 'materials' && <Materials />}
+        {screen === 'course' && <Course />}
+        {screen === 'settings' && <Settings />}
+      </main>
     </div>
   )
 }

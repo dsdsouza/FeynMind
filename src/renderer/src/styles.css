@@ -280,3 +280,68 @@ mark {
 .add-result p {
   margin: 4px 0;
 }
+
+/* Course and concept review */
+
+.estimate {
+  border-collapse: collapse;
+  width: 100%;
+  margin: 8px 0;
+}
+
+.estimate th,
+.estimate td {
+  text-align: left;
+  padding: 4px 8px;
+  border-bottom: 1px solid var(--border);
+}
+
+.warning-card {
+  border-color: var(--warning);
+}
+
+.job {
+  border-left: 3px solid var(--accent);
+  padding-left: 12px;
+  margin: 12px 0;
+}
+
+.units-editor {
+  padding-left: 0;
+  list-style: none;
+}
+
+.units-editor select,
+.units-editor input,
+.concept input,
+.concept textarea,
+textarea {
+  width: 100%;
+}
+
+.concepts {
+  padding-left: 0;
+  list-style: none;
+  counter-reset: concept;
+}
+
+.concept .concept-name {
+  font-size: 1.1rem;
+  margin: 0 0 4px;
+}
+
+.concept .concept-name::before {
+  counter-increment: concept;
+  content: counter(concept) '. ';
+  color: var(--muted);
+}
+
+button.link {
+  background: none;
+  border: none;
+  padding: 0;
+  color: var(--accent);
+  text-decoration: underline;
+  cursor: pointer;
+  font: inherit;
+}
