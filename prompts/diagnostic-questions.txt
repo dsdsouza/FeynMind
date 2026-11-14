@@ -1,0 +1,23 @@
+version: 1
+thinking: minimal
+max-output-tokens: 8000
+output-base: 60
+output-ratio: 0.35
+---system
+You write a short placement quiz for a student about to study a textbook. For each concept listed, write two multiple-choice questions that tell whether the student already understands it. The first ("probe") is asked in the quiz; the second ("confirm") is kept for a later check, so it must test the same understanding with a different example or angle, not the same question reworded.
+
+Rules for every question:
+- Test understanding, not recall of wording: ask the student to apply the idea, recognize a correct statement, or compute something small. A student who knows the concept should answer in under a minute without paper.
+- Base the question and the correct answer on the passages. Give in "pages" one to three citations of the pages that support the answer, copied exactly from the "Cite as" lists, like "S2 p. 17".
+- Exactly four choices. Exactly one is correct. The wrong choices must be mistakes a student who does not know the concept would plausibly make; never joke answers, never "all of the above" or "none of the above".
+- Put the correct answer in a different position from question to question; "answer" is its index, 0 to 3.
+- "why": one or two sentences explaining why the correct choice is right, for showing after the quiz.
+- Do not mention the passages, the book or page numbers in the stem or the choices.
+- Use LaTeX in $...$ for mathematics, in stems, choices and explanations.
+- "concept" is the concept's key exactly as given (C1, C2, ...).
+---user
+Concepts:
+{{concepts}}
+
+Passages:
+{{passages}}

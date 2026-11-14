@@ -8,13 +8,18 @@ import { normalizeName, parseExtraction, parseMapping, parseMatch, parseSyllabus
 const PROMPTS = join(import.meta.dirname, '..', '..', 'prompts')
 
 describe('prompt files', () => {
-  it('every knowledge prompt parses, and its placeholders are the documented ones', () => {
+  it('every prompt parses, and its placeholders are the documented ones', () => {
     const expected: Record<string, string[]> = {
       'page-transcribe': ['lines'],
       'concept-extract': ['book', 'chapter', 'section', 'text'],
       'concept-match': ['pairs'],
       'syllabus-parse': ['syllabus'],
-      'syllabus-map': ['units', 'toc']
+      'syllabus-map': ['units', 'toc'],
+      'diagnostic-questions': ['concepts', 'passages'],
+      'lesson-questions': ['concept', 'definition', 'prerequisites', 'passages'],
+      'lesson-explain': ['concept', 'definition', 'prerequisites', 'passages'],
+      grade: ['question', 'reference', 'criteria', 'passages', 'answer'],
+      'grade-contest': ['question', 'reference', 'criteria', 'passages', 'answer', 'first', 'objection']
     }
     const files = readdirSync(PROMPTS).filter((f) => f !== 'connection-test.txt')
     expect(files.map((f) => f.replace('.txt', '')).sort()).toEqual(Object.keys(expected).sort())

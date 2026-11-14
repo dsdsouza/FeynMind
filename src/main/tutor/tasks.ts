@@ -1,0 +1,203 @@
+import { damped, renderPrompt, textTokens, type PromptFile } from '../knowledge'
+import type { ModelTask, Role } from '../providers'
+import { allowedCitations, formatPassages, type Passage } from './passages'
+import {
+  CONTEST_JSON_SCHEMA,
+  DIAGNOSTIC_JSON_SCHEMA,
+  GRADE_JSON_SCHEMA,
+  LESSON_QUESTIONS_JSON_SCHEMA,
+  parseContest,
+  parseDiagnostic,
+  parseExplanation,
+  parseGrade,
+  parseLessonQuestions,
+  type ContestGrade,
+  type Criterion,
+  type CriterionResult,
+  type DiagnosticQuestion,
+  type Explanation,
+  type LessonQuestions,
+  type ModelGrade,
+  type Verdict
+} from './schemas'
+
+// Builds the model task for each tutor request: the prompt filled in, the key of what the reply
+// depends on (for the cache), the token estimate and the check the reply must pass.
+
+export interface TaskContext {
+  sessionId: number
+  calibration: { inputFactor: number; outputFactor: number; samples: number }
+  signal?: AbortSignal
+}
+
+type Built<T> = Omit<ModelTask<T>, 'sessionId' | 'jobId' | 'signal' | 'estimate' | 'uncalibratedEstimate'>
+
+function finish<T>(prompt: PromptFile, rendered: string, variable: string, built: Built<T>, ctx: TaskContext): ModelTask<T> {
+  const raw = {
+    inputTokens: textTokens(prompt.system) + textTokens(rendered),
+    outputTokens: Math.round(prompt.outputBase + prompt.outputRatio * textTokens(variable))
+  }
+  const f = damped(ctx.calibration)
+  return {
+    ...built,
+    sessionId: ctx.sessionId,
+    jobId: null,
+    estimate: { inputTokens: Math.round(raw.inputTokens * f.input), outputTokens: Math.round(raw.outputTokens * f.output) },
+    uncalibratedEstimate: raw,
+    ...(ctx.signal ? { signal: ctx.signal } : {})
+  }
+}
+
+function base(prompt: PromptFile, role: Role, rendered: string): Pick<Built<unknown>, 'role' | 'prompt' | 'system' | 'text' | 'thinking' | 'maxOutputTokens'> {
+  return {
+    role,
+    prompt: { name: prompt.name, version: prompt.version, hash: prompt.hash },
+    system: prompt.system,
+    text: rendered,
+    thinking: prompt.thinking,
+    maxOutputTokens: prompt.maxOutputTokens
+  }
+}
+
+export interface ConceptBrief {
+  name: string
+  definition: string
+  prerequisites: string[]
+}
+
+function lessonValues(concept: ConceptBrief, passages: Passage[]): Record<string, string> {
+  return {
+    concept: concept.name,
+    definition: concept.definition,
+    prerequisites: concept.prerequisites.length > 0 ? concept.prerequisites.join('; ') : '(none beyond general background)',
+    passages: formatPassages(passages)
+  }
+}
+
+// Diagnostic
+
+export function diagnosticTask(prompt: PromptFile, concepts: (ConceptBrief & { key: string })[], passages: Passage[], ctx: TaskContext): ModelTask<DiagnosticQuestion[]> {
+  const conceptText = concepts.map((c) => `${c.key}: ${c.name}: ${c.definition}`).join('\n')
+  const values = { concepts: conceptText, passages: formatPassages(passages) }
+  const rendered = renderPrompt(prompt, values)
+  const allowed = allowedCitations(passages)
+  const keys = concepts.map((c) => c.key)
+  return finish(
+    prompt,
+    rendered,
+    `${conceptText}\n${values.passages}`,
+    {
+      ...base(prompt, 'teaching', rendered),
+      jsonSchema: DIAGNOSTIC_JSON_SCHEMA,
+      contentKey: JSON.stringify(['diagnostic', rendered]),
+      parse: (text) => parseDiagnostic(text, keys, allowed)
+    },
+    ctx
+  )
+}
+
+// Lesson questions and explanation
+
+export function lessonQuestionsTask(prompt: PromptFile, concept: ConceptBrief, passages: Passage[], ctx: TaskContext, avoid: string[] = []): ModelTask<LessonQuestions> {
+  const values = lessonValues(concept, passages)
+  // More questions for a concept: only unaided ones, unlike any already asked.
+  const extra = avoid.length > 0
+  const rendered = renderPrompt(prompt, values) + (extra ? `\n\nWrite only three new "unaided" questions this time, none of them like these:\n${avoid.map((s) => `- ${s}`).join('\n')}` : '')
+  const allowed = allowedCitations(passages)
+  return finish(
+    prompt,
+    rendered,
+    values['passages'] ?? '',
+    {
+      ...base(prompt, 'teaching', rendered),
+      jsonSchema: LESSON_QUESTIONS_JSON_SCHEMA,
+      contentKey: JSON.stringify(['lesson-questions', rendered]),
+      parse: (text) => parseLessonQuestions(text, allowed, extra)
+    },
+    ctx
+  )
+}
+
+export function explanationTask(prompt: PromptFile, concept: ConceptBrief, passages: Passage[], ctx: TaskContext): ModelTask<Explanation> {
+  const values = lessonValues(concept, passages)
+  const rendered = renderPrompt(prompt, values)
+  const allowed = allowedCitations(passages)
+  return finish(
+    prompt,
+    rendered,
+    values['passages'] ?? '',
+    { ...base(prompt, 'teaching', rendered), contentKey: JSON.stringify(['explain', rendered]), parse: (text) => parseExplanation(text, allowed) },
+    ctx
+  )
+}
+
+// Grading
+
+export interface GradingInput {
+  question: string
+  referenceAnswer: string
+  criteria: Criterion[]
+  passages: Passage[]
+  answer: string
+}
+
+function criteriaText(criteria: Criterion[]): string {
+  return criteria.map((c) => `${c.id} (${c.points} point${c.points === 1 ? '' : 's'}${c.essential ? ', essential' : ''}): ${c.text}`).join('\n')
+}
+
+function gradingValues(input: GradingInput): { question: string; reference: string; criteria: string; passages: string; answer: string } {
+  return {
+    question: input.question,
+    reference: input.referenceAnswer,
+    criteria: criteriaText(input.criteria),
+    passages: formatPassages(input.passages),
+    answer: input.answer.trim() === '' ? '(no answer)' : input.answer
+  }
+}
+
+export function gradeTask(prompt: PromptFile, input: GradingInput, ctx: TaskContext): ModelTask<ModelGrade> {
+  const values = gradingValues(input)
+  const rendered = renderPrompt(prompt, values)
+  const allowed = allowedCitations(input.passages)
+  return finish(
+    prompt,
+    rendered,
+    `${values['criteria']}\n${values['answer']}`,
+    {
+      ...base(prompt, 'grading', rendered),
+      jsonSchema: GRADE_JSON_SCHEMA,
+      contentKey: JSON.stringify(['grade', rendered]),
+      parse: (text) => parseGrade(text, input.criteria, allowed)
+    },
+    ctx
+  )
+}
+
+export interface FirstGrade {
+  verdict: Verdict
+  criteria: CriterionResult[]
+  reason: string
+}
+
+export function contestTask(prompt: PromptFile, input: GradingInput, first: FirstGrade, objection: string, ctx: TaskContext): ModelTask<ContestGrade> {
+  const firstText = [
+    `Verdict: ${first.verdict}`,
+    ...first.criteria.map((c) => `${c.id}: ${c.met}${c.evidence ? ` (evidence: "${c.evidence}")` : ''}`),
+    `Reason given: ${first.reason}`
+  ].join('\n')
+  const values = { ...gradingValues(input), first: firstText, objection }
+  const rendered = renderPrompt(prompt, values)
+  const allowed = allowedCitations(input.passages)
+  return finish(
+    prompt,
+    rendered,
+    `${values.criteria}\n${values.answer}\n${objection}`,
+    {
+      ...base(prompt, 'grading', rendered),
+      jsonSchema: CONTEST_JSON_SCHEMA,
+      contentKey: JSON.stringify(['contest', rendered]),
+      parse: (text) => parseContest(text, input.criteria, allowed)
+    },
+    ctx
+  )
+}
