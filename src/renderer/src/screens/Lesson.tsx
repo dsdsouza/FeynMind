@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from 'react'
 import type { UsageSummary } from '../../../shared/knowledge'
-import type { AttemptView, GradeView, LessonStep, LessonView } from '../../../shared/tutor'
+import { masteryHint, type AttemptView, type GradeView, type LessonStep, type LessonView } from '../../../shared/tutor'
 import { PagePreview } from '../components/PagePreview'
 import { TutorText, type CitedPage } from '../components/TutorText'
 import { api, formatCost, formatTokens, messageOf, unwrap } from '../lib'
@@ -83,8 +83,8 @@ export function Lesson({ sessionId, initial, usage, onBack, onOpen }: { sessionI
       <div className="row lesson-status">
         <label className="grow">
           Mastery{' '}
-          <meter min={0} max={1} low={0.3} high={0.6} optimum={1} value={view.mastery.p} data-testid="mastery" data-value={view.mastery.p.toFixed(3)} />{' '}
-          <span aria-live="polite">{view.mastery.mastered ? 'mastered' : `${Math.round(view.mastery.p * 100)}%`}</span>
+          <meter min={0} max={1} low={0.3} high={0.6} optimum={1} value={view.mastery.shown} data-testid="mastery" data-value={view.mastery.shown.toFixed(3)} />{' '}
+          <span aria-live="polite">{view.mastery.mastered ? 'mastered' : `${Math.round(view.mastery.shown * 100)}%`}</span>
         </label>
         {usage && (
           <span className="muted" data-testid="session-total">
@@ -93,6 +93,11 @@ export function Lesson({ sessionId, initial, usage, onBack, onOpen }: { sessionI
           </span>
         )}
       </div>
+      {masteryHint(view.mastery) && (
+        <p className="mastery-hint" data-testid="mastery-hint" aria-live="polite">
+          {masteryHint(view.mastery)}
+        </p>
+      )}
       {view.estimate.calls > 0 && <EstimateLine estimate={view.estimate} what="The rest of this lesson" />}
       {error && (
         <p className="error" role="alert">

@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import type Database from 'better-sqlite3'
-import { bandOf, LearnerRepo, MASTERY, replay, unitStanding, update, type Evidence } from '../../src/main/learner'
+import { bandOf, LearnerRepo, MASTERY, masteryGap, replay, shownEstimate, unitStanding, update, type Evidence } from '../../src/main/learner'
+import { masteryHint } from '../../src/shared/tutor'
 import { openDatabase, SessionStore } from '../../src/main/storage'
 
 const right = (question: 'diagnostic' | 'opening' | 'guided' | 'partial' | 'unaided'): Evidence => ({ kind: 'answer', question, score: 1 })
@@ -38,6 +39,18 @@ describe('mastery model', () => {
     expect(update(0.3, { kind: 'override', direction: 'known', value: 0.9 })).toBe(0.9)
     expect(update(0.95, { kind: 'override', direction: 'known', value: 0.9 })).toBe(0.95)
     expect(update(0.7, { kind: 'override', direction: 'new', value: 0.2 })).toBe(0.2)
+  })
+
+  it('says what mastery still needs at the threshold, and never shows the threshold before mastery', () => {
+    expect(masteryGap(0.9, { unaidedCorrect: false, lastVerdict: 'correct' })).toBeNull()
+    expect(masteryGap(0.99, { unaidedCorrect: false, lastVerdict: 'correct' })).toBe('unaided')
+    expect(masteryGap(0.99, { unaidedCorrect: true, lastVerdict: 'partial' })).toBe('last-answer')
+    expect(masteryGap(0.99, { unaidedCorrect: true, lastVerdict: 'correct' })).toBeNull()
+    expect(shownEstimate(0.997, false)).toBe(0.94)
+    expect(shownEstimate(0.5, false)).toBe(0.5)
+    expect(shownEstimate(0.997, true)).toBe(0.997)
+    expect(masteryHint({ p: 0.99, shown: 0.94, band: 'known', mastered: false, gap: 'unaided' })).toBe('One correct answer on your own will master this.')
+    expect(masteryHint({ p: 0.99, shown: 0.99, band: 'mastered', mastered: true, gap: null })).toBeNull()
   })
 
   it('gives bands and unit standings', () => {

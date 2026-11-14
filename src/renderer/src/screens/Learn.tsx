@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useState } from 'react'
 import type { ConsentState, UsageSummary } from '../../../shared/knowledge'
-import type { CallEstimate, DiagnosticState, LessonView, PathState, Standing, UnitStatus } from '../../../shared/tutor'
+import { masteryHint, type CallEstimate, type DiagnosticState, type LessonView, type PathState, type Standing, type UnitStatus } from '../../../shared/tutor'
 import { api, formatCost, formatTokens, messageOf, unwrap } from '../lib'
 import { ConsentNotice, UsageLine } from './Course'
 import { Diagnostic } from './Diagnostic'
@@ -254,8 +254,9 @@ function UnitItem({ unit, busy, onLesson, onClaimKnown, onMarkNew }: { unit: Uni
                 {c.locked ? '🔒 ' : c.mastery.mastered ? '✓ ' : ''}
                 {c.name}
                 {c.locked && <span className="muted"> · after {c.waitingFor.join(', ')}</span>}
+                {!c.locked && masteryHint(c.mastery) && <span className="muted"> · {masteryHint(c.mastery)}</span>}
               </span>
-              <meter min={0} max={1} low={0.3} high={0.6} optimum={1} value={c.mastery.p} aria-label={`Mastery of ${c.name}`} title={`${Math.round(c.mastery.p * 100)}%`} />
+              <meter min={0} max={1} low={0.3} high={0.6} optimum={1} value={c.mastery.shown} aria-label={`Mastery of ${c.name}`} title={c.mastery.mastered ? 'mastered' : `${Math.round(c.mastery.shown * 100)}%`} />
               <button type="button" className="secondary small" disabled={c.locked || busy} onClick={() => onLesson(c.id)}>
                 {c.mastery.mastered ? 'Review' : c.lessonStep ? 'Continue' : 'Learn'}
               </button>

@@ -1,5 +1,5 @@
 import type Database from 'better-sqlite3'
-import { bandOf, isMastered, MASTERY, replay, scoreOf, type Band, type Evidence, type QuestionKind } from './mastery'
+import { bandOf, isMastered, MASTERY, masteryGap, replay, scoreOf, shownEstimate, type Band, type Evidence, type LessonRecord, type MasteryGap, type QuestionKind } from './mastery'
 
 export type EventKind = 'diagnostic' | 'inferred-known' | 'inferred-new' | 'answer' | 'regrade' | 'override-known' | 'override-new'
 type Verdict = 'correct' | 'partial' | 'incorrect'
@@ -11,6 +11,10 @@ export interface ConceptMastery {
   evidence: number
   mastered: boolean
   band: Band | null
+  /** What mastery still needs when the estimate is at the threshold; see masteryGap. */
+  gap: MasteryGap
+  /** The estimate to display: capped just below the threshold until the concept is mastered. */
+  shown: number
 }
 
 interface EventRow {
@@ -73,11 +77,11 @@ export class LearnerRepo {
            mastered_at = excluded.mastered_at, updated_at = excluded.updated_at`
       )
       .run(conceptId, sessionId, p, rows.length, mastered ? (previous?.masteredAt ?? new Date().toISOString()) : null)
-    return { conceptId, p, evidence: rows.length, mastered, band: rows.length === 0 ? null : bandOf(p, mastered) }
+    return { conceptId, p, evidence: rows.length, mastered, band: rows.length === 0 ? null : bandOf(p, mastered), gap: masteryGap(p, lesson), shown: shownEstimate(p, mastered) }
   }
 
   /** Whether the lesson has a correct unaided answer, and the final verdict of its last graded answer. */
-  private lessonRecord(conceptId: number): { unaidedCorrect: boolean; lastVerdict: Verdict | null } {
+  private lessonRecord(conceptId: number): LessonRecord {
     const rows = this.db
       .prepare<[number], { kind: QuestionKind; verdict: Verdict }>(
         `SELECT q.kind, (SELECT g.verdict FROM grades g WHERE g.attempt_id = a.id ORDER BY g.pass DESC LIMIT 1) AS verdict
@@ -95,9 +99,10 @@ export class LearnerRepo {
     const row = this.db
       .prepare<[number], { p: number; evidence: number; masteredAt: string | null }>('SELECT p_known AS p, evidence, mastered_at AS masteredAt FROM mastery WHERE concept_id = ?')
       .get(conceptId)
-    if (!row) return { conceptId, p: MASTERY.prior, evidence: 0, mastered: false, band: null }
+    if (!row) return { conceptId, p: MASTERY.prior, evidence: 0, mastered: false, band: null, gap: null, shown: MASTERY.prior }
     const mastered = row.masteredAt !== null
-    return { conceptId, p: row.p, evidence: row.evidence, mastered, band: row.evidence === 0 ? null : bandOf(row.p, mastered) }
+    const gap = mastered ? null : masteryGap(row.p, this.lessonRecord(conceptId))
+    return { conceptId, p: row.p, evidence: row.evidence, mastered, band: row.evidence === 0 ? null : bandOf(row.p, mastered), gap, shown: shownEstimate(row.p, mastered) }
   }
 
   /** Mastery of several concepts; concepts without evidence get the prior. */

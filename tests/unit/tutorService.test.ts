@@ -446,3 +446,42 @@ describe('call cap', () => {
     expect(view.blocked).toBeNull()
   })
 })
+
+describe('mastery at the threshold', () => {
+  it('after a contested opening answer, says one correct unaided answer is missing and caps the meter (as in a real run)', async () => {
+    const t = seeded()
+    const relation = t.ids['relation'] as number
+    // The diagnostic's inferences had already put the estimate high, as in the run this reproduces.
+    t.tutor.learner.addEvidence(t.session.id, relation, 'override-known', { value: 0.97 })
+    let view = await t.tutor.openLesson(t.session.id, relation)
+    view = await answerAndWait(t, view, 'HALF')
+    t.tutor.contest(view.attempt?.id ?? 0, 'VALID OBJECTION: the reason is there.')
+    await t.tutor.idle()
+    view = t.tutor.view(view.lessonId)
+    expect(view.attempt?.grades.map((g) => g.verdict)).toEqual(['partial', 'correct'])
+    expect(view.mastery.p).toBeGreaterThanOrEqual(MASTERY.mastered)
+    expect(view.mastery).toMatchObject({ mastered: false, gap: 'unaided', shown: MASTERY.mastered - 0.01 })
+    expect(t.tutor.path(t.session.id).units[0]?.concepts.find((c) => c.id === relation)?.mastery.gap).toBe('unaided')
+    expect(view.canFastTrack).toBe(true)
+    view = await answerAndWait(t, t.tutor.continue(view.lessonId, true), 'RIGHT')
+    expect(view.mastery).toMatchObject({ mastered: true, gap: null })
+    expect(view.mastery.shown).toBe(view.mastery.p)
+  })
+
+  it('a contested unaided answer that becomes correct masters the concept and lets the lesson finish', async () => {
+    const t = seeded()
+    const relation = t.ids['relation'] as number
+    t.tutor.learner.addEvidence(t.session.id, relation, 'override-known', { value: 0.9 })
+    let view = await t.tutor.openLesson(t.session.id, relation)
+    view = await answerAndWait(t, view, 'RIGHT')
+    view = await answerAndWait(t, t.tutor.continue(view.lessonId, true), 'HALF')
+    expect(view.question?.kind).toBe('unaided')
+    expect(view.mastery.mastered).toBe(false)
+    t.tutor.contest(view.attempt?.id ?? 0, 'VALID OBJECTION: my second sentence gives the reason.')
+    await t.tutor.idle()
+    view = t.tutor.view(view.lessonId)
+    expect(view.attempt?.grades.map((g) => g.verdict)).toEqual(['partial', 'correct'])
+    expect(view.mastery).toMatchObject({ mastered: true, gap: null })
+    expect(t.tutor.continue(view.lessonId).step).toBe('done')
+  })
+})

@@ -10,8 +10,23 @@ export type Verdict = 'correct' | 'partial' | 'incorrect'
 export interface MasteryView {
   /** Probability the concept is known, 0 to 1. */
   p: number
+  /** The estimate to display: capped just below the mastery threshold until the concept is mastered. */
+  shown: number
   band: Band | null
   mastered: boolean
+  /**
+   * At the threshold but not mastered: 'unaided' when no question on your own was answered
+   * correctly yet, 'last-answer' when the last answer was not fully correct. Null otherwise.
+   */
+  gap: 'unaided' | 'last-answer' | null
+}
+
+/** What the learner is told when the estimate is at the threshold but the concept is not mastered. */
+export function masteryHint(m: MasteryView): string | null {
+  if (m.mastered) return null
+  if (m.gap === 'unaided') return 'One correct answer on your own will master this.'
+  if (m.gap === 'last-answer') return 'Your last answer was not fully right: one more correct answer on your own will master this.'
+  return null
 }
 
 export interface ConceptStatus {

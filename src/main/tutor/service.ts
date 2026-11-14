@@ -163,7 +163,7 @@ export class TutorService {
         id: c.id,
         name: c.name,
         definition: c.definition,
-        mastery: { p: m.p, band: m.band, mastered: m.mastered },
+        mastery: { p: m.p, shown: m.shown, band: m.band, mastered: m.mastered, gap: m.gap },
         locked: waitingFor.length > 0,
         waitingFor,
         lessonStep: steps.get(c.id) ?? null
@@ -808,7 +808,7 @@ export class TutorService {
       explaining: this.explaining.has(lesson.id),
       sources: sourceRefs(lesson.passages),
       questionsOutsideSources: opening?.outsideSources ?? false,
-      mastery: { p: m.p, band: m.band, mastered: m.mastered },
+      mastery: { p: m.p, shown: m.shown, band: m.band, mastered: m.mastered, gap: m.gap },
       canFastTrack: lesson.step === 'opening' && graded && m.p >= MASTERY.fastTrack && unanswered.length > 0,
       canMoreQuestions: (lesson.step === 'unaided' || lesson.step === 'partial') && graded && !m.mastered && unanswered.length === 0,
       estimate: this.lessonEstimate(lesson, concept.id, attempts),

@@ -77,8 +77,32 @@ export function scoreOf(verdict: 'correct' | 'partial' | 'incorrect'): number {
  * question of the lesson correctly, and the last answer in the lesson was correct. The diagnostic
  * or the opening question alone never makes a concept mastered.
  */
-export function isMastered(p: number, lesson: { unaidedCorrect: boolean; lastVerdict: 'correct' | 'partial' | 'incorrect' | null }): boolean {
-  return p >= MASTERY.mastered && lesson.unaidedCorrect && lesson.lastVerdict === 'correct'
+export function isMastered(p: number, lesson: LessonRecord): boolean {
+  return p >= MASTERY.mastered && masteryGap(p, lesson) === null
+}
+
+export interface LessonRecord {
+  unaidedCorrect: boolean
+  lastVerdict: 'correct' | 'partial' | 'incorrect' | null
+}
+
+/**
+ * What stands between an estimate at the threshold and mastery: no correct unaided answer yet
+ * ('unaided'), or the last answer was not fully correct ('last-answer'). Null below the threshold
+ * (more evidence is needed in any case) and when the concept is mastered.
+ */
+export type MasteryGap = 'unaided' | 'last-answer' | null
+
+export function masteryGap(p: number, lesson: LessonRecord): MasteryGap {
+  if (p < MASTERY.mastered) return null
+  if (!lesson.unaidedCorrect) return 'unaided'
+  if (lesson.lastVerdict !== 'correct') return 'last-answer'
+  return null
+}
+
+/** The estimate as shown: never at or above the threshold unless the concept is mastered. */
+export function shownEstimate(p: number, mastered: boolean): number {
+  return mastered ? p : Math.min(p, MASTERY.mastered - 0.01)
 }
 
 export type Band = 'mastered' | 'known' | 'shaky' | 'new'
