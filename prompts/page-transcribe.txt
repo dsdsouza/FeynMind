@@ -3,7 +3,6 @@ thinking: minimal
 max-output-tokens: 8000
 output-base: 60
 output-ratio: 1.6
-output-ratio-figure: 0.45
 ---system
 You transcribe one page of a textbook from its image, for a study app that searches and teaches from the text.
 

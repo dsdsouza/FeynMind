@@ -2,7 +2,7 @@ version: 2
 thinking: minimal
 max-output-tokens: 6000
 output-base: 30
-output-ratio: 0.1
+output-ratio: 0.057
 ---system
 You build the concept map of one section of a textbook, for a tutor that will teach each concept once its prerequisites are learned.
 

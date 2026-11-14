@@ -148,4 +148,12 @@ describe('ProviderService.run', () => {
     await service.run(task(session.id))
     expect(service.calibration('ingestion', 'test-prompt')).toEqual({ inputFactor: 2, outputFactor: 2, samples: 1 })
   })
+
+  it('calibrates against the uncalibrated estimate, so a correction that worked is kept', async () => {
+    const { service, provider, session } = setup()
+    // The formula says 10 and 5; calibration already doubled it, and the call used exactly that.
+    provider.queue = [{ text: '{"n":1}', inputTokens: 20, outputTokens: 10 }]
+    await service.run(task(session.id, { estimate: { inputTokens: 20, outputTokens: 10 }, uncalibratedEstimate: { inputTokens: 10, outputTokens: 5 } }))
+    expect(service.calibration('ingestion', 'test-prompt')).toEqual({ inputFactor: 2, outputFactor: 2, samples: 1 })
+  })
 })

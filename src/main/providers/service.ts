@@ -63,8 +63,14 @@ export interface ModelTask<T> {
   maxOutputTokens: number
   /** Identifies everything else the reply depends on (the content sent, including images). */
   contentKey: string
-  /** Expected tokens, recorded next to the actual ones so later estimates can be calibrated. */
+  /** Expected tokens, after calibration; checked against the session's caps. */
   estimate: { inputTokens: number; outputTokens: number }
+  /**
+   * The estimate before calibration (default: `estimate`). This is what the ledger records next
+   * to the actual tokens: calibration factors measured against already-calibrated estimates would
+   * undo themselves once they took effect.
+   */
+  uncalibratedEstimate?: { inputTokens: number; outputTokens: number }
   /** Turns the reply text into a value, throwing InvalidOutputError if it does not fit. */
   parse: (text: string) => T
   signal?: AbortSignal
@@ -276,7 +282,7 @@ export class ProviderService {
         cacheKey: key,
         outcome,
         usage,
-        estimate: outcome === 'ok' || outcome === 'invalid' ? task.estimate : null
+        estimate: outcome === 'ok' || outcome === 'invalid' ? (task.uncalibratedEstimate ?? task.estimate) : null
       })
 
     const cached = this.options.usage.cacheGet(key)

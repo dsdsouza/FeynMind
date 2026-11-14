@@ -76,6 +76,7 @@ function finish<T>(built: Built<T>, ctx: TaskContext): ModelTask<T> {
     sessionId: ctx.sessionId,
     jobId: ctx.jobId,
     estimate: { inputTokens: Math.round(built.estimate.inputTokens * f.input), outputTokens: Math.round(built.estimate.outputTokens * f.output) },
+    uncalibratedEstimate: built.estimate,
     ...(ctx.signal ? { signal: ctx.signal } : {})
   }
 }
@@ -99,9 +100,10 @@ export function numberedLines(page: PageForVision): string {
 }
 
 /**
- * The output ratio for a page. On a figure-heavy page the extracted text is mostly axis labels and
- * numbers, which the transcription replaces with short figure descriptions; this holds even when
- * the labels made the page count as math-heavy too.
+ * The output ratio for a page: `output-ratio-figure` for figure-heavy pages when the prompt sets
+ * one, otherwise `output-ratio`. page-transcribe no longer sets one: a ratio fitted on a page that
+ * was nearly all graph (0.45) underestimated Strang's figure pages, which are mostly prose, 3.3
+ * times; one ratio of 1.6 fitted all 37 pages of the first real unit.
  */
 export function transcriptionRatio(prompt: PromptFile, page: { mathHeavy: boolean; figureHeavy: boolean }): number {
   return page.figureHeavy && prompt.outputRatioFigure !== null ? prompt.outputRatioFigure : prompt.outputRatio
@@ -203,11 +205,11 @@ export function matchTask(prompt: PromptFile, pairs: MatchPair[], ctx: TaskConte
 }
 
 /**
- * Unclear pairs expected per section with text, before the concepts exist: about six concepts a
- * section, each with about one unclear duplicate candidate and one unclear prerequisite candidate
- * (bands in merge.ts). Calibrated against real runs through the ledger like every other estimate.
+ * Unclear pairs expected per section with text, before the concepts exist (bands in merge.ts). The
+ * first real unit had 28 over 6 sections; the guess of 12 had estimated 4 calls where 1 was needed.
+ * The ledger calibrates the tokens of matching, but not the number of calls.
  */
-export const EXPECTED_PAIRS_PER_SECTION = 12
+export const EXPECTED_PAIRS_PER_SECTION = 5
 
 /** Calls and tokens for matching `pairs` unclear pairs, sent in two rounds (duplicates, then prerequisites). */
 export function matchEstimate(prompt: PromptFile, pairs: number): { calls: number; inputTokens: number; outputTokens: number } {
