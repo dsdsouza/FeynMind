@@ -5,7 +5,7 @@ import { toUserMessage } from './errors'
 import { KeyStore, type Encryptor, type KeyValueStore } from './keystore'
 import { costUsd, priceOf, setUserPrice } from './pricing'
 import { PauseError, RateLimiter, realClock, withRetries, type Clock } from './rateLimiter'
-import type { AdapterFactory, FetchFn, GenerateRequest, ProviderAdapter, ThinkingLevel, TokenUsage } from './types'
+import type { AdapterFactory, FetchFn, GenerateRequest, GenerateResult, ProviderAdapter, ThinkingLevel, TokenUsage } from './types'
 import type { CallOutcome, UsageStore, UsageTotals } from './usage'
 
 const SETTINGS_KEY_API_KEY = 'provider.gemini.apiKeyEncrypted'
@@ -271,6 +271,37 @@ export class ProviderService {
    * Throws PauseError (caps, quota, repeated limit errors) or InvalidOutputError.
    */
   async run<T>(task: ModelTask<T>): Promise<ModelTaskResult<T>> {
+    return this.execute(task, (adapter, request) => adapter.generate(request), null)
+  }
+
+  /**
+   * Runs a plain-text task and passes its reply to `onText` as it arrives. Caching, caps, the rate
+   * limiter, validation retries and the ledger work exactly as in `run`; only a complete, valid
+   * reply is cached. A cached reply is passed on in one piece. When an attempt is retried after
+   * text was already passed on, `onReset` is called first, so the caller can discard that text.
+   */
+  async runStream<T>(task: ModelTask<T>, onText: (text: string) => void, onReset: () => void): Promise<ModelTaskResult<T>> {
+    if (task.jsonSchema) throw new Error('Streamed tasks are plain text; they cannot have a JSON schema.')
+    let sent = false
+    const emit = (text: string): void => {
+      sent = true
+      onText(text)
+    }
+    const beforeAttempt = (): void => {
+      if (!sent) return
+      sent = false
+      onReset()
+    }
+    const result = await this.execute(task, (adapter, request) => adapter.stream(request, emit), beforeAttempt)
+    if (result.cached) emit(this.options.usage.cacheGet(cacheKeyOf(task.prompt, this.modelForRole(task.role), task.contentKey)) ?? '')
+    return result
+  }
+
+  private async execute<T>(
+    task: ModelTask<T>,
+    send: (adapter: ProviderAdapter, request: GenerateRequest) => Promise<GenerateResult>,
+    beforeAttempt: (() => void) | null
+  ): Promise<ModelTaskResult<T>> {
     const model = this.modelForRole(task.role)
     const key = cacheKeyOf(task.prompt, model, task.contentKey)
     const record = (outcome: CallOutcome, usage: TokenUsage | null): void =>
@@ -310,11 +341,18 @@ export class ProviderService {
     for (let attempt = 1; attempt <= MAX_VALIDATION_ATTEMPTS; attempt++) {
       this.checkCaps(task.sessionId, model, task.estimate)
       const adapter = this.adapter()
-      const reply = await withRetries(this.limiter, () => adapter.generate(request), {
+      const reply = await withRetries(
+        this.limiter,
+        () => {
+          beforeAttempt?.()
+          return send(adapter, request)
+        },
+        {
         clock: this.clock,
         ...(task.signal ? { signal: task.signal } : {}),
         onFailedAttempt: ({ kind }) => record(kind === 'rate-limit' ? 'rate-limited' : kind === 'quota-daily' ? 'quota' : 'error', null)
-      })
+        }
+      )
       try {
         const value = task.parse(reply.text)
         record('ok', reply.usage)

@@ -189,3 +189,34 @@ describe('classifyGeminiError', () => {
     expect(classifyGeminiError(400, undefined).kind).toBe('bad-request')
   })
 })
+
+describe('Gemini adapter: streaming', () => {
+  // streamGenerateContent with alt=sse answers with server-sent events, one GenerateContentResponse per event.
+  const sse = (events: unknown[]) =>
+    new Response(events.map((e) => `data: ${JSON.stringify(e)}\r\n\r\n`).join(''), { status: 200, headers: { 'content-type': 'text/event-stream' } })
+
+  it('passes each piece of text on as it arrives and returns the whole reply with billed tokens', async () => {
+    const { fetch, captured } = fakeFetch([
+      sse([
+        { candidates: [{ content: { role: 'model', parts: [{ text: '## Expla' }] } }] },
+        { candidates: [{ content: { role: 'model', parts: [{ text: 'nation\nVectors.' }] }, finishReason: 'STOP' }], usageMetadata: { promptTokenCount: 50, candidatesTokenCount: 6, thoughtsTokenCount: 2, totalTokenCount: 58 } }
+      ])
+    ])
+    const pieces: string[] = []
+    const reply = await createGeminiAdapter({ apiKey: KEY, fetch }).stream({ modelId: 'gemini-3.1-flash-lite', prompt: 'Explain', thinking: 'minimal' }, (t) => pieces.push(t))
+    expect(pieces).toEqual(['## Expla', 'nation\nVectors.'])
+    expect(reply.text).toBe('## Explanation\nVectors.')
+    expect(reply.usage).toEqual({ inputTokens: 50, outputTokens: 8, thinkingTokens: 2 })
+    expect(captured).toHaveLength(1)
+    expect(captured[0]?.url).toContain(':streamGenerateContent')
+  })
+
+  it('reports an HTTP error as a classified provider error after one attempt', async () => {
+    const { fetch, captured } = fakeFetch([
+      json({ error: { code: 503, message: 'The model is overloaded.', status: 'UNAVAILABLE' } }, 503),
+      json({ error: { code: 503, message: 'again' } }, 503)
+    ])
+    await expect(createGeminiAdapter({ apiKey: KEY, fetch }).stream({ modelId: 'gemini-3.1-flash-lite', prompt: 'x' }, () => undefined)).rejects.toMatchObject({ kind: 'overloaded' })
+    expect(captured).toHaveLength(1)
+  })
+})

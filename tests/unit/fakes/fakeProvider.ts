@@ -44,8 +44,29 @@ export class FakeProvider {
       this.calls.push({ method: 'generate', apiKey: options.apiKey, modelId: request.modelId, prompt: request.prompt, request })
       if (this.failWith) throw this.failWith
       return this.answer(request)
+    },
+    // Streams the same answers in pieces of `streamPiece` characters. `streamFailAfter` makes the
+    // next stream throw that error after its first piece, as a connection dropped mid-reply would.
+    stream: async (request, onText) => {
+      this.calls.push({ method: 'generate', apiKey: options.apiKey, modelId: request.modelId, prompt: request.prompt, request })
+      if (this.failWith) throw this.failWith
+      const result = this.answer(request)
+      const pieces = result.text.match(new RegExp(`[\\s\\S]{1,${this.streamPiece}}`, 'g')) ?? []
+      for (const [i, piece] of pieces.entries()) {
+        onText(piece)
+        if (i === 0 && this.streamFailAfter) {
+          const error = this.streamFailAfter
+          this.streamFailAfter = null
+          throw error
+        }
+        await Promise.resolve()
+      }
+      return result
     }
   })
+
+  streamPiece = 8
+  streamFailAfter: Error | null = null
 }
 
 /** Reversible stand-in for safeStorage. Ciphertext never contains the plain text. */

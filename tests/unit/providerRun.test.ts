@@ -157,3 +157,80 @@ describe('ProviderService.run', () => {
     expect(service.calibration('ingestion', 'test-prompt')).toEqual({ inputFactor: 2, outputFactor: 2, samples: 1 })
   })
 })
+
+describe('ProviderService.runStream', () => {
+  const textTask = (sessionId: number, overrides: Partial<ModelTask<string>> = {}): ModelTask<string> => ({
+    role: 'teaching',
+    sessionId,
+    jobId: null,
+    prompt: { name: 'explain', version: 1, hash: 'h1' },
+    text: 'Explain.',
+    thinking: 'minimal',
+    maxOutputTokens: 100,
+    contentKey: 'content-1',
+    estimate: { inputTokens: 10, outputTokens: 5 },
+    parse: (text) => {
+      if (!text.startsWith('##')) throw new InvalidOutputError('must start with a heading')
+      return text
+    },
+    ...overrides
+  })
+
+  it('passes text on as it arrives, caches the reply, and replays a cached reply in one piece', async () => {
+    const { service, provider, session } = setup()
+    provider.reply = '## Explanation\nA vector has length and direction.'
+    const pieces: string[] = []
+    const result = await service.runStream(textTask(session.id), (t) => pieces.push(t), () => pieces.push('RESET'))
+    expect(result).toEqual({ value: provider.reply, cached: false })
+    expect(pieces.length).toBeGreaterThan(2)
+    expect(pieces.join('')).toBe(provider.reply)
+
+    const again: string[] = []
+    expect(await service.runStream(textTask(session.id), (t) => again.push(t), () => again.push('RESET'))).toEqual({ value: provider.reply, cached: true })
+    expect(again).toEqual([provider.reply])
+    expect(provider.generateCalls).toHaveLength(1)
+    expect(service.usageSummary(session.id)).toMatchObject({ calls: 1, cacheHits: 1 })
+  })
+
+  it('resets and retries when the connection drops mid-reply', async () => {
+    const { service, provider, session } = setup()
+    provider.reply = '## Explanation\nDot products multiply and add.'
+    provider.streamFailAfter = new ProviderError('Could not reach the provider.', 'network')
+    let shown = ''
+    const result = await service.runStream(
+      textTask(session.id),
+      (t) => (shown += t),
+      () => (shown = '')
+    )
+    expect(result.value).toBe(provider.reply)
+    expect(shown).toBe(provider.reply)
+    expect(provider.generateCalls).toHaveLength(2)
+  })
+
+  it('resets and asks again when a finished reply fails validation; nothing invalid is cached', async () => {
+    const { service, provider, session } = setup()
+    provider.queue = [{ text: 'no heading here' }, { text: '## Fine' }]
+    let shown = ''
+    const resets: number[] = []
+    const result = await service.runStream(
+      textTask(session.id),
+      (t) => (shown += t),
+      () => {
+        resets.push(shown.length)
+        shown = ''
+      }
+    )
+    expect(result).toEqual({ value: '## Fine', cached: false })
+    expect(shown).toBe('## Fine')
+    expect(resets).toEqual(['no heading here'.length])
+    expect(service.usageSummary(session.id)).toMatchObject({ calls: 2 })
+  })
+
+  it('checks the cap before streaming and refuses JSON tasks', async () => {
+    const { service, provider, session, sessions } = setup()
+    sessions.setLimits(session.id, { callCap: 0, spendCapUsd: null })
+    await expect(service.runStream(textTask(session.id), () => undefined, () => undefined)).rejects.toBeInstanceOf(PauseError)
+    expect(provider.generateCalls).toHaveLength(0)
+    await expect(service.runStream(textTask(session.id, { jsonSchema: { type: 'object' } }), () => undefined, () => undefined)).rejects.toThrow('plain text')
+  })
+})

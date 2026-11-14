@@ -40,6 +40,12 @@ export interface ProviderAdapter {
    * retrying and pacing are the rate limiter's job.
    */
   generate(request: GenerateRequest): Promise<GenerateResult>
+  /**
+   * Like `generate`, but passes the reply's text to `onText` piece by piece as it arrives, then
+   * returns the whole reply. Plain text only (no JSON schema). Makes exactly one attempt; if it
+   * fails part way, the pieces already passed on are not part of any result.
+   */
+  stream(request: GenerateRequest, onText: (text: string) => void): Promise<GenerateResult>
 }
 
 export interface AdapterOptions {

@@ -1,5 +1,5 @@
 import { createGoogleGenerativeAI } from '@ai-sdk/google'
-import { APICallError, generateText, jsonSchema, NoObjectGeneratedError, Output, type LanguageModelUsage } from 'ai'
+import { APICallError, generateText, jsonSchema, NoObjectGeneratedError, Output, streamText, type LanguageModelUsage } from 'ai'
 import type { ModelInfo } from '../../shared/ipc'
 import { describeHttpStatus } from './errors'
 import { ProviderError, type AdapterFactory, type FetchFn, type GenerateRequest, type GenerateResult, type TokenUsage } from './types'
@@ -133,6 +133,43 @@ export function usageOf(usage: LanguageModelUsage | undefined): TokenUsage {
   return { inputTokens: usage?.inputTokens ?? 0, outputTokens: usage?.outputTokens ?? 0, thinkingTokens: thinking }
 }
 
+/** Options shared by generate and stream: the model, the messages, thinking and media settings, one attempt. */
+function callOptions(google: ReturnType<typeof createGoogleGenerativeAI>, request: GenerateRequest) {
+  const images = request.images ?? []
+  const content = [
+    { type: 'text' as const, text: request.prompt },
+    ...images.map((data) => ({ type: 'file' as const, mediaType: 'image/png', data }))
+  ]
+  return {
+    model: google(request.modelId),
+    ...(request.system ? { system: request.system } : {}),
+    messages: [{ role: 'user' as const, content }],
+    ...(request.maxOutputTokens ? { maxOutputTokens: request.maxOutputTokens } : {}),
+    providerOptions: {
+      google: {
+        ...(request.thinking ? { thinkingConfig: { thinkingLevel: request.thinking } } : {}),
+        // 1120 tokens per image on Gemini 3 (media-resolution page, checked 2026-11-13): small
+        // subscripts and matrix entries need the high setting, and a fixed count keeps estimates exact.
+        ...(images.length > 0 ? { mediaResolution: 'MEDIA_RESOLUTION_HIGH' } : {})
+      }
+    },
+    // One attempt only: the rate limiter decides when to try again.
+    maxRetries: 0,
+    timeout: GENERATE_TIMEOUT_MS
+  }
+}
+
+/** Turns an SDK or network error into a ProviderError the rate limiter understands. */
+function toProviderError(error: unknown): unknown {
+  if (error instanceof ProviderError) return error
+  if (APICallError.isInstance(error) && error.statusCode !== undefined) return classifyGeminiError(error.statusCode, error.responseBody)
+  if (error instanceof Error && (error.name === 'TimeoutError' || error.name === 'AbortError')) {
+    return new ProviderError('The provider did not answer in time.', 'timeout')
+  }
+  if (APICallError.isInstance(error)) return new ProviderError('Could not reach the provider. Check the connection.', 'network')
+  return error
+}
+
 export const createGeminiAdapter: AdapterFactory = ({ apiKey, fetch }) => {
   const doFetch: FetchFn = fetch ?? globalThis.fetch
   // apiKey is always passed explicitly, so the SDK never falls back to its own env variable.
@@ -168,41 +205,41 @@ export const createGeminiAdapter: AdapterFactory = ({ apiKey, fetch }) => {
     },
 
     async generate(request: GenerateRequest): Promise<GenerateResult> {
-      const images = request.images ?? []
-      const content = [
-        { type: 'text' as const, text: request.prompt },
-        ...images.map((data) => ({ type: 'file' as const, mediaType: 'image/png', data }))
-      ]
       try {
         const result = await generateText({
-          model: google(request.modelId),
-          ...(request.system ? { system: request.system } : {}),
-          messages: [{ role: 'user', content }],
-          ...(request.jsonSchema ? { output: Output.object({ schema: jsonSchema(request.jsonSchema) }) } : {}),
-          ...(request.maxOutputTokens ? { maxOutputTokens: request.maxOutputTokens } : {}),
-          providerOptions: {
-            google: {
-              ...(request.thinking ? { thinkingConfig: { thinkingLevel: request.thinking } } : {}),
-              // 1120 tokens per image on Gemini 3 (media-resolution page, checked 2026-11-13): small
-              // subscripts and matrix entries need the high setting, and a fixed count keeps estimates exact.
-              ...(images.length > 0 ? { mediaResolution: 'MEDIA_RESOLUTION_HIGH' } : {})
-            }
-          },
-          // One attempt only: the rate limiter decides when to try again.
-          maxRetries: 0,
-          timeout: GENERATE_TIMEOUT_MS
+          ...callOptions(google, request),
+          ...(request.jsonSchema ? { output: Output.object({ schema: jsonSchema(request.jsonSchema) }) } : {})
         })
         return { text: result.text, usage: usageOf(result.usage) }
       } catch (error) {
         // The reply arrived (and was billed) but was not valid JSON for the schema: return it, the caller validates.
         if (NoObjectGeneratedError.isInstance(error)) return { text: error.text ?? '', usage: usageOf(error.usage) }
-        if (APICallError.isInstance(error) && error.statusCode !== undefined) throw classifyGeminiError(error.statusCode, error.responseBody)
-        if (error instanceof Error && (error.name === 'TimeoutError' || error.name === 'AbortError')) {
-          throw new ProviderError('The provider did not answer in time.', 'timeout')
-        }
-        if (APICallError.isInstance(error)) throw new ProviderError('Could not reach the provider. Check the connection.', 'network')
-        throw error
+        throw toProviderError(error)
       }
+    },
+
+    async stream(request: GenerateRequest, onText: (text: string) => void): Promise<GenerateResult> {
+      // streamText reports failures as parts of the stream rather than throwing, so each part is read here.
+      // One attempt only: no retries before or after streaming starts (streamRetries omitted = off).
+      let text = ''
+      try {
+        const result = streamText(callOptions(google, request))
+        for await (const part of result.fullStream) {
+          if (part.type === 'text-delta') {
+            text += part.text
+            onText(part.text)
+          } else if (part.type === 'error') {
+            throw part.error
+          } else if (part.type === 'abort') {
+            throw new ProviderError('The provider did not answer in time.', 'timeout')
+          } else if (part.type === 'finish') {
+            return { text, usage: usageOf(part.totalUsage) }
+          }
+        }
+      } catch (error) {
+        throw toProviderError(error)
+      }
+      throw new ProviderError('The reply ended before it was complete.', 'network')
     }
   }
 }
