@@ -437,10 +437,13 @@ export class TutorService {
 
   // Lessons
 
-  /** The lesson that was left part way, if any, to reopen where it stopped. */
-  currentLesson(sessionId: number): LessonView | null {
+  /** The lesson that was left part way, if any, reopened where it stopped: unfinished grading and explanation resume. */
+  async currentLesson(sessionId: number): Promise<LessonView | null> {
     const open = this.repo.openLesson(sessionId)
-    return open ? this.view(open.id) : null
+    if (!open) return null
+    const { concept, all } = this.conceptOf(sessionId, open.conceptId)
+    await this.prepare(open, concept, all)
+    return this.view(open.id)
   }
 
   /**

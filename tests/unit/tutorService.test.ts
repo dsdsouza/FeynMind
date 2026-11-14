@@ -348,7 +348,7 @@ describe('lesson', () => {
 
     const again = t.make()
     expect(t.tutor.path(t.session.id).openLesson).toMatchObject({ name: 'relation', step: 'guided' })
-    const reopened = again.currentLesson(t.session.id)
+    const reopened = await again.currentLesson(t.session.id)
     expect(reopened).toMatchObject({ step: 'guided', draft: 'half-typed answer' })
     expect(reopened?.question?.kind).toBe('guided')
     expect(reopened?.explanation?.markdown).toContain('## Worked example')
