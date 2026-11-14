@@ -57,3 +57,22 @@ that the app's validation accepts them; the token figures set the estimate ratio
 | `B-syllabus-parse.json`, `E-syllabus-parse.json` | The syllabus read with prompt versions 1 and 2. |
 | `B-syllabus-map.json` | Units of the version 1 reading matched to `toc.txt`. |
 | `D-match-minimal.json`, `D-match-low.json` | 38 pairs with known answers at the two thinking levels (both all correct). |
+
+### Tutor (`tests/live/tutor.live.test.ts`, `gemini-3.1-flash-lite`, 2026-11-14)
+
+Made only from the OpenStax fixture pages above (so the questions, explanations and grades are
+adaptations of *Precalculus* by Jay Abramson et al., OpenStax, CC BY 4.0,
+<https://openstax.org/details/books/precalculus>) and from text written for this project.
+
+| File | What it is |
+| --- | --- |
+| `G-tutor.json` | Batch G: diagnostic questions for three concepts, lesson questions and the streamed explanation for "function" and "domain", with every reply (including one the checks of that time rejected, and why) and its tokens. |
+| `grading-minimal.json`, `grading-low.json` | The grading benchmark at thinking "minimal" and "low": verdict per case, the grader's criteria and reason, tokens. |
+| `contest.json` | Contested grading: a valid objection and a confidently worded invalid one. |
+
+## Grading benchmark (`tests/bench/grading-cases.json`)
+
+Questions, rubrics and answers written for this project (MIT) about the OpenStax fixture pages
+(CC BY 4.0) named in each question; the passages sent with each case are those pages as the app
+chunks them. 22 cases: 5 correct, 5 correct in different wording, 4 wrong, 4 partly correct and 4
+with a right answer but a wrong reason, each with its expected verdict.

@@ -1,6 +1,6 @@
 # PRD: FeynMind
 
-As of 2026-11-13
+As of 2026-11-14
 
 ## Overview
 
@@ -246,5 +246,5 @@ Each phase ships something usable and proves one thing before the next begins.
 ## Open questions
 
 - [ ] Is FeynMind the final name? MindChamber is the alternative.
-- [ ] Can a learner contest a grade, and does a second model review it?
+- [x] Can a learner contest a grade, and does a second model review it? Decided 2026-11-14: yes, once per answer. The objection goes to a second grading pass by the grading model (the same model as the first until roles get their own models in milestone 6); both grades are kept and the second counts.
 - [ ] Are the proposed metric targets right?

@@ -72,6 +72,7 @@ npm test             # unit tests, run inside Electron's Node; no network (about
 npm run test:e2e     # builds, then Playwright opens the app with a throwaway profile; no network (model download off, model replies replayed)
 npm run test:live    # opt-in: 2 real Gemini calls (list models + one short prompt) using .env.local
 FEYNMIND_LIVE_BATCH=A node scripts/run-vitest.mjs --live run --config vitest.live.config.mts tests/live/knowledge.live.test.ts  # opt-in: one batch of real knowledge calls (A/B/E 2, C 4, D 2, models 1; toc and dump 0) on fixtures only; writes tests/fixtures/recorded/
+FEYNMIND_LIVE_BATCH=G node scripts/run-vitest.mjs --live run --config vitest.live.config.mts tests/live/tutor.live.test.ts  # opt-in: real tutor calls on fixtures only (G 5, bench-minimal 22, bench-low 22, contest 2; allowed 0); each batch stops at a fixed ceiling (G 15, bench 24, contest 3); writes tests/fixtures/recorded/
 npm run test:models  # opt-in: downloads the pinned embedding model once (~35 MB) and checks its vectors; no model API calls
 npm run bench:ingest -- <file> [...] [--queries q.json]  # real pipeline on your own files, throwaway database, prints timings; checks expected pages in q.json
 npm run bench:ingest -- "<Strang PDF>" --queries tests/bench/strang-regression.json  # search regression set (13 checks, ~8 min); run after any search change
@@ -100,5 +101,7 @@ Gotchas:
 - Prompt files start with a header (`version`, `thinking`, `max-output-tokens`, `output-*`). The cache key hashes everything except the `output-*` lines, which only feed estimates: retuning a ratio never re-bills, any other edit invalidates only that prompt's results.
 - `FEYNMIND_PROVIDER_REPLAY=<file.json>` makes an unpackaged app answer model requests from a file (see `src/main/providers/replay.ts`); the knowledge e2e test uses it. The test also needs the embedding model on disk: it copies it from `FEYNMIND_SMOKE_MODEL_CACHE` or the development profile, and skips (saying why) when neither has it.
 - Vitest hides console output of passing tests here; add `--silent=false` to see it.
+- The rate limiter's 10 requests a minute applies to replayed calls too. An end-to-end test that processes a unit and then grades must raise "Requests per minute" in Settings first, or the grade waits up to a minute behind the unit's calls.
+- Tutor replies are checked against the passages that were sent: a citation must name a page of them (`[S2 p. 17]`). Recorded live replies in `tests/fixtures/recorded/G-tutor.json` must keep passing `tests/unit/recordedTutor.test.ts`; loosen a check only for harmless variations.
 - In `electron-builder.yml`, never put a `files:` list under `win`/`mac`/`linux` that only excludes: electron-builder then packs the whole project folder, old builds included. Keep file filters at the top level, where `${platform}` and `${arch}` work.
 - Native, WASM and worker-thread packages must be listed under `asarUnpack`. Tesseract's worker thread loads its own dependencies from the unpacked folder, so they are unpacked too.
