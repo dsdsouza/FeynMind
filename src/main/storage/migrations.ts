@@ -377,15 +377,17 @@ export const MIGRATIONS: readonly Migration[] = [
       ) STRICT;
 
       -- One lesson per concept. step is where the learner is; question_id the question shown.
+      -- passages: the textbook passages retrieved once for the lesson and used by all its requests.
       CREATE TABLE lessons (
         id                  INTEGER PRIMARY KEY,
         session_id          INTEGER NOT NULL REFERENCES sessions(id) ON DELETE CASCADE,
         concept_id          INTEGER NOT NULL UNIQUE REFERENCES concepts(id) ON DELETE CASCADE,
         step                TEXT NOT NULL CHECK (step IN ('opening', 'explain', 'guided', 'partial', 'unaided', 'done')),
         question_id         INTEGER REFERENCES questions(id) ON DELETE SET NULL,
+        question_shown_at   TEXT,
+        passages            TEXT NOT NULL DEFAULT '[]',
         explanation         TEXT,
-        explanation_sources TEXT,
-        explanation_key     TEXT,
+        explanation_outside INTEGER NOT NULL DEFAULT 0,
         draft_answer        TEXT NOT NULL DEFAULT '',
         started_at          TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%fZ', 'now')),
         updated_at          TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%fZ', 'now')),
@@ -418,6 +420,9 @@ export const MIGRATIONS: readonly Migration[] = [
         submitted_at  TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%fZ', 'now')),
         status        TEXT NOT NULL CHECK (status IN ('saved', 'graded', 'failed')),
         error         TEXT,
+        -- A contest: the objection is saved before the second grading, which is pending until grade pass 2 exists.
+        objection     TEXT,
+        objection_at  TEXT,
         CHECK ((lesson_id IS NULL) != (diagnostic_id IS NULL))
       ) STRICT;
       CREATE INDEX attempts_by_concept ON attempts (concept_id, id);
