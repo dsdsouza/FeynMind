@@ -11,7 +11,11 @@ const require = createRequire(import.meta.url)
 
 /** Turns 16 kHz mono audio into text, on this machine. */
 export interface Transcriber {
-  transcribe(audio: Float32Array): Promise<string>
+  /**
+   * Transcribes a recording or one segment of it. `previousText`, the text of the segments before
+   * it, is given to the model as context, as Whisper's reference implementation does.
+   */
+  transcribe(audio: Float32Array, previousText?: string): Promise<string>
   close(): Promise<void>
 }
 
@@ -25,6 +29,7 @@ interface GenerationConfig {
   decoder_start_token_id: number
   eos_token_id: number
   no_timestamps_token_id: number
+  prev_sot_token_id: number
   forced_decoder_ids: [number, number][]
   suppress_tokens: number[]
   begin_suppress_tokens: number[]
@@ -33,6 +38,8 @@ interface GenerationConfig {
 
 /** Tokens per 30 s window; Whisper's own limit is half its 448-token context. */
 const MAX_NEW_TOKENS = 224
+/** At most this many tokens of earlier text are given as context (Whisper allows 223). */
+const MAX_CONTEXT_TOKENS = 128
 
 /**
  * Loads an English-only Whisper model exported to ONNX (encoder plus merged decoder with a key/value
@@ -75,7 +82,15 @@ export async function createWhisperTranscriber(modelDir: string): Promise<Transc
   const laterFetches = ['logits', ...presents(['decoder.key', 'decoder.value'])]
   const firstFetches = [...laterFetches, ...presents(['encoder.key', 'encoder.value'])]
 
-  async function transcribeWindow(audio: Float32Array): Promise<string> {
+  /** The decoder's first input: earlier text (if any), then the start of a transcript. */
+  function startTokens(previousText: string): number[] {
+    const text = previousText.trim()
+    if (text === '') return prompt
+    const ids = tokenizer.encode(` ${text}`, { add_special_tokens: false }).ids.slice(-MAX_CONTEXT_TOKENS)
+    return [generation.prev_sot_token_id, ...ids, ...prompt]
+  }
+
+  async function transcribeWindow(audio: Float32Array, previousText: string): Promise<string> {
     const features = new ort.Tensor('float32', logMelSpectrogram(audio), [1, N_MELS, N_FRAMES])
     const encoded = await encoder.run({ input_features: features })
     const hidden = encoded['last_hidden_state']
@@ -86,7 +101,7 @@ export async function createWhisperTranscriber(modelDir: string): Promise<Transc
       for (const part of ['decoder.key', 'decoder.value', 'encoder.key', 'encoder.value']) cache[`past_key_values.${l}.${part}`] = emptyCache()
     }
     const output: number[] = []
-    let input = prompt
+    let input = startTokens(previousText)
     for (let step = 0; step < MAX_NEW_TOKENS; step++) {
       const result = await decoder.run(
         {
@@ -136,9 +151,9 @@ export async function createWhisperTranscriber(modelDir: string): Promise<Transc
   }
 
   return {
-    async transcribe(audio) {
+    async transcribe(audio, previousText = '') {
       const pieces: string[] = []
-      for (const window of splitIntoWindows(audio)) pieces.push(await transcribeWindow(window))
+      for (const window of splitIntoWindows(audio)) pieces.push(await transcribeWindow(window, [previousText, ...pieces].join(' ')))
       return cleanTranscript(pieces)
     },
     async close() {
