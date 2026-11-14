@@ -486,6 +486,20 @@ export const MIGRATIONS: readonly Migration[] = [
         created_at    TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%fZ', 'now'))
       ) STRICT;
     `
+  },
+  {
+    version: 5,
+    name: 'reasoning',
+    // Milestone 5: the learner's reasoning ("Your thinking"), typed or dictated, saved and graded
+    // with the answer. Only text is stored; audio never is.
+    up: `
+      ALTER TABLE lessons ADD COLUMN draft_reasoning TEXT NOT NULL DEFAULT '';
+      ALTER TABLE attempts ADD COLUMN reasoning_text TEXT NOT NULL DEFAULT '';
+      -- What the grader made of the reasoning: 'sound', 'flawed', or 'none' (text that gives no
+      -- reasoning to judge, such as "I think so"). NULL when the answer had no reasoning text.
+      ALTER TABLE grades ADD COLUMN reasoning_judgment TEXT CHECK (reasoning_judgment IN ('sound', 'flawed', 'none'));
+      ALTER TABLE grades ADD COLUMN reasoning_comment TEXT;
+    `
   }
 ]
 

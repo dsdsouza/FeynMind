@@ -61,7 +61,10 @@ function seedCourse(db: Database.Database, sessionId: number, materialId: number
 const reply = (value: unknown): FakeAnswer => ({ text: JSON.stringify(value), inputTokens: 800, outputTokens: 200 })
 const firstCite = (prompt: string): string => /\[(S\d+ p\. [^\]]+)\]/.exec(prompt)?.[1] ?? 'S1 p. 11'
 
-/** Answers like a well-behaved model. Grades: an answer containing RIGHT meets every criterion, HALF only the first. */
+/**
+ * Answers like a well-behaved model. Grades: an answer containing RIGHT meets every criterion, HALF
+ * only the first. Reasoning containing FLAWED is judged flawed, NOTHING none, anything else sound.
+ */
 function answer(request: GenerateRequest): FakeAnswer {
   const keys = Object.keys((request.jsonSchema?.['properties'] ?? {}) as object)
   const cite = firstCite(request.prompt)
@@ -89,9 +92,14 @@ function answer(request: GenerateRequest): FakeAnswer {
       )
     })
   }
-  const studentAnswer = request.prompt.split("Student's answer:\n")[1]?.split('\n\nFirst grade:')[0] ?? ''
+  const studentAnswer = request.prompt.split("Student's answer:\n")[1]?.split('\n\n')[0] ?? ''
   const met = studentAnswer.includes('RIGHT') ? ['yes', 'yes'] : studentAnswer.includes('HALF') ? ['yes', 'no'] : ['no', 'no']
-  const grade = { criteria: [{ id: 'c1', met: met[0], evidence: '' }, { id: 'c2', met: met[1], evidence: '' }], reason: 'Graded.', feedback: '', pages: [cite], outsideSources: false }
+  const reasoningText = request.prompt.split("Student's reasoning (typed or dictated):\n")[1]?.split('\n\n')[0]
+  const judged =
+    reasoningText === undefined
+      ? {}
+      : { reasoning: reasoningText.includes('FLAWED') ? { judgment: 'flawed', comment: 'You used the wrong rule in step 2.' } : reasoningText.includes('NOTHING') ? { judgment: 'none', comment: '' } : { judgment: 'sound', comment: 'Each step follows.' } }
+  const grade = { criteria: [{ id: 'c1', met: met[0], evidence: '' }, { id: 'c2', met: met[1], evidence: '' }], reason: 'Graded.', feedback: '', pages: [cite], outsideSources: false, ...judged }
   if (keys.includes('assessment')) {
     const holds = request.prompt.includes('VALID OBJECTION')
     return reply({ ...grade, criteria: holds ? [{ id: 'c1', met: 'yes', evidence: '' }, { id: 'c2', met: 'yes', evidence: '' }] : grade.criteria, assessment: holds ? 'It holds.' : 'It does not hold.', changed: holds })
@@ -345,7 +353,7 @@ describe('lesson', () => {
     view = t.tutor.continue(view.lessonId)
     await t.tutor.idle()
     view = t.tutor.continue(view.lessonId)
-    t.tutor.saveDraft(view.lessonId, 'half-typed answer')
+    t.tutor.saveDraft(view.lessonId, 'answer', 'half-typed answer')
     const before = calls(t.provider)
 
     const again = t.make()
@@ -396,6 +404,84 @@ describe('lesson', () => {
     expect(() => t.tutor.continue(view.lessonId)).toThrow('Ask for more questions')
     view = await t.tutor.moreQuestions(view.lessonId)
     expect(view.question).toMatchObject({ kind: 'unaided', number: 4 })
+  })
+})
+
+describe('reasoning', () => {
+  const promptsOf = (p: FakeProvider) => p.generateCalls.map((c) => c.prompt)
+
+  it('saves the reasoning with the answer before grading, grades both with the reasoning prompt and shows the judgment', async () => {
+    const t = seeded()
+    let view = await t.tutor.openLesson(t.session.id, t.ids['relation'] as number)
+    t.provider.respond = (request) => {
+      const saved = t.db.prepare('SELECT answer_text AS a, reasoning_text AS r, status FROM attempts WHERE lesson_id = ?').get(view.lessonId)
+      expect(saved).toEqual({ a: 'RIGHT', r: 'um so the the input one goes to two outputs', status: 'saved' })
+      return answer(request)
+    }
+    view = t.tutor.answer(view.lessonId, view.question?.id ?? 0, 'RIGHT', false, '  um so the the input one goes to two outputs ')
+    expect(view.attempt).toMatchObject({ status: 'saved', reasoning: 'um so the the input one goes to two outputs' })
+    await t.tutor.idle()
+    view = t.tutor.view(view.lessonId)
+    expect(view.attempt?.grades[0]).toMatchObject({ verdict: 'correct', reasoning: { judgment: 'sound', comment: 'Each step follows.' } })
+    const sent = promptsOf(t.provider).at(-1) ?? ''
+    expect(sent).toContain("Student's reasoning (typed or dictated):\num so the the input one goes to two outputs")
+    expect(t.provider.generateCalls.at(-1)?.system).toContain('dictation')
+  })
+
+  it('without reasoning, grades exactly as before: the old prompt and no judgment', async () => {
+    const t = seeded()
+    let view = await t.tutor.openLesson(t.session.id, t.ids['relation'] as number)
+    view = await answerAndWait(t, view, 'RIGHT')
+    expect(view.attempt).toMatchObject({ reasoning: '' })
+    expect(view.attempt?.grades[0]).toMatchObject({ verdict: 'correct', reasoning: null })
+    expect(promptsOf(t.provider).at(-1)).not.toContain("Student's reasoning")
+  })
+
+  it('makes a right answer with flawed reasoning partly correct, so it never masters the concept', async () => {
+    const t = seeded()
+    const relation = t.ids['relation'] as number
+    t.tutor.learner.addEvidence(t.session.id, relation, 'override-known', { value: 0.9 })
+    let view = await t.tutor.openLesson(t.session.id, relation)
+    view = await answerAndWait(t, view, 'RIGHT')
+    view = t.tutor.continue(view.lessonId, true)
+    expect(view.question?.kind).toBe('unaided')
+    t.tutor.answer(view.lessonId, view.question?.id ?? 0, 'RIGHT', false, 'FLAWED: I divided both sides by x')
+    await t.tutor.idle()
+    view = t.tutor.view(view.lessonId)
+    expect(view.attempt?.grades[0]).toMatchObject({ verdict: 'partial', score: 1, reasoning: { judgment: 'flawed', comment: 'You used the wrong rule in step 2.' } })
+    expect(view.mastery.mastered).toBe(false)
+  })
+
+  it('keeps both drafts across a restart and clears them when the answer is submitted', async () => {
+    const t = seeded()
+    let view = await t.tutor.openLesson(t.session.id, t.ids['relation'] as number)
+    t.tutor.saveDraft(view.lessonId, 'answer', 'half an answer')
+    t.tutor.saveDraft(view.lessonId, 'reasoning', 'first I looked at the inputs')
+    expect(await t.make().currentLesson(t.session.id)).toMatchObject({ draft: 'half an answer', draftReasoning: 'first I looked at the inputs' })
+    view = t.tutor.answer(view.lessonId, view.question?.id ?? 0, 'RIGHT', false, 'first I looked at the inputs')
+    expect(view).toMatchObject({ draft: '', draftReasoning: '' })
+    await t.tutor.idle()
+  })
+
+  it('sends a contest of an answer with reasoning to the reasoning contest prompt, with the first judgment', async () => {
+    const t = seeded()
+    let view = await t.tutor.openLesson(t.session.id, t.ids['relation'] as number)
+    t.tutor.answer(view.lessonId, view.question?.id ?? 0, 'HALF', false, 'FLAWED reasoning')
+    await t.tutor.idle()
+    view = t.tutor.contest(t.tutor.view(view.lessonId).attempt?.id ?? 0, 'VALID OBJECTION: my reasoning says why.')
+    await t.tutor.idle()
+    view = t.tutor.view(view.lessonId)
+    const sent = promptsOf(t.provider).at(-1) ?? ''
+    expect(sent).toContain('Reasoning: flawed (You used the wrong rule in step 2.)')
+    expect(sent).toContain("Student's reasoning (typed or dictated):\nFLAWED reasoning")
+    // The second grade meets every criterion but still judges the reasoning flawed: partly correct.
+    expect(view.attempt?.grades.map((g) => g.verdict)).toEqual(['partial', 'partial'])
+  })
+
+  it('refuses reasoning that is too long', async () => {
+    const t = seeded()
+    const view = await t.tutor.openLesson(t.session.id, t.ids['relation'] as number)
+    expect(() => t.tutor.answer(view.lessonId, view.question?.id ?? 0, 'RIGHT', false, 'x'.repeat(5001))).toThrow('Keep your thinking under')
   })
 })
 

@@ -1,5 +1,6 @@
 import { z } from 'zod'
 import { InvalidOutputError } from '../providers'
+import type { ReasoningJudgment } from '../../shared/tutor'
 
 // The shape of every tutor reply, twice: a JSON schema sent to the model, and zod checks that the
 // reply really has it. Citations must name pages of the passages that were sent. A reply that
@@ -84,6 +85,28 @@ export const CONTEST_JSON_SCHEMA = {
   type: 'object',
   properties: { assessment: { type: 'string' }, changed: { type: 'boolean' }, ...gradeProperties },
   required: ['assessment', 'changed', 'criteria', 'reason', 'feedback', 'pages', 'outsideSources']
+}
+
+// When the learner gave reasoning, the grader also says what it made of it. These are used with the
+// grade-reasoning prompts only, so grading without reasoning is unchanged.
+const reasoningProperty = {
+  reasoning: {
+    type: 'object',
+    properties: { judgment: { type: 'string', enum: ['sound', 'flawed', 'none'] }, comment: { type: 'string' } },
+    required: ['judgment', 'comment']
+  }
+}
+
+export const REASONING_GRADE_JSON_SCHEMA = {
+  type: 'object',
+  properties: { ...gradeProperties, ...reasoningProperty },
+  required: [...GRADE_JSON_SCHEMA.required, 'reasoning']
+}
+
+export const REASONING_CONTEST_JSON_SCHEMA = {
+  type: 'object',
+  properties: { ...CONTEST_JSON_SCHEMA.properties, ...reasoningProperty },
+  required: [...CONTEST_JSON_SCHEMA.required, 'reasoning']
 }
 
 function parseJson(text: string): unknown {
@@ -298,12 +321,20 @@ export interface CriterionResult {
   evidence: string
 }
 
+export interface ReasoningResult {
+  judgment: ReasoningJudgment
+  /** For flawed reasoning, the step that went wrong; otherwise a short remark. */
+  comment: string
+}
+
 export interface ModelGrade {
   criteria: CriterionResult[]
   reason: string
   feedback: string
   pages: string[]
   outsideSources: boolean
+  /** Present when the learner gave reasoning (graded with the grade-reasoning prompts). */
+  reasoning?: ReasoningResult
 }
 
 export interface ContestGrade extends ModelGrade {
@@ -319,6 +350,8 @@ const gradeFields = {
   outsideSources: z.boolean()
 }
 
+const reasoningField = z.object({ judgment: z.enum(['sound', 'flawed', 'none']), comment: z.string().trim().max(800) })
+
 function checkGrade<T extends ModelGrade>(value: T, rubric: Criterion[], allowed: Set<string>): T {
   const ids = rubric.map((c) => c.id)
   for (const id of ids) {
@@ -331,12 +364,15 @@ function checkGrade<T extends ModelGrade>(value: T, rubric: Criterion[], allowed
   return { ...value, criteria: [...value.criteria].sort((a, b) => (order.get(a.id) ?? 0) - (order.get(b.id) ?? 0)), pages: checkCitations(value.pages, allowed, 'the grade') }
 }
 
-export function parseGrade(text: string, rubric: Criterion[], allowed: Set<string>): ModelGrade {
-  return checkGrade(check(z.object(gradeFields), text), rubric, allowed)
+export function parseGrade(text: string, rubric: Criterion[], allowed: Set<string>, withReasoning = false): ModelGrade {
+  const schema = withReasoning ? z.object({ ...gradeFields, reasoning: reasoningField }) : z.object(gradeFields)
+  return checkGrade(check(schema, text), rubric, allowed)
 }
 
-export function parseContest(text: string, rubric: Criterion[], allowed: Set<string>): ContestGrade {
-  return checkGrade(check(z.object({ assessment: shortText(1000), changed: z.boolean(), ...gradeFields }), text), rubric, allowed)
+export function parseContest(text: string, rubric: Criterion[], allowed: Set<string>, withReasoning = false): ContestGrade {
+  const fields = { assessment: shortText(1000), changed: z.boolean(), ...gradeFields }
+  const schema = withReasoning ? z.object({ ...fields, reasoning: reasoningField }) : z.object(fields)
+  return checkGrade(check(schema, text), rubric, allowed)
 }
 
 /**
@@ -344,13 +380,16 @@ export function parseContest(text: string, rubric: Criterion[], allowed: Set<str
  * the share of points met (a criterion met partly counts half). Correct needs a score of at least
  * 0.85 and every essential criterion fully met; below 0.4 is incorrect; anything else is partly
  * correct. So a right answer with a wrong reason (an essential criterion missed) is partly correct.
+ * Flawed reasoning caps the verdict at partly correct, so a right answer reached by faulty thinking
+ * never counts as mastery.
  */
-export function verdictOf(rubric: Criterion[], results: CriterionResult[]): { verdict: Verdict; score: number } {
+export function verdictOf(rubric: Criterion[], results: CriterionResult[], reasoning: ReasoningJudgment | null = null): { verdict: Verdict; score: number } {
   const met = new Map(results.map((r) => [r.id, r.met]))
   const total = rubric.reduce((n, c) => n + c.points, 0)
   const earned = rubric.reduce((n, c) => n + c.points * (met.get(c.id) === 'yes' ? 1 : met.get(c.id) === 'partly' ? 0.5 : 0), 0)
   const score = total === 0 ? 0 : earned / total
   const essentialsMet = rubric.every((c) => !c.essential || met.get(c.id) === 'yes')
-  const verdict: Verdict = score >= 0.85 && essentialsMet ? 'correct' : score < 0.4 ? 'incorrect' : 'partial'
+  let verdict: Verdict = score >= 0.85 && essentialsMet ? 'correct' : score < 0.4 ? 'incorrect' : 'partial'
+  if (verdict === 'correct' && reasoning === 'flawed') verdict = 'partial'
   return { verdict, score: Math.round(score * 1000) / 1000 }
 }

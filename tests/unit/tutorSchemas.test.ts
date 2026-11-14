@@ -36,6 +36,16 @@ describe('verdict', () => {
   it('treats a criterion the grader left out as not met', () => {
     expect(verdictOf(rubric, [{ id: 'c1', met: 'yes', evidence: '' }]).verdict).toBe('partial')
   })
+
+  it('caps a right answer with flawed reasoning at partly correct; sound or absent reasoning changes nothing', () => {
+    const all = results('yes', 'yes', 'yes')
+    expect(verdictOf(rubric, all, 'flawed')).toEqual({ verdict: 'partial', score: 1 })
+    expect(verdictOf(rubric, all, 'sound').verdict).toBe('correct')
+    expect(verdictOf(rubric, all, 'none').verdict).toBe('correct')
+    expect(verdictOf(rubric, all, null).verdict).toBe('correct')
+    // Flawed reasoning never raises a grade, and does not lower a wrong answer further.
+    expect(verdictOf(rubric, results('no', 'no', 'no'), 'flawed').verdict).toBe('incorrect')
+  })
 })
 
 describe('reply checks', () => {
@@ -66,6 +76,17 @@ describe('reply checks', () => {
       parseGrade(grade({ criteria: [...rubric.map((c) => ({ id: c.id, met: 'yes', evidence: '' })), { id: 'c9', met: 'yes', evidence: '' }] }), rubric, allowed)
     ).toThrow('c9 is not in the rubric')
     expect(() => parseGrade('not json', rubric, allowed)).toThrow('not JSON')
+  })
+
+  it('needs a reasoning judgment only when grading with reasoning', () => {
+    expect(() => parseGrade(grade(), rubric, allowed, true)).toThrow()
+    expect(() => parseGrade(grade({ reasoning: { judgment: 'fine', comment: '' } }), rubric, allowed, true)).toThrow()
+    expect(parseGrade(grade({ reasoning: { judgment: 'flawed', comment: 'Step 2 squares a negative.' } }), rubric, allowed, true).reasoning).toEqual({
+      judgment: 'flawed',
+      comment: 'Step 2 squares a negative.'
+    })
+    expect(parseGrade(grade(), rubric, allowed).reasoning).toBeUndefined()
+    expect(parseContest(grade({ assessment: 'It holds.', changed: true, reasoning: { judgment: 'sound', comment: '' } }), rubric, allowed, true).reasoning?.judgment).toBe('sound')
   })
 
   it('needs an assessment in a contest grade', () => {

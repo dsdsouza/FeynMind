@@ -21,7 +21,7 @@ import { DIAGNOSTIC_MAX_QUESTIONS, graphEdges, probeStatus, reachable, type Prob
 import { DIAGNOSTIC_BUDGET, LESSON_BUDGET, retrievePassages, sourceRefs, type Passage, type RetrievalSource } from './passages'
 import { TutorRepo, type AttemptRow, type LessonRow, type QuestionRow } from './repo'
 import { verdictOf, type Criterion } from './schemas'
-import { contestTask, diagnosticTask, explanationTask, gradeTask, lessonQuestionsTask, type ConceptBrief, type GradingInput, type TaskContext } from './tasks'
+import { contestTask, diagnosticTask, explanationTask, gradeTask, gradingPromptName, lessonQuestionsTask, type ConceptBrief, type GradingInput, type TaskContext } from './tasks'
 
 /** What the tutor needs from the providers module. */
 export interface TutorProviders {
@@ -525,22 +525,26 @@ export class TutorService {
     return lesson
   }
 
-  saveDraft(lessonId: number, text: string): void {
-    this.repo.saveDraft(this.requireLesson(lessonId).id, text.slice(0, MAX_ANSWER))
+  /** Keeps what the learner has typed (or dictated) so far, so closing the app loses nothing. */
+  saveDraft(lessonId: number, field: 'answer' | 'reasoning', text: string): void {
+    this.repo.saveDraft(this.requireLesson(lessonId).id, field, text.slice(0, MAX_ANSWER))
   }
 
   /**
    * Saves an answer, then grades it. The answer is in the database before the grading request
    * starts; the returned view shows it as saved and the graded view follows as an event. "I don't
-   * know" (skipped) is graded here without a call.
+   * know" (skipped) is graded here without a call. The reasoning is optional and saved with the
+   * answer in the same row; with reasoning, the grader judges both.
    */
-  answer(lessonId: number, questionId: number, text: string, skipped: boolean): LessonView {
+  answer(lessonId: number, questionId: number, text: string, skipped: boolean, reasoningText = ''): LessonView {
     const lesson = this.requireLesson(lessonId)
     if (lesson.questionId !== questionId || lesson.step === 'explain' || lesson.step === 'done') throw new UserFacingError('That question is no longer the current one.')
     if (this.repo.attemptsOfLesson(lesson.id).some((a) => a.questionId === questionId)) throw new UserFacingError('That question was already answered.')
     const answer = skipped ? '' : text.trim()
     if (!skipped && answer === '') throw new UserFacingError('Type an answer, or choose "I don\'t know".')
     if (answer.length > MAX_ANSWER) throw new UserFacingError(`Keep the answer under ${MAX_ANSWER} characters.`)
+    const reasoning = skipped ? '' : reasoningText.trim()
+    if (reasoning.length > MAX_ANSWER) throw new UserFacingError(`Keep your thinking under ${MAX_ANSWER} characters.`)
     const attemptId = this.options.db.transaction(() => {
       const id = this.repo.addAttempt({
         sessionId: lesson.sessionId,
@@ -549,11 +553,12 @@ export class TutorService {
         lessonId: lesson.id,
         diagnosticId: null,
         answer,
+        reasoning,
         choiceIndex: null,
         skipped,
         shownAt: lesson.questionShownAt ?? lesson.updatedAt
       })
-      this.repo.saveDraft(lesson.id, '')
+      this.repo.clearDrafts(lesson.id)
       if (skipped) {
         this.repo.addGrade(id, {
           pass: 1,
@@ -628,16 +633,16 @@ export class TutorService {
     if (!question) throw new Error('The question of this answer is gone.')
     return {
       question,
-      input: { question: question.scaffold ? `${question.stem}\n\nScaffold given to the student:\n${question.scaffold}` : question.stem, referenceAnswer: question.referenceAnswer ?? '', criteria: question.criteria, passages: question.sources, answer: attempt.answer }
+      input: { question: question.scaffold ? `${question.stem}\n\nScaffold given to the student:\n${question.scaffold}` : question.stem, referenceAnswer: question.referenceAnswer ?? '', criteria: question.criteria, passages: question.sources, answer: attempt.answer, reasoning: attempt.reasoning }
     }
   }
 
   private async firstGrade(attempt: AttemptRow): Promise<void> {
     const { question, input } = this.gradingInput(attempt)
-    const prompt = this.options.prompts.get('grade')
+    const prompt = this.options.prompts.get(gradingPromptName('grade', input))
     const task = gradeTask(prompt, input, this.ctx(attempt.sessionId, 'grading', prompt.name))
     const result = await this.run(attempt.sessionId, task)
-    const { verdict, score } = verdictOf(question.criteria, result.criteria)
+    const { verdict, score } = verdictOf(question.criteria, result.criteria, result.reasoning?.judgment ?? null)
     this.options.db.transaction(() => {
       if (this.repo.getAttempt(attempt.id)?.status !== 'saved') return
       this.repo.addGrade(attempt.id, {
@@ -649,6 +654,8 @@ export class TutorService {
         feedback: result.feedback,
         pages: result.pages,
         outsideSources: result.outsideSources,
+        reasoningJudgment: result.reasoning?.judgment ?? null,
+        reasoningComment: result.reasoning?.comment ?? null,
         gradedBy: 'model',
         model: this.options.providers.modelForRole('grading'),
         promptVersion: prompt.version,
@@ -662,10 +669,11 @@ export class TutorService {
     const first = this.repo.grades(attempt.id).find((g) => g.pass === 1)
     if (!first || attempt.objection === null) return
     const { question, input } = this.gradingInput(attempt)
-    const prompt = this.options.prompts.get('grade-contest')
-    const task = contestTask(prompt, input, { verdict: first.verdict, criteria: first.criteria, reason: first.reason }, attempt.objection, this.ctx(attempt.sessionId, 'grading', prompt.name))
+    const prompt = this.options.prompts.get(gradingPromptName('grade-contest', input))
+    const firstReasoning = first.reasoningJudgment ? { judgment: first.reasoningJudgment, comment: first.reasoningComment ?? '' } : null
+    const task = contestTask(prompt, input, { verdict: first.verdict, criteria: first.criteria, reason: first.reason, reasoning: firstReasoning }, attempt.objection, this.ctx(attempt.sessionId, 'grading', prompt.name))
     const result = await this.run(attempt.sessionId, task)
-    const { verdict, score } = verdictOf(question.criteria, result.criteria)
+    const { verdict, score } = verdictOf(question.criteria, result.criteria, result.reasoning?.judgment ?? null)
     this.options.db.transaction(() => {
       if (this.repo.grades(attempt.id).some((g) => g.pass === 2)) return
       this.repo.addGrade(attempt.id, {
@@ -679,6 +687,8 @@ export class TutorService {
         outsideSources: result.outsideSources,
         objection: attempt.objection,
         assessment: result.assessment,
+        reasoningJudgment: result.reasoning?.judgment ?? null,
+        reasoningComment: result.reasoning?.comment ?? null,
         gradedBy: 'model',
         model: this.options.providers.modelForRole('grading'),
         promptVersion: prompt.version,
@@ -804,6 +814,7 @@ export class TutorService {
       question: question ? this.questionView(question, unaided) : null,
       attempt: attempt ? this.attemptView(attempt, question as QuestionRow) : null,
       draft: lesson.draft,
+      draftReasoning: lesson.draftReasoning,
       explanation: lesson.explanation === null ? null : { markdown: lesson.explanation, outsideSources: lesson.explanationOutside },
       explaining: this.explaining.has(lesson.id),
       sources: sourceRefs(lesson.passages),
@@ -837,6 +848,7 @@ export class TutorService {
       outsideSources: g.outsideSources,
       objection: g.objection,
       assessment: g.assessment,
+      reasoning: g.reasoningJudgment ? { judgment: g.reasoningJudgment, comment: g.reasoningComment ?? '' } : null,
       gradedBy: g.gradedBy,
       createdAt: g.createdAt
     }))
@@ -844,6 +856,7 @@ export class TutorService {
     return {
       id: a.id,
       answer: a.answer,
+      reasoning: a.reasoning,
       skipped: a.skipped,
       status: a.status,
       error: a.error?.startsWith(CAP_PREFIX) ? a.error.slice(CAP_PREFIX.length) : a.error,

@@ -104,10 +104,10 @@ export interface IpcContract {
   'standing:markNew': { request: { sessionId: number; unitId: number }; response: PathState }
   'lesson:open': { request: { sessionId: number; conceptId: number }; response: LessonView }
   'lesson:current': { request: { sessionId: number }; response: LessonView | null }
-  'lesson:answer': { request: { lessonId: number; questionId: number; answer: string; skipped: boolean }; response: LessonView }
+  'lesson:answer': { request: { lessonId: number; questionId: number; answer: string; skipped: boolean; reasoning?: string }; response: LessonView }
   'lesson:continue': { request: { lessonId: number; fastTrack: boolean }; response: LessonView }
   'lesson:contest': { request: { attemptId: number; objection: string }; response: LessonView }
-  'lesson:draft': { request: { lessonId: number; text: string }; response: null }
+  'lesson:draft': { request: { lessonId: number; field: 'answer' | 'reasoning'; text: string }; response: null }
   'lesson:more': { request: { lessonId: number }; response: LessonView }
   'lesson:retry': { request: { lessonId: number }; response: LessonView }
   /** Raises the session's call cap, then grades the answers that were waiting for it. */

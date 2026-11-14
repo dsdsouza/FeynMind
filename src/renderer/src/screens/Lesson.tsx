@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from 'react'
 import type { UsageSummary } from '../../../shared/knowledge'
-import { masteryHint, type AttemptView, type GradeView, type LessonStep, type LessonView } from '../../../shared/tutor'
+import { masteryHint, type AttemptView, type GradeView, type LessonStep, type LessonView, type ReasoningJudgment } from '../../../shared/tutor'
+import { AnswerField } from '../components/AnswerField'
 import { PagePreview } from '../components/PagePreview'
 import { TutorText, type CitedPage } from '../components/TutorText'
 import { api, formatCost, formatTokens, messageOf, unwrap } from '../lib'
@@ -18,6 +19,7 @@ const STEPS: { step: LessonStep; label: string }[] = [
 const KIND_LABEL = { opening: 'Before we start', guided: 'Guided practice', partial: 'Practice with a start', unaided: 'On your own' } as const
 const VERDICT_LABEL = { correct: 'Correct', partial: 'Partly correct', incorrect: 'Not yet' } as const
 const MET_LABEL = { yes: '✓', partly: '½', no: '✗' } as const
+const REASONING_LABEL: Record<ReasoningJudgment, string> = { sound: 'Your thinking holds up', flawed: 'Your thinking has a flaw', none: 'No reasoning to judge in your thinking' }
 const DRAFT_DELAY_MS = 800
 
 export function Lesson({ sessionId, initial, usage, onBack, onOpen }: { sessionId: number; initial: LessonView; usage: UsageSummary | null; onBack: () => void; onOpen: (conceptId: number) => void }) {
@@ -165,27 +167,16 @@ export function Lesson({ sessionId, initial, usage, onBack, onOpen }: { sessionI
 function QuestionCard({ view, sending, onOpenPage, act }: { view: LessonView; sending: boolean; onOpenPage: (p: CitedPage) => void; act: (a: () => Promise<LessonView>) => Promise<void> }) {
   const question = view.question
   const attempt = view.attempt
-  const [answer, setAnswer] = useState(view.draft)
-  const timer = useRef<ReturnType<typeof setTimeout> | null>(null)
   const lessonId = view.lessonId
-
-  // The draft is saved shortly after typing stops, so closing the app keeps it.
-  function onType(text: string) {
-    setAnswer(text)
-    if (timer.current) clearTimeout(timer.current)
-    timer.current = setTimeout(() => void api['lesson:draft']({ lessonId, text }), DRAFT_DELAY_MS)
-  }
-  useEffect(
-    () => () => {
-      if (timer.current) clearTimeout(timer.current)
-    },
-    []
-  )
+  const [answer, setAnswer] = useDraft(lessonId, 'answer', view.draft)
+  const [reasoning, setReasoning] = useDraft(lessonId, 'reasoning', view.draftReasoning)
 
   if (!question) return null
   const submit = (skipped: boolean) => {
-    if (timer.current) clearTimeout(timer.current)
-    void act(async () => unwrap(await api['lesson:answer']({ lessonId, questionId: question.id, answer, skipped })))
+    if (!skipped && answer.text.trim() === '') return
+    answer.cancel()
+    reasoning.cancel()
+    void act(async () => unwrap(await api['lesson:answer']({ lessonId, questionId: question.id, answer: answer.text, reasoning: reasoning.text, skipped })))
   }
   const proceed = (fastTrack: boolean) => void act(async () => unwrap(await api['lesson:continue']({ lessonId, fastTrack })))
 
@@ -204,19 +195,23 @@ function QuestionCard({ view, sending, onOpenPage, act }: { view: LessonView; se
       )}
       {!attempt ? (
         <>
-          <label htmlFor="answer">Your answer</label>
-          <textarea
-            id="answer"
-            rows={5}
-            value={answer}
-            onChange={(e) => onType(e.target.value)}
-            onKeyDown={(e) => {
-              if (e.key === 'Enter' && (e.ctrlKey || e.metaKey) && answer.trim() !== '') submit(false)
-            }}
-            placeholder="Type your answer. Use $...$ for math if you like."
-          />
+          <div className="answer-fields">
+            <AnswerField id="answer" label="Your answer" value={answer.text} onChange={setAnswer} onSubmit={() => submit(false)} placeholder="Type your answer. Use $...$ for math if you like." />
+            <AnswerField
+              id="reasoning"
+              label={
+                <>
+                  Your thinking <span className="muted">(optional)</span>
+                </>
+              }
+              value={reasoning.text}
+              onChange={setReasoning}
+              onSubmit={() => submit(false)}
+              placeholder="Explain how you got there. It is graded with your answer."
+            />
+          </div>
           <div className="row">
-            <button type="button" onClick={() => submit(false)} disabled={sending || answer.trim() === ''}>
+            <button type="button" onClick={() => submit(false)} disabled={sending || answer.text.trim() === ''}>
               Submit (Ctrl+Enter)
             </button>
             <button type="button" className="secondary" onClick={() => submit(true)} disabled={sending}>
@@ -249,6 +244,31 @@ function QuestionCard({ view, sending, onOpenPage, act }: { view: LessonView; se
   )
 }
 
+/**
+ * A field's text, saved as a draft shortly after it stops changing, so closing the app keeps it.
+ * `cancel` drops a pending save (before submitting).
+ */
+function useDraft(lessonId: number, field: 'answer' | 'reasoning', initial: string): [{ text: string; cancel: () => void }, (text: string) => void] {
+  const [text, setText] = useState(initial)
+  const timer = useRef<ReturnType<typeof setTimeout> | null>(null)
+  useEffect(
+    () => () => {
+      if (timer.current) clearTimeout(timer.current)
+    },
+    []
+  )
+  const cancel = () => {
+    if (timer.current) clearTimeout(timer.current)
+    timer.current = null
+  }
+  const update = (next: string) => {
+    setText(next)
+    cancel()
+    timer.current = setTimeout(() => void api['lesson:draft']({ lessonId, field, text: next }), DRAFT_DELAY_MS)
+  }
+  return [{ text, cancel }, update]
+}
+
 function AttemptCard({ attempt, view, sending, onOpenPage, act }: { attempt: AttemptView; view: LessonView; sending: boolean; onOpenPage: (p: CitedPage) => void; act: (a: () => Promise<LessonView>) => Promise<void> }) {
   const [contesting, setContesting] = useState(false)
   const [objection, setObjection] = useState('')
@@ -259,6 +279,14 @@ function AttemptCard({ attempt, view, sending, onOpenPage, act }: { attempt: Att
         <blockquote>
           <TutorText text={attempt.answer} sources={[]} onOpenPage={onOpenPage} />
         </blockquote>
+      )}
+      {attempt.reasoning !== '' && (
+        <>
+          <p className="muted">Your thinking:</p>
+          <blockquote data-testid="attempt-reasoning">
+            <TutorText text={attempt.reasoning} sources={[]} onOpenPage={onOpenPage} />
+          </blockquote>
+        </>
       )}
       {attempt.status === 'saved' && !view.blocked && (
         <p className="muted" role="status">
@@ -315,6 +343,13 @@ function GradeCard({ grade, view, onOpenPage }: { grade: GradeView; view: Lesson
         <TutorText text={grade.reason} sources={view.sources} onOpenPage={onOpenPage} />
       </div>
       {grade.feedback && <TutorText text={grade.feedback} sources={view.sources} onOpenPage={onOpenPage} />}
+      {grade.reasoning && (
+        <div className={`reasoning-judgment reasoning-${grade.reasoning.judgment}`} data-testid="grade-reasoning">
+          <strong>{REASONING_LABEL[grade.reasoning.judgment]}.</strong>{' '}
+          {grade.reasoning.comment && <TutorText text={grade.reasoning.comment} sources={view.sources} onOpenPage={onOpenPage} inline />}
+          {grade.reasoning.judgment === 'flawed' && grade.verdict !== 'incorrect' && <p className="muted">A right answer reached by faulty reasoning is graded partly correct and does not count toward mastery.</p>}
+        </div>
+      )}
       {grade.criteria.length > 0 && (
         <ul className="criteria" aria-label="Rubric">
           {grade.criteria.map((c) => (

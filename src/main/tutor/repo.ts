@@ -1,5 +1,5 @@
 import type Database from 'better-sqlite3'
-import type { LessonStep, Verdict } from '../../shared/tutor'
+import type { LessonStep, ReasoningJudgment, Verdict } from '../../shared/tutor'
 import type { Passage } from './passages'
 import type { Criterion, CriterionResult } from './schemas'
 
@@ -51,6 +51,7 @@ export interface LessonRow {
   explanation: string | null
   explanationOutside: boolean
   draft: string
+  draftReasoning: string
   startedAt: string
   updatedAt: string
   finishedAt: string | null
@@ -64,6 +65,8 @@ export interface AttemptRow {
   lessonId: number | null
   diagnosticId: number | null
   answer: string
+  /** The learner's reasoning ("Your thinking"); '' when none was given. */
+  reasoning: string
   choiceIndex: number | null
   skipped: boolean
   shownAt: string
@@ -87,6 +90,8 @@ export interface GradeRow {
   outsideSources: boolean
   objection: string | null
   assessment: string | null
+  reasoningJudgment: ReasoningJudgment | null
+  reasoningComment: string | null
   gradedBy: 'model' | 'local'
   model: string | null
   createdAt: string
@@ -103,6 +108,8 @@ export interface NewGrade {
   outsideSources: boolean
   objection?: string | null
   assessment?: string | null
+  reasoningJudgment?: ReasoningJudgment | null
+  reasoningComment?: string | null
   gradedBy: 'model' | 'local'
   model?: string | null
   promptVersion?: number | null
@@ -121,12 +128,12 @@ export interface DiagnosticRow {
 const QUESTION_COLUMNS = `id, session_id AS sessionId, concept_id AS conceptId, kind, ordinal, stem, choices, answer_index AS answerIndex,
   explanation, reference_answer AS referenceAnswer, criteria, scaffold, pages, sources, outside_sources AS outsideSources`
 const LESSON_COLUMNS = `id, session_id AS sessionId, concept_id AS conceptId, step, question_id AS questionId, question_shown_at AS questionShownAt, passages, explanation,
-  explanation_outside AS explanationOutside, draft_answer AS draft, started_at AS startedAt, updated_at AS updatedAt, finished_at AS finishedAt`
+  explanation_outside AS explanationOutside, draft_answer AS draft, draft_reasoning AS draftReasoning, started_at AS startedAt, updated_at AS updatedAt, finished_at AS finishedAt`
 const ATTEMPT_COLUMNS = `id, session_id AS sessionId, concept_id AS conceptId, question_id AS questionId, lesson_id AS lessonId,
-  diagnostic_id AS diagnosticId, answer_text AS answer, choice_index AS choiceIndex, skipped, shown_at AS shownAt,
+  diagnostic_id AS diagnosticId, answer_text AS answer, reasoning_text AS reasoning, choice_index AS choiceIndex, skipped, shown_at AS shownAt,
   submitted_at AS submittedAt, status, error, objection, objection_at AS objectionAt`
 const GRADE_COLUMNS = `id, attempt_id AS attemptId, pass, verdict, score, criteria, reason, feedback, pages, outside_sources AS outsideSources,
-  objection, assessment, graded_by AS gradedBy, model, created_at AS createdAt`
+  objection, assessment, reasoning_judgment AS reasoningJudgment, reasoning_comment AS reasoningComment, graded_by AS gradedBy, model, created_at AS createdAt`
 const DIAGNOSTIC_COLUMNS = 'id, session_id AS sessionId, kind, unit_id AS unitId, status, started_at AS startedAt'
 
 type RawQuestion = Omit<QuestionRow, 'choices' | 'criteria' | 'pages' | 'sources' | 'outsideSources'> & {
@@ -246,7 +253,7 @@ export class TutorRepo {
   setLessonStep(id: number, step: LessonStep, questionId: number | null): void {
     this.db
       .prepare(
-        `UPDATE lessons SET step = ?, question_id = ?, draft_answer = '', updated_at = strftime('%Y-%m-%dT%H:%M:%fZ', 'now'),
+        `UPDATE lessons SET step = ?, question_id = ?, draft_answer = '', draft_reasoning = '', updated_at = strftime('%Y-%m-%dT%H:%M:%fZ', 'now'),
            question_shown_at = strftime('%Y-%m-%dT%H:%M:%fZ', 'now'),
            finished_at = CASE WHEN ? = 'done' THEN coalesce(finished_at, strftime('%Y-%m-%dT%H:%M:%fZ', 'now')) ELSE finished_at END
          WHERE id = ?`
@@ -258,8 +265,13 @@ export class TutorRepo {
     this.db.prepare("UPDATE lessons SET explanation = ?, explanation_outside = ?, updated_at = strftime('%Y-%m-%dT%H:%M:%fZ', 'now') WHERE id = ?").run(markdown, outside ? 1 : 0, id)
   }
 
-  saveDraft(id: number, draft: string): void {
-    this.db.prepare("UPDATE lessons SET draft_answer = ?, updated_at = strftime('%Y-%m-%dT%H:%M:%fZ', 'now') WHERE id = ?").run(draft, id)
+  saveDraft(id: number, field: 'answer' | 'reasoning', draft: string): void {
+    const column = field === 'answer' ? 'draft_answer' : 'draft_reasoning'
+    this.db.prepare(`UPDATE lessons SET ${column} = ?, updated_at = strftime('%Y-%m-%dT%H:%M:%fZ', 'now') WHERE id = ?`).run(draft, id)
+  }
+
+  clearDrafts(id: number): void {
+    this.db.prepare("UPDATE lessons SET draft_answer = '', draft_reasoning = '', updated_at = strftime('%Y-%m-%dT%H:%M:%fZ', 'now') WHERE id = ?").run(id)
   }
 
   // Diagnostics
@@ -286,14 +298,14 @@ export class TutorRepo {
   // Attempts and grades
 
   /** Saves an answer before it is graded. */
-  addAttempt(a: { sessionId: number; conceptId: number; questionId: number; lessonId: number | null; diagnosticId: number | null; answer: string; choiceIndex: number | null; skipped: boolean; shownAt: string }): number {
+  addAttempt(a: { sessionId: number; conceptId: number; questionId: number; lessonId: number | null; diagnosticId: number | null; answer: string; reasoning?: string; choiceIndex: number | null; skipped: boolean; shownAt: string }): number {
     return Number(
       this.db
         .prepare(
-          `INSERT INTO attempts (session_id, concept_id, question_id, lesson_id, diagnostic_id, answer_text, choice_index, skipped, shown_at, status)
-           VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, 'saved')`
+          `INSERT INTO attempts (session_id, concept_id, question_id, lesson_id, diagnostic_id, answer_text, reasoning_text, choice_index, skipped, shown_at, status)
+           VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'saved')`
         )
-        .run(a.sessionId, a.conceptId, a.questionId, a.lessonId, a.diagnosticId, a.answer, a.choiceIndex, a.skipped ? 1 : 0, a.shownAt).lastInsertRowid
+        .run(a.sessionId, a.conceptId, a.questionId, a.lessonId, a.diagnosticId, a.answer, a.reasoning ?? '', a.choiceIndex, a.skipped ? 1 : 0, a.shownAt).lastInsertRowid
     )
   }
 
@@ -337,8 +349,8 @@ export class TutorRepo {
       this.db
         .prepare(
           `INSERT INTO grades (attempt_id, pass, verdict, score, criteria, reason, feedback, pages, outside_sources, objection, assessment,
-             graded_by, model, prompt_version, cache_key)
-           VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
+             reasoning_judgment, reasoning_comment, graded_by, model, prompt_version, cache_key)
+           VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
         )
         .run(
           attemptId,
@@ -352,6 +364,8 @@ export class TutorRepo {
           g.outsideSources ? 1 : 0,
           g.objection ?? null,
           g.assessment ?? null,
+          g.reasoningJudgment ?? null,
+          g.reasoningComment ?? null,
           g.gradedBy,
           g.model ?? null,
           g.promptVersion ?? null,

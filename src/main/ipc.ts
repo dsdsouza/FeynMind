@@ -167,7 +167,8 @@ function handlersFor(services: IpcServices): Handlers {
     'lesson:answer': (req) => {
       const r = requireObject(req)
       if (typeof r.skipped !== 'boolean') throw new InvalidRequestError('Invalid request: skipped must be true or false.')
-      return tutor.answer(lessonId(req), requireId(r.questionId, 'questionId'), requireString(r.answer, 'answer'), r.skipped)
+      const reasoning = r.reasoning === undefined ? '' : requireString(r.reasoning, 'reasoning')
+      return tutor.answer(lessonId(req), requireId(r.questionId, 'questionId'), requireString(r.answer, 'answer'), r.skipped, reasoning)
     },
     'lesson:continue': (req) => tutor.continue(lessonId(req), requireObject(req).fastTrack === true),
     'lesson:contest': (req) => {
@@ -175,7 +176,9 @@ function handlersFor(services: IpcServices): Handlers {
       return tutor.contest(requireId(r.attemptId, 'attemptId'), requireString(r.objection, 'objection'))
     },
     'lesson:draft': (req) => {
-      tutor.saveDraft(lessonId(req), requireString(requireObject(req).text, 'text'))
+      const r = requireObject(req)
+      if (r.field !== 'answer' && r.field !== 'reasoning') throw new InvalidRequestError('Invalid request: field must be "answer" or "reasoning".')
+      tutor.saveDraft(lessonId(req), r.field, requireString(r.text, 'text'))
       return null
     },
     'lesson:more': (req) => tutor.moreQuestions(lessonId(req)),

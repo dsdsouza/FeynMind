@@ -579,3 +579,29 @@ button.cite {
   margin: 0 0 8px;
   color: var(--accent);
 }
+
+.answer-fields {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 12px;
+}
+
+@media (max-width: 760px) {
+  .answer-fields {
+    grid-template-columns: 1fr;
+  }
+}
+
+.reasoning-judgment {
+  border-left: 3px solid var(--border);
+  padding-left: 10px;
+  margin: 8px 0;
+}
+
+.reasoning-sound {
+  border-left-color: var(--success);
+}
+
+.reasoning-flawed {
+  border-left-color: var(--warning);
+}

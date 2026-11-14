@@ -236,7 +236,7 @@ describe.runIf(live && batch !== '')(`tutor (live, batch ${batch})`, () => {
         const q = bench.questions.find((x) => x.id === c.question) as BenchQuestion
         const passages = await passagesOn(q.pages.file, q.pages.pages)
         const before = calls.length
-        const grade = (await providers.run(gradeTask(p, { question: q.question, referenceAnswer: q.referenceAnswer, criteria: q.criteria, passages, answer: c.answer }, ctx()))).value
+        const grade = (await providers.run(gradeTask(p, { question: q.question, referenceAnswer: q.referenceAnswer, criteria: q.criteria, passages, answer: c.answer, reasoning: '' }, ctx()))).value
         const { verdict, score } = verdictOf(q.criteria, grade.criteria)
         const used = calls.slice(before)
         results.push({ id: c.id, category: c.category, expected: c.expected, got: verdict, agree: verdict === c.expected, score, criteria: grade.criteria, reason: grade.reason, attempts: used.length, usage: used.map((u) => u.usage) })
@@ -276,7 +276,7 @@ describe.runIf(live && batch !== '')(`tutor (live, batch ${batch})`, () => {
       const c = bench.cases.find((x) => x.id === s.caseId) as BenchCase
       const q = bench.questions.find((x) => x.id === c.question) as BenchQuestion
       const passages = await passagesOn(q.pages.file, q.pages.pages)
-      const result = (await providers.run(contestTask(p, { question: q.question, referenceAnswer: q.referenceAnswer, criteria: q.criteria, passages, answer: c.answer }, s.first, s.objection, ctx()))).value
+      const result = (await providers.run(contestTask(p, { question: q.question, referenceAnswer: q.referenceAnswer, criteria: q.criteria, passages, answer: c.answer, reasoning: '' }, s.first, s.objection, ctx()))).value
       const { verdict } = verdictOf(q.criteria, result.criteria)
       out.push({ id: s.id, first: s.first.verdict, second: verdict, changed: result.changed, shouldChange: s.shouldChange, ok: (verdict !== s.first.verdict) === s.shouldChange, assessment: result.assessment, criteria: result.criteria })
       console.log(`${s.id}: ${s.first.verdict} -> ${verdict} (should ${s.shouldChange ? '' : 'not '}change). ${result.assessment}`)

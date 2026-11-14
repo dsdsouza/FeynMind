@@ -6,6 +6,8 @@ export type Standing = 'known' | 'shaky' | 'new' | 'not-assessed'
 export type Band = 'mastered' | 'known' | 'shaky' | 'new'
 export type LessonStep = 'opening' | 'explain' | 'guided' | 'partial' | 'unaided' | 'done'
 export type Verdict = 'correct' | 'partial' | 'incorrect'
+/** What the grader made of the learner's reasoning: 'none' when the text gives no reasoning to judge. */
+export type ReasoningJudgment = 'sound' | 'flawed' | 'none'
 
 export interface MasteryView {
   /** Probability the concept is known, 0 to 1. */
@@ -125,6 +127,8 @@ export interface GradeView {
   objection: string | null
   /** The second grade's answer to the objection. */
   assessment: string | null
+  /** What the grader made of the reasoning; null when none was given. */
+  reasoning: { judgment: ReasoningJudgment; comment: string } | null
   gradedBy: 'model' | 'local'
   createdAt: string
 }
@@ -132,6 +136,8 @@ export interface GradeView {
 export interface AttemptView {
   id: number
   answer: string
+  /** The learner's reasoning; '' when none was given. */
+  reasoning: string
   skipped: boolean
   /** 'saved': kept, not graded yet. */
   status: 'saved' | 'graded' | 'failed'
@@ -162,6 +168,7 @@ export interface LessonView {
   question: LessonQuestionView | null
   attempt: AttemptView | null
   draft: string
+  draftReasoning: string
   explanation: { markdown: string; outsideSources: boolean } | null
   explaining: boolean
   /** The lesson's passages, to open cited pages. */

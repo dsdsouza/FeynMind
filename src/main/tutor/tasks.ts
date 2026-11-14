@@ -1,11 +1,14 @@
 import { damped, renderPrompt, textTokens, type PromptFile } from '../knowledge'
 import type { ModelTask, Role } from '../providers'
+import type { ReasoningJudgment } from '../../shared/tutor'
 import { allowedCitations, formatPassages, type Passage } from './passages'
 import {
   CONTEST_JSON_SCHEMA,
   DIAGNOSTIC_JSON_SCHEMA,
   GRADE_JSON_SCHEMA,
   LESSON_QUESTIONS_JSON_SCHEMA,
+  REASONING_CONTEST_JSON_SCHEMA,
+  REASONING_GRADE_JSON_SCHEMA,
   parseContest,
   parseDiagnostic,
   parseExplanation,
@@ -139,35 +142,56 @@ export interface GradingInput {
   criteria: Criterion[]
   passages: Passage[]
   answer: string
+  /** The learner's reasoning, '' when none. With reasoning, use the grade-reasoning prompts. */
+  reasoning: string
+}
+
+/** The prompt that grades this input: reasoning is graded only by the -reasoning variants. */
+export function gradingPromptName(kind: 'grade' | 'grade-contest', input: Pick<GradingInput, 'reasoning'>): string {
+  return input.reasoning.trim() === '' ? kind : `${kind}-reasoning`
+}
+
+const hasReasoning = (input: Pick<GradingInput, 'reasoning'>): boolean => input.reasoning.trim() !== ''
+
+function checkPrompt(prompt: PromptFile, kind: 'grade' | 'grade-contest', input: GradingInput): void {
+  const expected = gradingPromptName(kind, input)
+  if (prompt.name !== expected) throw new Error(`This answer must be graded with the ${expected} prompt, not ${prompt.name}.`)
 }
 
 function criteriaText(criteria: Criterion[]): string {
   return criteria.map((c) => `${c.id} (${c.points} point${c.points === 1 ? '' : 's'}${c.essential ? ', essential' : ''}): ${c.text}`).join('\n')
 }
 
-function gradingValues(input: GradingInput): { question: string; reference: string; criteria: string; passages: string; answer: string } {
-  return {
+function gradingValues(input: GradingInput): Record<string, string> & { criteria: string; answer: string } {
+  const values = {
     question: input.question,
     reference: input.referenceAnswer,
     criteria: criteriaText(input.criteria),
     passages: formatPassages(input.passages),
     answer: input.answer.trim() === '' ? '(no answer)' : input.answer
   }
+  // Only the reasoning prompts have a {{reasoning}} slot; without reasoning nothing changes.
+  return hasReasoning(input) ? { ...values, reasoning: input.reasoning.trim() } : values
 }
 
+/** The learner's own text, for the output estimate. */
+const learnerText = (values: Record<string, string>): string => [values['criteria'], values['answer'], values['reasoning']].filter((v) => v !== undefined).join('\n')
+
 export function gradeTask(prompt: PromptFile, input: GradingInput, ctx: TaskContext): ModelTask<ModelGrade> {
+  checkPrompt(prompt, 'grade', input)
+  const withReasoning = hasReasoning(input)
   const values = gradingValues(input)
   const rendered = renderPrompt(prompt, values)
   const allowed = allowedCitations(input.passages)
   return finish(
     prompt,
     rendered,
-    `${values['criteria']}\n${values['answer']}`,
+    learnerText(values),
     {
       ...base(prompt, 'grading', rendered),
-      jsonSchema: GRADE_JSON_SCHEMA,
+      jsonSchema: withReasoning ? REASONING_GRADE_JSON_SCHEMA : GRADE_JSON_SCHEMA,
       contentKey: JSON.stringify(['grade', rendered]),
-      parse: (text) => parseGrade(text, input.criteria, allowed)
+      parse: (text) => parseGrade(text, input.criteria, allowed, withReasoning)
     },
     ctx
   )
@@ -177,12 +201,16 @@ export interface FirstGrade {
   verdict: Verdict
   criteria: CriterionResult[]
   reason: string
+  reasoning?: { judgment: ReasoningJudgment; comment: string } | null
 }
 
 export function contestTask(prompt: PromptFile, input: GradingInput, first: FirstGrade, objection: string, ctx: TaskContext): ModelTask<ContestGrade> {
+  checkPrompt(prompt, 'grade-contest', input)
+  const withReasoning = hasReasoning(input)
   const firstText = [
     `Verdict: ${first.verdict}`,
     ...first.criteria.map((c) => `${c.id}: ${c.met}${c.evidence ? ` (evidence: "${c.evidence}")` : ''}`),
+    ...(first.reasoning ? [`Reasoning: ${first.reasoning.judgment}${first.reasoning.comment ? ` (${first.reasoning.comment})` : ''}`] : []),
     `Reason given: ${first.reason}`
   ].join('\n')
   const values = { ...gradingValues(input), first: firstText, objection }
@@ -191,12 +219,12 @@ export function contestTask(prompt: PromptFile, input: GradingInput, first: Firs
   return finish(
     prompt,
     rendered,
-    `${values.criteria}\n${values.answer}\n${objection}`,
+    `${learnerText(values)}\n${objection}`,
     {
       ...base(prompt, 'grading', rendered),
-      jsonSchema: CONTEST_JSON_SCHEMA,
+      jsonSchema: withReasoning ? REASONING_CONTEST_JSON_SCHEMA : CONTEST_JSON_SCHEMA,
       contentKey: JSON.stringify(['contest', rendered]),
-      parse: (text) => parseContest(text, input.criteria, allowed)
+      parse: (text) => parseContest(text, input.criteria, allowed, withReasoning)
     },
     ctx
   )
