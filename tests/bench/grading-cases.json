@@ -1,0 +1,95 @@
+{
+  "about": "Grading benchmark. Questions, rubrics and answers were written for this project (MIT) about the OpenStax Precalculus fixture pages (CC BY 4.0) listed under each question; the passages sent with each case are those pages as the app chunks them. Expected verdicts follow the rule in docs/tech-plan.md (Tutor): a right answer with a wrong or missing reason is partly correct.",
+  "questions": [
+    {
+      "id": "Q1",
+      "pages": { "file": "openstax-precalculus-text.pdf", "pages": [2] },
+      "question": "Is the relation $\\{(1, 4), (2, 5), (1, 6)\\}$ a function? Explain why.",
+      "referenceAnswer": "No. The input 1 is paired with two different outputs, 4 and 6, and a function pairs each input with exactly one output.",
+      "criteria": [
+        { "id": "c1", "text": "States that the relation is not a function", "points": 2, "essential": true },
+        { "id": "c2", "text": "Explains that the input 1 is paired with two different outputs (4 and 6)", "points": 2, "essential": true }
+      ]
+    },
+    {
+      "id": "Q2",
+      "pages": { "file": "openstax-precalculus-text.pdf", "pages": [6] },
+      "question": "Find the domain and the range of the function $\\{(2, 10), (3, 10), (4, 20), (5, 30), (6, 40)\\}$.",
+      "referenceAnswer": "Domain: $\\{2, 3, 4, 5, 6\\}$ (the first coordinates). Range: $\\{10, 20, 30, 40\\}$ (the second coordinates).",
+      "criteria": [
+        { "id": "c1", "text": "Gives the domain as $\\{2, 3, 4, 5, 6\\}$", "points": 2, "essential": true },
+        { "id": "c2", "text": "Gives the range as $\\{10, 20, 30, 40\\}$", "points": 2, "essential": true }
+      ]
+    },
+    {
+      "id": "Q3",
+      "pages": { "file": "openstax-precalculus-text.pdf", "pages": [5, 6] },
+      "question": "Find the domain of $f(x) = \\dfrac{x + 1}{x - 2}$ and write it in interval notation.",
+      "referenceAnswer": "The denominator is zero when $x = 2$, so 2 is excluded and every other real number is allowed: $(-\\infty, 2) \\cup (2, \\infty)$.",
+      "criteria": [
+        { "id": "c1", "text": "Excludes $x = 2$ because it makes the denominator zero", "points": 2, "essential": true },
+        { "id": "c2", "text": "Allows every other real number", "points": 1, "essential": true },
+        { "id": "c3", "text": "Writes the domain in interval notation as $(-\\infty, 2) \\cup (2, \\infty)$", "points": 1, "essential": false }
+      ]
+    },
+    {
+      "id": "Q4",
+      "pages": { "file": "openstax-precalculus-text.pdf", "pages": [5, 6] },
+      "question": "What is the domain of $g(x) = \\sqrt{x - 3}$? Explain your answer.",
+      "referenceAnswer": "$[3, \\infty)$, that is $x \\ge 3$: the radicand $x - 3$ must not be negative, because an even root of a negative number is not a real number.",
+      "criteria": [
+        { "id": "c1", "text": "Gives the domain $x \\ge 3$, or $[3, \\infty)$, including 3", "points": 2, "essential": true },
+        { "id": "c2", "text": "Explains that $x - 3$ (the radicand) cannot be negative for the square root to be a real number", "points": 2, "essential": true }
+      ]
+    },
+    {
+      "id": "Q5",
+      "pages": { "file": "openstax-precalculus-math-figures.pdf", "pages": [1] },
+      "question": "Add the matrices $A = \\begin{bmatrix} 2 & 6 \\\\ 1 & 0 \\\\ 1 & -3 \\end{bmatrix}$ and $B = \\begin{bmatrix} 3 & -2 \\\\ 1 & 5 \\\\ -4 & 3 \\end{bmatrix}$.",
+      "referenceAnswer": "Add the entries in the same positions: $A + B = \\begin{bmatrix} 5 & 4 \\\\ 2 & 5 \\\\ -3 & 0 \\end{bmatrix}$.",
+      "criteria": [
+        { "id": "c1", "text": "Adds the entries in corresponding positions (shown, or evident from a correct result)", "points": 1, "essential": true },
+        { "id": "c2", "text": "Gets $A + B = \\begin{bmatrix} 5 & 4 \\\\ 2 & 5 \\\\ -3 & 0 \\end{bmatrix}$", "points": 3, "essential": true }
+      ]
+    },
+    {
+      "id": "Q6",
+      "pages": { "file": "openstax-precalculus-math-figures.pdf", "pages": [1] },
+      "question": "Explain what multiplying a matrix by a scalar means, then compute $3 \\begin{bmatrix} 1 & -2 \\\\ 0 & 4 \\end{bmatrix}$.",
+      "referenceAnswer": "Every entry of the matrix is multiplied by the scalar: $3 \\begin{bmatrix} 1 & -2 \\\\ 0 & 4 \\end{bmatrix} = \\begin{bmatrix} 3 & -6 \\\\ 0 & 12 \\end{bmatrix}$.",
+      "criteria": [
+        { "id": "c1", "text": "Explains that every entry is multiplied by the scalar", "points": 2, "essential": true },
+        { "id": "c2", "text": "Gets $\\begin{bmatrix} 3 & -6 \\\\ 0 & 12 \\end{bmatrix}$", "points": 2, "essential": true }
+      ]
+    }
+  ],
+  "cases": [
+    { "id": "Q1-correct", "question": "Q1", "category": "correct", "expected": "correct", "answer": "No, it is not a function, because the input 1 goes to both 4 and 6." },
+    { "id": "Q1-wording", "question": "Q1", "category": "different wording", "expected": "correct", "answer": "Not a function: x = 1 shows up with y = 4 and again with y = 6, so one x-value has more than one y-value." },
+    { "id": "Q1-reason", "question": "Q1", "category": "right answer, wrong reason", "expected": "partial", "answer": "No, because the outputs 4, 5 and 6 are all different numbers." },
+    { "id": "Q1-wrong", "question": "Q1", "category": "wrong", "expected": "incorrect", "answer": "Yes, it is a function because every pair has an x and a y." },
+
+    { "id": "Q2-correct", "question": "Q2", "category": "correct", "expected": "correct", "answer": "Domain = {2, 3, 4, 5, 6}, range = {10, 20, 30, 40}." },
+    { "id": "Q2-wording", "question": "Q2", "category": "different wording", "expected": "correct", "answer": "The inputs are the whole numbers 2 through 6, and the outputs are 10, 20, 30 and 40 (10 only counts once)." },
+    { "id": "Q2-partial", "question": "Q2", "category": "partly correct", "expected": "partial", "answer": "Domain: {2, 3, 4, 5, 6}. Range: {10, 20, 30}." },
+    { "id": "Q2-wrong", "question": "Q2", "category": "wrong", "expected": "incorrect", "answer": "Domain {10, 20, 30, 40} and range {2, 3, 4, 5, 6}." },
+
+    { "id": "Q3-correct", "question": "Q3", "category": "correct", "expected": "correct", "answer": "The denominator is 0 when x = 2, so 2 is left out: (−∞, 2) ∪ (2, ∞)." },
+    { "id": "Q3-wording", "question": "Q3", "category": "different wording", "expected": "correct", "answer": "$x \\neq 2$, since $x - 2 = 0$ there and we can't divide by zero; any other real number works. In intervals: $(-\\infty, 2) \\cup (2, \\infty)$." },
+    { "id": "Q3-partial", "question": "Q3", "category": "partly correct", "expected": "partial", "answer": "All real numbers except 2, because x = 2 would mean dividing by zero." },
+    { "id": "Q3-reason", "question": "Q3", "category": "right answer, wrong reason", "expected": "partial", "answer": "(−∞, 2) ∪ (2, ∞), because x = 2 would make the numerator equal to zero." },
+
+    { "id": "Q4-correct", "question": "Q4", "category": "correct", "expected": "correct", "answer": "[3, ∞), because you can't take the square root of a negative number, so x − 3 has to be at least 0." },
+    { "id": "Q4-wording", "question": "Q4", "category": "different wording", "expected": "correct", "answer": "x needs to be 3 or bigger. If x were less than 3 then x minus 3 would be negative and the square root wouldn't be a real number." },
+    { "id": "Q4-reason", "question": "Q4", "category": "right answer, wrong reason", "expected": "partial", "answer": "x ≥ 3, because the square root of 3 is the smallest square root there is." },
+    { "id": "Q4-partial", "question": "Q4", "category": "partly correct", "expected": "partial", "answer": "(3, ∞), since x − 3 can't be negative under a square root." },
+    { "id": "Q4-wrong", "question": "Q4", "category": "wrong", "expected": "incorrect", "answer": "All real numbers, since you can take the square root of anything." },
+
+    { "id": "Q5-correct", "question": "Q5", "category": "correct", "expected": "correct", "answer": "A + B = [[5, 4], [2, 5], [−3, 0]]" },
+    { "id": "Q5-wording", "question": "Q5", "category": "different wording", "expected": "correct", "answer": "Each entry of the sum is the sum of the two entries in the same spot: $\\begin{pmatrix} 5 & 4 \\\\ 2 & 5 \\\\ -3 & 0 \\end{pmatrix}$." },
+    { "id": "Q5-partial", "question": "Q5", "category": "partly correct", "expected": "partial", "answer": "Adding entry by entry gives rows (5, 4), (2, 5) and (−3, 6)." },
+
+    { "id": "Q6-reason", "question": "Q6", "category": "right answer, wrong reason", "expected": "partial", "answer": "It means you multiply only the entries on the main diagonal by the number. 3 times the matrix is [[3, −6], [0, 12]]." },
+    { "id": "Q6-wrong", "question": "Q6", "category": "wrong", "expected": "incorrect", "answer": "Scalar multiplication adds the number to each entry, so the result is [[4, 1], [3, 7]]." }
+  ]
+}

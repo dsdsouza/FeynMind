@@ -185,10 +185,8 @@ test('diagnostic, standing, and a whole lesson that survives two kills', async (
     await page.getByRole('button', { name: 'Show me the explanation' }).click()
     await expect(page.getByRole('button', { name: 'Start practising' })).toBeVisible({ timeout: 30_000 })
     await expect(page.locator('.explanation .katex-display')).toBeVisible()
-    const fontsLoaded = await page.evaluate(async () => {
-      await document.fonts.ready
-      return [...document.fonts].some((f) => f.family.includes('KaTeX') && f.status === 'loaded')
-    })
+    // Fonts are subject to the page's Content-Security-Policy; a blocked font would not load.
+    const fontsLoaded = await page.evaluate<boolean>(`document.fonts.ready.then(() => [...document.fonts].some((f) => f.family.includes('KaTeX') && f.status === 'loaded'))`)
     expect(fontsLoaded).toBe(true)
     await page.locator('.explanation button.cite').first().click()
     await expect(page.locator('.lesson-preview figure.preview img')).toBeVisible({ timeout: 30_000 })

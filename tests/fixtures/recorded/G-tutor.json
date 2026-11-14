@@ -1,0 +1,564 @@
+{
+  "model": "gemini-3.1-flash-lite",
+  "calls": [
+    {
+      "keys": [
+        "questions"
+      ],
+      "thinking": "minimal",
+      "usage": {
+        "inputTokens": 1796,
+        "outputTokens": 1196,
+        "thinkingTokens": 0
+      },
+      "reply": "{\n  \"questions\": [\n    {\n      \"concept\": \"C1\",\n      \"purpose\": \"probe\",\n      \"stem\": \"Which of the following collections of ordered pairs constitutes a mathematical relation?\",\n      \"choices\": [\n        \"{(1, 2), (2, 3), (3, 4)}\",\n        \"The set of all prime numbers\",\n        \"A line on a coordinate plane with an undefined slope\",\n        \"{x | x > 5}\"\n      ],\n      \"answer\": 0,\n      \"why\": \"A relation is formally defined as a set of ordered pairs, while the other choices are either individual numbers, geometric figures, or sets of numbers not expressed as pairs.\",\n      \"pages\": [\n        \"S1 p. 1\",\n        \"S2 p. 2\"\n      ]\n    },\n    {\n      \"concept\": \"C1\",\n      \"purpose\": \"confirm\",\n      \"stem\": \"If we define a relation as a set of ordered pairs, which of these is an example of a relation?\",\n      \"choices\": [\n        \"The interval of all real numbers from 0 to 10\",\n        \"{(a, b), (a, c), (b, c)}\",\n        \"A list of names in a telephone book\",\n        \"The variable x where x is a positive integer\"\n      ],\n      \"answer\": 1,\n      \"why\": \"The set containing ordered pairs (a, b), (a, c), and (b, c) fits the definition of a relation because it is a collection of ordered pairs.\",\n      \"pages\": [\n        \"S1 p. 1\",\n        \"S2 p. 2\"\n      ]\n    },\n    {\n      \"concept\": \"C2\",\n      \"purpose\": \"probe\",\n      \"stem\": \"Which of the following sets of ordered pairs represents a function?\",\n      \"choices\": [\n        \"{(1, 5), (1, 6), (2, 7)}\",\n        \"{(2, 3), (3, 3), (4, 3)}\",\n        \"{(1, 2), (2, 3), (2, 4)}\",\n        \"{(5, 1), (5, 2), (5, 3)}\"\n      ],\n      \"answer\": 1,\n      \"why\": \"A function requires that every input value corresponds to exactly one output value. In the set {(2, 3), (3, 3), (4, 3)}, each unique input (2, 3, 4) has only one output (3).\",\n      \"pages\": [\n        \"S1 p. 1\",\n        \"S2 p. 2\"\n      ]\n    },\n    {\n      \"concept\": \"C2\",\n      \"purpose\": \"confirm\",\n      \"stem\": \"Consider the set of ordered pairs {(4, 1), (3, 2), (4, 5)}. Why is this NOT a function?\",\n      \"choices\": [\n        \"The value 4 is used as an output twice.\",\n        \"The input value 4 corresponds to two different output values.\",\n        \"The set contains only three ordered pairs.\",\n        \"The range values are not in increasing order.\"\n      ],\n      \"answer\": 1,\n      \"why\": \"A function must assign each input to exactly one output. Here, the input 4 maps to both 1 and 5, violating the definition of a function.\",\n      \"pages\": [\n        \"S1 p. 1\",\n        \"S2 p. 2\"\n      ]\n    },\n    {\n      \"concept\": \"C3\",\n      \"purpose\": \"probe\",\n      \"stem\": \"What is the domain of the function $f(x) = \\\\frac{1}{x-4}$?\",\n      \"choices\": [\n        \"All real numbers except $x = 0$\",\n        \"All real numbers greater than 4\",\n        \"All real numbers except $x = 4$\",\n        \"All real numbers\"\n      ],\n      \"answer\": 2,\n      \"why\": \"The domain excludes inputs that cause division by zero. Since $x-4=0$ when $x=4$, this value must be excluded from the domain.\",\n      \"pages\": [\n        \"S3 p. 22\",\n        \"S4 p. 22\"\n      ]\n    },\n    {\n      \"concept\": \"C3\",\n      \"purpose\": \"confirm\",\n      \"stem\": \"Given the function $f(x) = \\\\sqrt{x-3}$, which of the following values is excluded from the domain?\",\n      \"choices\": [\n        \"x = 5\",\n        \"x = 3\",\n        \"x = 10\",\n        \"x = 2\"\n      ],\n      \"answer\": 3,\n      \"why\": \"The domain of a square root function excludes values that result in the square root of a negative number. For $x=2$, $x-3 = -1$, which is undefined in the real numbers.\",\n      \"pages\": [\n        \"S3 p. 22\",\n        \"S4 p. 22\"\n      ]\n    }\n  ]\n}",
+      "allowed": [
+        "S1 p. 1",
+        "S1 p. 2",
+        "S2 p. 2",
+        "S3 p. 21",
+        "S3 p. 22",
+        "S4 p. 22"
+      ],
+      "rejected": null
+    },
+    {
+      "keys": [
+        "covered",
+        "questions"
+      ],
+      "thinking": "minimal",
+      "usage": {
+        "inputTokens": 2942,
+        "outputTokens": 1803,
+        "thinkingTokens": 0
+      },
+      "reply": "{\n  \"covered\": true,\n  \"questions\": [\n    {\n      \"kind\": \"opening\",\n      \"stem\": \"If you have a set of ordered pairs, how can you determine if that relation qualifies as a function? Explain why.\",\n      \"referenceAnswer\": \"A relation is a function if every input value (the first component) is associated with exactly one output value (the second component). If any input value is paired with two or more different output values, the relation is not a function, because the definition requires a single unique output for each input.\",\n      \"scaffold\": null,\n      \"criteria\": [\n        {\n          \"id\": \"def_rule\",\n          \"text\": \"States that each input must correspond to exactly one output.\",\n          \"points\": 3,\n          \"essential\": true\n        },\n        {\n          \"id\": \"reasoning\",\n          \"text\": \"Explains that multiple outputs for one input disqualify the relation.\",\n          \"points\": 2,\n          \"essential\": true\n        }\n      ],\n      \"pages\": [\n        \"S3 p. 2\",\n        \"S4 p. 3\"\n      ]\n    },\n    {\n      \"kind\": \"guided\",\n      \"stem\": \"Consider the relation {(2, 5), (3, 5), (4, 7)}. Is this a function? Fill in the blanks: The input values are ___. The output values for each input are: 2 leads to ___, 3 leads to ___, and 4 leads to ___. Since each input leads to ___ output(s), this relation ___ a function.\",\n      \"referenceAnswer\": \"The input values are {2, 3, 4}. The output values for each input are: 2 leads to 5, 3 leads to 5, and 4 leads to 7. Since each input leads to exactly one output, this relation is a function.\",\n      \"scaffold\": \"The input values are ___. The output values for each input are: 2 leads to ___, 3 leads to ___, and 4 leads to ___. Since each input leads to ___ output(s), this relation ___ a function.\",\n      \"criteria\": [\n        {\n          \"id\": \"inputs_identified\",\n          \"text\": \"Correctly identifies the inputs {2, 3, 4}.\",\n          \"points\": 1,\n          \"essential\": false\n        },\n        {\n          \"id\": \"outputs_matched\",\n          \"text\": \"Correctly matches inputs to outputs: 2 to 5, 3 to 5, 4 to 7.\",\n          \"points\": 2,\n          \"essential\": true\n        },\n        {\n          \"id\": \"conclusion\",\n          \"text\": \"Correctly concludes it is a function based on the rule.\",\n          \"points\": 2,\n          \"essential\": true\n        }\n      ],\n      \"pages\": [\n        \"S3 p. 2\",\n        \"S4 p. 3\"\n      ]\n    },\n    {\n      \"kind\": \"partial\",\n      \"stem\": \"Consider the relation {(A, 1), (B, 2), (A, 3)}. Is this a function? First, identify the input(s) that appear more than once and the corresponding outputs for those inputs. Then, explain your conclusion.\",\n      \"referenceAnswer\": \"The input 'A' appears twice and is associated with two different outputs: 1 and 3. Since an input value leads to more than one output value, this relation is not a function.\",\n      \"scaffold\": \"The input 'A' appears twice and is associated with outputs ___ and ___. Since ___.\",\n      \"criteria\": [\n        {\n          \"id\": \"repeated_input\",\n          \"text\": \"Identifies that 'A' is the repeated input.\",\n          \"points\": 1,\n          \"essential\": true\n        },\n        {\n          \"id\": \"conflicting_outputs\",\n          \"text\": \"Identifies that 'A' leads to both 1 and 3.\",\n          \"points\": 2,\n          \"essential\": true\n        },\n        {\n          \"id\": \"final_conclusion\",\n          \"text\": \"Concludes that it is not a function because of the multiple outputs for one input.\",\n          \"points\": 2,\n          \"essential\": true\n        }\n      ],\n      \"pages\": [\n        \"S3 p. 2\",\n        \"S4 p. 3\"\n      ]\n    },\n    {\n      \"kind\": \"unaided\",\n      \"stem\": \"A store tracks the number of shirts sold (input) and the total revenue in dollars (output). If the store sells 5 shirts for $100, 10 shirts for $200, and 5 shirts for $150, is the revenue a function of the number of shirts sold? Explain why.\",\n      \"referenceAnswer\": \"No, it is not a function. The input value '5 shirts' is associated with two different output values ($100 and $150). According to the definition, each input must lead to exactly one output.\",\n      \"scaffold\": null,\n      \"criteria\": [\n        {\n          \"id\": \"correct_answer\",\n          \"text\": \"Correctly states it is not a function.\",\n          \"points\": 2,\n          \"essential\": true\n        },\n        {\n          \"id\": \"justification\",\n          \"text\": \"Explains that 5 shirts are mapped to two different prices ($100 and $150).\",\n          \"points\": 3,\n          \"essential\": true\n        }\n      ],\n      \"pages\": [\n        \"S4 p. 3\"\n      ]\n    },\n    {\n      \"kind\": \"unaided\",\n      \"stem\": \"Determine if the set {(0, 1), (1, 1), (2, 1), (3, 1)} is a function. Explain your reasoning.\",\n      \"referenceAnswer\": \"Yes, it is a function. Even though all inputs have the same output value (1), each individual input value (0, 1, 2, and 3) is associated with exactly one output value. The definition of a function does not forbid different inputs from having the same output.\",\n      \"scaffold\": null,\n      \"criteria\": [\n        {\n          \"id\": \"correct_answer\",\n          \"text\": \"Correctly states it is a function.\",\n          \"points\": 2,\n          \"essential\": true\n        },\n        {\n          \"id\": \"reasoning\",\n          \"text\": \"Correctly notes that each unique x-value has only one y-value, and repeating y-values is allowed.\",\n          \"points\": 3,\n          \"essential\": true\n        }\n      ],\n      \"pages\": [\n        \"S3 p. 2\",\n        \"S4 p. 3\"\n      ]\n    },\n    {\n      \"kind\": \"unaided\",\n      \"stem\": \"If every student in a class is assigned exactly one ID number, is the ID number a function of the student's name? Explain your reasoning.\",\n      \"referenceAnswer\": \"Yes, this is a function. Because each student (input) is assigned exactly one ID number (output), the relation satisfies the definition of a function where each input leads to exactly one output.\",\n      \"scaffold\": null,\n      \"criteria\": [\n        {\n          \"id\": \"correct_answer\",\n          \"text\": \"Correctly states it is a function.\",\n          \"points\": 2,\n          \"essential\": true\n        },\n        {\n          \"id\": \"reasoning\",\n          \"text\": \"Relates the scenario directly to the 'one input to one output' definition.\",\n          \"points\": 2,\n          \"essential\": true\n        }\n      ],\n      \"pages\": [\n        \"S4 p. 3\"\n      ]\n    }\n  ]\n}",
+      "allowed": [
+        "S1 p. 1",
+        "S1 p. 2",
+        "S2 p. 2",
+        "S3 p. 2",
+        "S4 p. 2",
+        "S4 p. 3",
+        "S5 p. 22",
+        "S6 p. 3"
+      ],
+      "rejected": null
+    },
+    {
+      "keys": [
+        "text"
+      ],
+      "thinking": "minimal",
+      "usage": {
+        "inputTokens": 2779,
+        "outputTokens": 563,
+        "thinkingTokens": 0
+      },
+      "reply": "## Explanation\n\nA relation is simply a set of ordered pairs, where each pair connects an input value (independent variable, $x$) to an output value (dependent variable, $y$) [S3 p. 2]. A **function** is a specific type of relation that imposes a strict rule: each input value must lead to exactly one output value [S4 p. 3]. \n\nThink of a function as a \"machine\" [S5 p. 22]. You drop an input into the machine, and it produces a specific output. If you drop the same input in twice and get two different outputs, the machine is broken—it isn't a function. Importantly, the reverse is not necessarily true: two different inputs can result in the same output without breaking the rule [S4 p. 3]. For example, in a shop, two different items might have the same price; the price is still a function of the item because each item has only one price [S6 p. 3]. \n\nUnderstanding functions is essential because they allow us to describe, analyze, and predict relationships between quantities, such as how a jetliner's altitude changes over time or how the price of an item relates to the product [S2 p. 2]. If a relation violates this \"one-to-one\" output rule—meaning one input points to multiple outputs—it fails to be a function [S3 p. 2].\n\n## Worked example\n\n**Problem:** Determine if the relation $R = \\{(1, 5), (2, 10), (3, 5), (4, 15)\\}$ represents a function.\n\n**Step 1: Identify the inputs (domain) and outputs (range).**\nThe inputs are the first components of the ordered pairs: $\\{1, 2, 3, 4\\}$. The outputs are the second components: $\\{5, 10, 5, 15\\}$.\n\n**Step 2: Check each input for unique association.**\n* Input $1$ leads to output $5$.\n* Input $2$ leads to output $10$.\n* Input $3$ leads to output $5$.\n* Input $4$ leads to output $15$.\n\n*Reason:* We check if any input value is repeated with a different output value. While the output value $5$ is repeated, each *input* value maps to exactly one output value.\n\n**Step 3: Conclude.**\nSince every element in the domain is paired with exactly one element in the range, the relation is a function [S3 p. 2].\n\n**Result:** Yes, the relation is a function.",
+      "allowed": [
+        "S1 p. 1",
+        "S1 p. 2",
+        "S2 p. 2",
+        "S3 p. 2",
+        "S4 p. 2",
+        "S4 p. 3",
+        "S5 p. 22",
+        "S6 p. 3"
+      ],
+      "rejected": null
+    },
+    {
+      "keys": [
+        "covered",
+        "questions"
+      ],
+      "thinking": "minimal",
+      "usage": {
+        "inputTokens": 2942,
+        "outputTokens": 1693,
+        "thinkingTokens": 0
+      },
+      "reply": "{\n  \"covered\": true,\n  \"questions\": [\n    {\n      \"kind\": \"opening\",\n      \"stem\": \"If you have a function defined by the formula $f(x) = \\\\frac{1}{x-3}$, explain why $x=3$ cannot be part of the domain.\",\n      \"referenceAnswer\": \"The value $x=3$ cannot be part of the domain because substituting it into the formula results in $f(3) = \\\\frac{1}{3-3} = \\\\frac{1}{0}$. Division by zero is undefined in mathematics, so $x=3$ is not a valid input.\",\n      \"scaffold\": null,\n      \"criteria\": [\n        {\n          \"id\": \"mention_division_by_zero\",\n          \"text\": \"The student identifies that the expression results in division by zero.\",\n          \"points\": 3,\n          \"essential\": true\n        },\n        {\n          \"id\": \"explain_undefined\",\n          \"text\": \"The student states that division by zero is undefined.\",\n          \"points\": 2,\n          \"essential\": true\n        }\n      ],\n      \"pages\": [\"S3 p. 22\", \"S4 p. 22\"]\n    },\n    {\n      \"kind\": \"guided\",\n      \"stem\": \"Find the domain of $f(x) = \\\\sqrt{x-4}$. Complete the following steps: 1. Identify the restriction: We cannot take the even root of a negative number, so the radicand $x-4$ must be greater than or equal to ___. 2. Solve the inequality: $x-4 \\\\geq 0$ leads to $x \\\\geq$ ___. 3. Write in interval notation: The domain is [___, $\\\\infty$).\",\n      \"referenceAnswer\": \"1. 0; 2. 4; 3. 4\",\n      \"scaffold\": \"1. Identify the restriction: We cannot take the even root of a negative number, so the radicand $x-4$ must be greater than or equal to ___. 2. Solve the inequality: $x-4 \\\\geq 0$ leads to $x \\\\geq$ ___. 3. Write in interval notation: The domain is [___, $\\\\infty$).\",\n      \"criteria\": [\n        {\n          \"id\": \"correct_inequality\",\n          \"text\": \"The student correctly identifies the condition $x-4 \\\\geq 0$ and the solved form $x \\\\geq 4$.\",\n          \"points\": 2,\n          \"essential\": true\n        },\n        {\n          \"id\": \"correct_interval\",\n          \"text\": \"The student correctly completes the interval notation as [4, $\\\\infty$).\",\n          \"points\": 2,\n          \"essential\": true\n        }\n      ],\n      \"pages\": [\"S3 p. 22\", \"S4 p. 22\", \"S5 p. 23\"]\n    },\n    {\n      \"kind\": \"partial\",\n      \"stem\": \"Find the domain of $f(x) = \\\\frac{5}{x+2}$. First, identify the value of $x$ that would make the denominator zero, then write the domain in interval notation.\",\n      \"referenceAnswer\": \"Setting $x+2 = 0$ gives $x = -2$. Since $x$ cannot be $-2$, the domain includes all real numbers except $-2$, written in interval notation as $(-\\\\infty, -2) \\\\cup (-2, \\\\infty)$.\",\n      \"scaffold\": \"The value that makes the denominator zero is $x = $ ___. The domain in interval notation is (___, ___) $\\\\cup$ (___, ___).\",\n      \"criteria\": [\n        {\n          \"id\": \"identify_restriction\",\n          \"text\": \"The student identifies $x = -2$ as the excluded value.\",\n          \"points\": 2,\n          \"essential\": true\n        },\n        {\n          \"id\": \"correct_interval\",\n          \"text\": \"The student correctly writes the domain as $(-\\\\infty, -2) \\\\cup (-2, \\\\infty)$.\",\n          \"points\": 2,\n          \"essential\": true\n        }\n      ],\n      \"pages\": [\"S3 p. 22\", \"S4 p. 22\", \"S5 p. 23\"]\n    },\n    {\n      \"kind\": \"unaided\",\n      \"stem\": \"Find the domain of the function $f(x) = 2x + 5$. Explain why there are no restrictions on the input values.\",\n      \"referenceAnswer\": \"The domain is all real numbers, written as $(-\\\\infty, \\\\infty)$. There are no restrictions because the function does not contain a denominator or an even root; any real number can be multiplied by 2 and have 5 added to it without resulting in an undefined value.\",\n      \"scaffold\": null,\n      \"criteria\": [\n        {\n          \"id\": \"correct_domain\",\n          \"text\": \"The student identifies the domain as all real numbers or $(-\\\\infty, \\\\infty)$.\",\n          \"points\": 2,\n          \"essential\": true\n        },\n        {\n          \"id\": \"reasoning_provided\",\n          \"text\": \"The student explains that there is no division or even root to restrict the input.\",\n          \"points\": 2,\n          \"essential\": true\n        }\n      ],\n      \"pages\": [\"S4 p. 22\"]\n    },\n    {\n      \"kind\": \"unaided\",\n      \"stem\": \"Find the domain of the set of ordered pairs: $f = \\\\{(1, 2), (2, 4), (3, 6), (4, 8)\\\\}$.\",\n      \"referenceAnswer\": \"The domain is the set of all input values (first coordinates): {1, 2, 3, 4}.\",\n      \"scaffold\": null,\n      \"criteria\": [\n        {\n          \"id\": \"correct_domain_set\",\n          \"text\": \"The student lists the correct set of inputs: {1, 2, 3, 4}.\",\n          \"points\": 3,\n          \"essential\": true\n        }\n      ],\n      \"pages\": [\"S5 p. 23\"]\n    },\n    {\n      \"kind\": \"unaided\",\n      \"stem\": \"Given the function $f(x) = \\\\sqrt{7-x}$, determine the domain. Write your answer in interval notation.\",\n      \"referenceAnswer\": \"For the function to be defined, the radicand must be non-negative: $7-x \\\\geq 0$. Solving for $x$ gives $7 \\\\geq x$, or $x \\\\leq 7$. The domain in interval notation is $(-\\\\infty, 7]$.\",\n      \"scaffold\": null,\n      \"criteria\": [\n        {\n          \"id\": \"inequality_logic\",\n          \"text\": \"The student correctly sets up $7-x \\\\geq 0$.\",\n          \"points\": 2,\n          \"essential\": true\n        },\n        {\n          \"id\": \"interval_notation\",\n          \"text\": \"The student correctly identifies the interval $(-\\\\infty, 7]$.\",\n          \"points\": 2,\n          \"essential\": true\n        }\n      ],\n      \"pages\": [\"S3 p. 22\", \"S4 p. 22\", \"S5 p. 23\"]\n    }\n  ]\n}",
+      "allowed": [
+        "S1 p. 21",
+        "S1 p. 22",
+        "S2 p. 22",
+        "S3 p. 22",
+        "S4 p. 22",
+        "S4 p. 23",
+        "S5 p. 23",
+        "S6 p. 2",
+        "S6 p. 3"
+      ],
+      "rejected": "questions.0.criteria.0.id: Too big: expected string to have <=20 characters"
+    },
+    {
+      "keys": [
+        "covered",
+        "questions"
+      ],
+      "thinking": "minimal",
+      "usage": {
+        "inputTokens": 2942,
+        "outputTokens": 1604,
+        "thinkingTokens": 0
+      },
+      "reply": "{\n  \"covered\": true,\n  \"questions\": [\n    {\n      \"kind\": \"opening\",\n      \"stem\": \"If you have a function defined by the formula f(x) = 1/x, why can the number 0 not be included in the domain? Explain your reasoning.\",\n      \"referenceAnswer\": \"The number 0 cannot be included in the domain because the formula involves division by x. Dividing any number by 0 is undefined in mathematics, so 0 is not a valid input for this function.\",\n      \"scaffold\": null,\n      \"criteria\": [\n        {\n          \"id\": \"c1\",\n          \"text\": \"Mentions that dividing by zero is undefined.\",\n          \"points\": 3,\n          \"essential\": true\n        },\n        {\n          \"id\": \"c2\",\n          \"text\": \"Identifies that the restriction relates to the input x.\",\n          \"points\": 1,\n          \"essential\": false\n        }\n      ],\n      \"pages\": [\n        \"S3 p. 22\",\n        \"S4 p. 22\"\n      ]\n    },\n    {\n      \"kind\": \"guided\",\n      \"stem\": \"Find the domain of the function f(x) = 1 / (x - 4).\",\n      \"referenceAnswer\": \"The denominator x - 4 must not equal zero. Setting x - 4 = 0 gives x = 4. Therefore, the domain is all real numbers except 4, written in interval notation as (-∞, 4) U (4, ∞).\",\n      \"scaffold\": \"To find the domain, set the denominator ___ equal to 0 to find the excluded input. This gives x = ___. The domain is all real numbers except this value, which in interval notation is (___, ___) U (___, ___).\",\n      \"criteria\": [\n        {\n          \"id\": \"c1\",\n          \"text\": \"Identifies that the denominator must not be zero.\",\n          \"points\": 2,\n          \"essential\": true\n        },\n        {\n          \"id\": \"c2\",\n          \"text\": \"Correctly identifies the excluded value as 4.\",\n          \"points\": 1,\n          \"essential\": true\n        },\n        {\n          \"id\": \"c3\",\n          \"text\": \"Expresses the domain correctly using interval notation.\",\n          \"points\": 1,\n          \"essential\": true\n        }\n      ],\n      \"pages\": [\n        \"S4 p. 22\"\n      ]\n    },\n    {\n      \"kind\": \"partial\",\n      \"stem\": \"Find the domain of the function f(x) = sqrt(x - 3).\",\n      \"referenceAnswer\": \"For an even root, the radicand must be greater than or equal to zero. Thus, x - 3 >= 0, which means x >= 3. In interval notation, the domain is [3, ∞).\",\n      \"scaffold\": \"To find the domain of an even root, set the expression inside the square root to be greater than or equal to zero: ___ >= 0. Solve for x to complete the interval notation.\",\n      \"criteria\": [\n        {\n          \"id\": \"c1\",\n          \"text\": \"Sets the radicand x - 3 >= 0.\",\n          \"points\": 2,\n          \"essential\": true\n        },\n        {\n          \"id\": \"c2\",\n          \"text\": \"Correctly determines the domain is [3, ∞).\",\n          \"points\": 2,\n          \"essential\": true\n        }\n      ],\n      \"pages\": [\n        \"S4 p. 22\"\n      ]\n    },\n    {\n      \"kind\": \"unaided\",\n      \"stem\": \"Find the domain of the function f(x) = {(1, 5), (2, 6), (3, 7), (4, 8)}.\",\n      \"referenceAnswer\": \"The domain is the set of all first coordinates (inputs) of the ordered pairs. Therefore, the domain is {1, 2, 3, 4}.\",\n      \"scaffold\": null,\n      \"criteria\": [\n        {\n          \"id\": \"c1\",\n          \"text\": \"Correctly lists all input values from the ordered pairs.\",\n          \"points\": 2,\n          \"essential\": true\n        },\n        {\n          \"id\": \"c2\",\n          \"text\": \"Presents the answer as a set.\",\n          \"points\": 1,\n          \"essential\": false\n        }\n      ],\n      \"pages\": [\n        \"S5 p. 23\"\n      ]\n    },\n    {\n      \"kind\": \"unaided\",\n      \"stem\": \"Find the domain of the function f(x) = 2x + 5. Explain why there are no restrictions on the domain.\",\n      \"referenceAnswer\": \"The domain is all real numbers, written as (-∞, ∞). There are no restrictions because there is no denominator that could be zero and no even root that could result in a negative radicand.\",\n      \"scaffold\": null,\n      \"criteria\": [\n        {\n          \"id\": \"c1\",\n          \"text\": \"States that the domain is all real numbers.\",\n          \"points\": 2,\n          \"essential\": true\n        },\n        {\n          \"id\": \"c2\",\n          \"text\": \"Explains that there are no denominators or even roots to create restrictions.\",\n          \"points\": 2,\n          \"essential\": true\n        }\n      ],\n      \"pages\": [\n        \"S4 p. 22\"\n      ]\n    },\n    {\n      \"kind\": \"unaided\",\n      \"stem\": \"Find the domain of the function f(x) = 1 / (x^2 - 9).\",\n      \"referenceAnswer\": \"The domain excludes values where x^2 - 9 = 0. Solving x^2 - 9 = 0 gives x^2 = 9, so x = 3 or x = -3. The domain is all real numbers except 3 and -3, written as (-∞, -3) U (-3, 3) U (3, ∞).\",\n      \"scaffold\": null,\n      \"criteria\": [\n        {\n          \"id\": \"c1\",\n          \"text\": \"Identifies that x^2 - 9 cannot be zero.\",\n          \"points\": 1,\n          \"essential\": true\n        },\n        {\n          \"id\": \"c2\",\n          \"text\": \"Correctly finds the excluded values 3 and -3.\",\n          \"points\": 2,\n          \"essential\": true\n        },\n        {\n          \"id\": \"c3\",\n          \"text\": \"Uses interval notation correctly to exclude the values.\",\n          \"points\": 1,\n          \"essential\": true\n        }\n      ],\n      \"pages\": [\n        \"S4 p. 22\"\n      ]\n    }\n  ]\n}",
+      "allowed": [
+        "S1 p. 21",
+        "S1 p. 22",
+        "S2 p. 22",
+        "S3 p. 22",
+        "S4 p. 22",
+        "S4 p. 23",
+        "S5 p. 23",
+        "S6 p. 2",
+        "S6 p. 3"
+      ],
+      "rejected": null
+    },
+    {
+      "keys": [
+        "text"
+      ],
+      "thinking": "minimal",
+      "usage": {
+        "inputTokens": 2779,
+        "outputTokens": 615,
+        "thinkingTokens": 0
+      },
+      "reply": "## Explanation\n\nIn the study of functions, the **domain** is the set of all possible input values that can be processed by a function to produce a valid output [S6 p. 3]. You can visualize the domain as a \"holding area\" that contains the raw materials—the independent variables—that are fed into the \"function machine\" to produce an output [S3 p. 22].\n\nWhen working with equations, identifying the domain requires us to consider both mathematical rules and real-world logic [S3 p. 22]. Mathematically, we look for \"restricted\" values that would make a function undefined. As outlined in your materials, there are three primary cases to consider:\n1. If the equation contains no fractions or roots, the domain is often all real numbers [S4 p. 23].\n2. If there is a denominator, we must exclude any input value that causes division by zero, as this is undefined [S3 p. 22].\n3. If there is an even root (like a square root), we must exclude any input values that result in a negative number inside the root (the radicand), because taking an even root of a negative number is not permitted in the set of real numbers [S3 p. 22].\n\nOnce you identify the allowed inputs, we use interval notation to describe the domain [S3 p. 22]. We use square brackets `[` or `]` to include an endpoint, and parentheses `(` or `)` to exclude an endpoint or represent infinity [S3 p. 22, S4 p. 23].\n\n## Worked example\n\n**Problem:** Find the domain of the function $f(x) = \\frac{5}{\\sqrt{x - 4}}$.\n\n**Step 1: Identify restrictions.**\nThis function has two restrictions: a denominator and an even square root [S4 p. 23]. We must ensure the denominator is not zero and the value inside the square root is not negative [S3 p. 22].\n\n**Step 2: Set up the inequality for the radicand.**\nSince the expression inside the square root must be non-negative ($x - 4 \\geq 0$), we would normally include 4. However, because this root is in the denominator, the entire expression $\\sqrt{x-4}$ cannot be zero. Therefore, $x - 4$ must be strictly greater than zero.\n$$x - 4 > 0$$\n\n**Step 3: Solve the inequality.**\nAdd 4 to both sides of the inequality:\n$$x > 4$$\n\n**Step 4: Write the domain in interval notation.**\nSince $x$ must be strictly greater than 4, we do not include 4. We use a parenthesis for 4 and extend to infinity [S4 p. 23].\n**Result:** $(4, \\infty)$",
+      "allowed": [
+        "S1 p. 21",
+        "S1 p. 22",
+        "S2 p. 22",
+        "S3 p. 22",
+        "S4 p. 22",
+        "S4 p. 23",
+        "S5 p. 23",
+        "S6 p. 2",
+        "S6 p. 3"
+      ],
+      "rejected": null
+    }
+  ],
+  "diagnostic": [
+    {
+      "stem": "Which of the following collections of ordered pairs constitutes a mathematical relation?",
+      "choices": [
+        "{(1, 2), (2, 3), (3, 4)}",
+        "The set of all prime numbers",
+        "A line on a coordinate plane with an undefined slope",
+        "{x | x > 5}"
+      ],
+      "answerIndex": 0,
+      "explanation": "A relation is formally defined as a set of ordered pairs, while the other choices are either individual numbers, geometric figures, or sets of numbers not expressed as pairs.",
+      "pages": [
+        "S1 p. 1",
+        "S2 p. 2"
+      ]
+    },
+    {
+      "stem": "If we define a relation as a set of ordered pairs, which of these is an example of a relation?",
+      "choices": [
+        "The interval of all real numbers from 0 to 10",
+        "{(a, b), (a, c), (b, c)}",
+        "A list of names in a telephone book",
+        "The variable x where x is a positive integer"
+      ],
+      "answerIndex": 1,
+      "explanation": "The set containing ordered pairs (a, b), (a, c), and (b, c) fits the definition of a relation because it is a collection of ordered pairs.",
+      "pages": [
+        "S1 p. 1",
+        "S2 p. 2"
+      ]
+    },
+    {
+      "stem": "Which of the following sets of ordered pairs represents a function?",
+      "choices": [
+        "{(1, 5), (1, 6), (2, 7)}",
+        "{(2, 3), (3, 3), (4, 3)}",
+        "{(1, 2), (2, 3), (2, 4)}",
+        "{(5, 1), (5, 2), (5, 3)}"
+      ],
+      "answerIndex": 1,
+      "explanation": "A function requires that every input value corresponds to exactly one output value. In the set {(2, 3), (3, 3), (4, 3)}, each unique input (2, 3, 4) has only one output (3).",
+      "pages": [
+        "S1 p. 1",
+        "S2 p. 2"
+      ]
+    },
+    {
+      "stem": "Consider the set of ordered pairs {(4, 1), (3, 2), (4, 5)}. Why is this NOT a function?",
+      "choices": [
+        "The value 4 is used as an output twice.",
+        "The input value 4 corresponds to two different output values.",
+        "The set contains only three ordered pairs.",
+        "The range values are not in increasing order."
+      ],
+      "answerIndex": 1,
+      "explanation": "A function must assign each input to exactly one output. Here, the input 4 maps to both 1 and 5, violating the definition of a function.",
+      "pages": [
+        "S1 p. 1",
+        "S2 p. 2"
+      ]
+    },
+    {
+      "stem": "What is the domain of the function $f(x) = \\frac{1}{x-4}$?",
+      "choices": [
+        "All real numbers except $x = 0$",
+        "All real numbers greater than 4",
+        "All real numbers except $x = 4$",
+        "All real numbers"
+      ],
+      "answerIndex": 2,
+      "explanation": "The domain excludes inputs that cause division by zero. Since $x-4=0$ when $x=4$, this value must be excluded from the domain.",
+      "pages": [
+        "S3 p. 22",
+        "S4 p. 22"
+      ]
+    },
+    {
+      "stem": "Given the function $f(x) = \\sqrt{x-3}$, which of the following values is excluded from the domain?",
+      "choices": [
+        "x = 5",
+        "x = 3",
+        "x = 10",
+        "x = 2"
+      ],
+      "answerIndex": 3,
+      "explanation": "The domain of a square root function excludes values that result in the square root of a negative number. For $x=2$, $x-3 = -1$, which is undefined in the real numbers.",
+      "pages": [
+        "S3 p. 22",
+        "S4 p. 22"
+      ]
+    }
+  ],
+  "lessons": {
+    "function": {
+      "questions": [
+        {
+          "kind": "guided",
+          "stem": "Consider the relation {(2, 5), (3, 5), (4, 7)}. Is this a function? Fill in the blanks: The input values are ___. The output values for each input are: 2 leads to ___, 3 leads to ___, and 4 leads to ___. Since each input leads to ___ output(s), this relation ___ a function.",
+          "referenceAnswer": "The input values are {2, 3, 4}. The output values for each input are: 2 leads to 5, 3 leads to 5, and 4 leads to 7. Since each input leads to exactly one output, this relation is a function.",
+          "criteria": [
+            {
+              "id": "inputs_identified",
+              "text": "Correctly identifies the inputs {2, 3, 4}.",
+              "points": 1,
+              "essential": false
+            },
+            {
+              "id": "outputs_matched",
+              "text": "Correctly matches inputs to outputs: 2 to 5, 3 to 5, 4 to 7.",
+              "points": 2,
+              "essential": true
+            },
+            {
+              "id": "conclusion",
+              "text": "Correctly concludes it is a function based on the rule.",
+              "points": 2,
+              "essential": true
+            }
+          ],
+          "scaffold": "The input values are ___. The output values for each input are: 2 leads to ___, 3 leads to ___, and 4 leads to ___. Since each input leads to ___ output(s), this relation ___ a function.",
+          "pages": [
+            "S3 p. 2",
+            "S4 p. 3"
+          ]
+        },
+        {
+          "kind": "opening",
+          "stem": "If you have a set of ordered pairs, how can you determine if that relation qualifies as a function? Explain why.",
+          "referenceAnswer": "A relation is a function if every input value (the first component) is associated with exactly one output value (the second component). If any input value is paired with two or more different output values, the relation is not a function, because the definition requires a single unique output for each input.",
+          "criteria": [
+            {
+              "id": "def_rule",
+              "text": "States that each input must correspond to exactly one output.",
+              "points": 3,
+              "essential": true
+            },
+            {
+              "id": "reasoning",
+              "text": "Explains that multiple outputs for one input disqualify the relation.",
+              "points": 2,
+              "essential": true
+            }
+          ],
+          "scaffold": null,
+          "pages": [
+            "S3 p. 2",
+            "S4 p. 3"
+          ]
+        },
+        {
+          "kind": "partial",
+          "stem": "Consider the relation {(A, 1), (B, 2), (A, 3)}. Is this a function? First, identify the input(s) that appear more than once and the corresponding outputs for those inputs. Then, explain your conclusion.",
+          "referenceAnswer": "The input 'A' appears twice and is associated with two different outputs: 1 and 3. Since an input value leads to more than one output value, this relation is not a function.",
+          "criteria": [
+            {
+              "id": "repeated_input",
+              "text": "Identifies that 'A' is the repeated input.",
+              "points": 1,
+              "essential": true
+            },
+            {
+              "id": "conflicting_outputs",
+              "text": "Identifies that 'A' leads to both 1 and 3.",
+              "points": 2,
+              "essential": true
+            },
+            {
+              "id": "final_conclusion",
+              "text": "Concludes that it is not a function because of the multiple outputs for one input.",
+              "points": 2,
+              "essential": true
+            }
+          ],
+          "scaffold": "The input 'A' appears twice and is associated with outputs ___ and ___. Since ___.",
+          "pages": [
+            "S3 p. 2",
+            "S4 p. 3"
+          ]
+        },
+        {
+          "kind": "unaided",
+          "stem": "A store tracks the number of shirts sold (input) and the total revenue in dollars (output). If the store sells 5 shirts for $100, 10 shirts for $200, and 5 shirts for $150, is the revenue a function of the number of shirts sold? Explain why.",
+          "referenceAnswer": "No, it is not a function. The input value '5 shirts' is associated with two different output values ($100 and $150). According to the definition, each input must lead to exactly one output.",
+          "criteria": [
+            {
+              "id": "correct_answer",
+              "text": "Correctly states it is not a function.",
+              "points": 2,
+              "essential": true
+            },
+            {
+              "id": "justification",
+              "text": "Explains that 5 shirts are mapped to two different prices ($100 and $150).",
+              "points": 3,
+              "essential": true
+            }
+          ],
+          "scaffold": null,
+          "pages": [
+            "S4 p. 3"
+          ]
+        },
+        {
+          "kind": "unaided",
+          "stem": "Determine if the set {(0, 1), (1, 1), (2, 1), (3, 1)} is a function. Explain your reasoning.",
+          "referenceAnswer": "Yes, it is a function. Even though all inputs have the same output value (1), each individual input value (0, 1, 2, and 3) is associated with exactly one output value. The definition of a function does not forbid different inputs from having the same output.",
+          "criteria": [
+            {
+              "id": "correct_answer",
+              "text": "Correctly states it is a function.",
+              "points": 2,
+              "essential": true
+            },
+            {
+              "id": "reasoning",
+              "text": "Correctly notes that each unique x-value has only one y-value, and repeating y-values is allowed.",
+              "points": 3,
+              "essential": true
+            }
+          ],
+          "scaffold": null,
+          "pages": [
+            "S3 p. 2",
+            "S4 p. 3"
+          ]
+        },
+        {
+          "kind": "unaided",
+          "stem": "If every student in a class is assigned exactly one ID number, is the ID number a function of the student's name? Explain your reasoning.",
+          "referenceAnswer": "Yes, this is a function. Because each student (input) is assigned exactly one ID number (output), the relation satisfies the definition of a function where each input leads to exactly one output.",
+          "criteria": [
+            {
+              "id": "correct_answer",
+              "text": "Correctly states it is a function.",
+              "points": 2,
+              "essential": true
+            },
+            {
+              "id": "reasoning",
+              "text": "Relates the scenario directly to the 'one input to one output' definition.",
+              "points": 2,
+              "essential": true
+            }
+          ],
+          "scaffold": null,
+          "pages": [
+            "S4 p. 3"
+          ]
+        }
+      ],
+      "explanation": {
+        "markdown": "## Explanation\n\nA relation is simply a set of ordered pairs, where each pair connects an input value (independent variable, $x$) to an output value (dependent variable, $y$) [S3 p. 2]. A **function** is a specific type of relation that imposes a strict rule: each input value must lead to exactly one output value [S4 p. 3]. \n\nThink of a function as a \"machine\" [S5 p. 22]. You drop an input into the machine, and it produces a specific output. If you drop the same input in twice and get two different outputs, the machine is broken—it isn't a function. Importantly, the reverse is not necessarily true: two different inputs can result in the same output without breaking the rule [S4 p. 3]. For example, in a shop, two different items might have the same price; the price is still a function of the item because each item has only one price [S6 p. 3]. \n\nUnderstanding functions is essential because they allow us to describe, analyze, and predict relationships between quantities, such as how a jetliner's altitude changes over time or how the price of an item relates to the product [S2 p. 2]. If a relation violates this \"one-to-one\" output rule—meaning one input points to multiple outputs—it fails to be a function [S3 p. 2].\n\n## Worked example\n\n**Problem:** Determine if the relation $R = \\{(1, 5), (2, 10), (3, 5), (4, 15)\\}$ represents a function.\n\n**Step 1: Identify the inputs (domain) and outputs (range).**\nThe inputs are the first components of the ordered pairs: $\\{1, 2, 3, 4\\}$. The outputs are the second components: $\\{5, 10, 5, 15\\}$.\n\n**Step 2: Check each input for unique association.**\n* Input $1$ leads to output $5$.\n* Input $2$ leads to output $10$.\n* Input $3$ leads to output $5$.\n* Input $4$ leads to output $15$.\n\n*Reason:* We check if any input value is repeated with a different output value. While the output value $5$ is repeated, each *input* value maps to exactly one output value.\n\n**Step 3: Conclude.**\nSince every element in the domain is paired with exactly one element in the range, the relation is a function [S3 p. 2].\n\n**Result:** Yes, the relation is a function.",
+        "outsideSources": false
+      },
+      "blocked": null
+    },
+    "domain": {
+      "questions": [
+        {
+          "kind": "guided",
+          "stem": "Find the domain of the function f(x) = 1 / (x - 4).",
+          "referenceAnswer": "The denominator x - 4 must not equal zero. Setting x - 4 = 0 gives x = 4. Therefore, the domain is all real numbers except 4, written in interval notation as (-∞, 4) U (4, ∞).",
+          "criteria": [
+            {
+              "id": "c1",
+              "text": "Identifies that the denominator must not be zero.",
+              "points": 2,
+              "essential": true
+            },
+            {
+              "id": "c2",
+              "text": "Correctly identifies the excluded value as 4.",
+              "points": 1,
+              "essential": true
+            },
+            {
+              "id": "c3",
+              "text": "Expresses the domain correctly using interval notation.",
+              "points": 1,
+              "essential": true
+            }
+          ],
+          "scaffold": "To find the domain, set the denominator ___ equal to 0 to find the excluded input. This gives x = ___. The domain is all real numbers except this value, which in interval notation is (___, ___) U (___, ___).",
+          "pages": [
+            "S4 p. 22"
+          ]
+        },
+        {
+          "kind": "opening",
+          "stem": "If you have a function defined by the formula f(x) = 1/x, why can the number 0 not be included in the domain? Explain your reasoning.",
+          "referenceAnswer": "The number 0 cannot be included in the domain because the formula involves division by x. Dividing any number by 0 is undefined in mathematics, so 0 is not a valid input for this function.",
+          "criteria": [
+            {
+              "id": "c1",
+              "text": "Mentions that dividing by zero is undefined.",
+              "points": 3,
+              "essential": true
+            },
+            {
+              "id": "c2",
+              "text": "Identifies that the restriction relates to the input x.",
+              "points": 1,
+              "essential": false
+            }
+          ],
+          "scaffold": null,
+          "pages": [
+            "S3 p. 22",
+            "S4 p. 22"
+          ]
+        },
+        {
+          "kind": "partial",
+          "stem": "Find the domain of the function f(x) = sqrt(x - 3).",
+          "referenceAnswer": "For an even root, the radicand must be greater than or equal to zero. Thus, x - 3 >= 0, which means x >= 3. In interval notation, the domain is [3, ∞).",
+          "criteria": [
+            {
+              "id": "c1",
+              "text": "Sets the radicand x - 3 >= 0.",
+              "points": 2,
+              "essential": true
+            },
+            {
+              "id": "c2",
+              "text": "Correctly determines the domain is [3, ∞).",
+              "points": 2,
+              "essential": true
+            }
+          ],
+          "scaffold": "To find the domain of an even root, set the expression inside the square root to be greater than or equal to zero: ___ >= 0. Solve for x to complete the interval notation.",
+          "pages": [
+            "S4 p. 22"
+          ]
+        },
+        {
+          "kind": "unaided",
+          "stem": "Find the domain of the function f(x) = {(1, 5), (2, 6), (3, 7), (4, 8)}.",
+          "referenceAnswer": "The domain is the set of all first coordinates (inputs) of the ordered pairs. Therefore, the domain is {1, 2, 3, 4}.",
+          "criteria": [
+            {
+              "id": "c1",
+              "text": "Correctly lists all input values from the ordered pairs.",
+              "points": 2,
+              "essential": true
+            },
+            {
+              "id": "c2",
+              "text": "Presents the answer as a set.",
+              "points": 1,
+              "essential": false
+            }
+          ],
+          "scaffold": null,
+          "pages": [
+            "S5 p. 23"
+          ]
+        },
+        {
+          "kind": "unaided",
+          "stem": "Find the domain of the function f(x) = 2x + 5. Explain why there are no restrictions on the domain.",
+          "referenceAnswer": "The domain is all real numbers, written as (-∞, ∞). There are no restrictions because there is no denominator that could be zero and no even root that could result in a negative radicand.",
+          "criteria": [
+            {
+              "id": "c1",
+              "text": "States that the domain is all real numbers.",
+              "points": 2,
+              "essential": true
+            },
+            {
+              "id": "c2",
+              "text": "Explains that there are no denominators or even roots to create restrictions.",
+              "points": 2,
+              "essential": true
+            }
+          ],
+          "scaffold": null,
+          "pages": [
+            "S4 p. 22"
+          ]
+        },
+        {
+          "kind": "unaided",
+          "stem": "Find the domain of the function f(x) = 1 / (x^2 - 9).",
+          "referenceAnswer": "The domain excludes values where x^2 - 9 = 0. Solving x^2 - 9 = 0 gives x^2 = 9, so x = 3 or x = -3. The domain is all real numbers except 3 and -3, written as (-∞, -3) U (-3, 3) U (3, ∞).",
+          "criteria": [
+            {
+              "id": "c1",
+              "text": "Identifies that x^2 - 9 cannot be zero.",
+              "points": 1,
+              "essential": true
+            },
+            {
+              "id": "c2",
+              "text": "Correctly finds the excluded values 3 and -3.",
+              "points": 2,
+              "essential": true
+            },
+            {
+              "id": "c3",
+              "text": "Uses interval notation correctly to exclude the values.",
+              "points": 1,
+              "essential": true
+            }
+          ],
+          "scaffold": null,
+          "pages": [
+            "S4 p. 22"
+          ]
+        }
+      ],
+      "explanation": {
+        "markdown": "## Explanation\n\nIn the study of functions, the **domain** is the set of all possible input values that can be processed by a function to produce a valid output [S6 p. 3]. You can visualize the domain as a \"holding area\" that contains the raw materials—the independent variables—that are fed into the \"function machine\" to produce an output [S3 p. 22].\n\nWhen working with equations, identifying the domain requires us to consider both mathematical rules and real-world logic [S3 p. 22]. Mathematically, we look for \"restricted\" values that would make a function undefined. As outlined in your materials, there are three primary cases to consider:\n1. If the equation contains no fractions or roots, the domain is often all real numbers [S4 p. 23].\n2. If there is a denominator, we must exclude any input value that causes division by zero, as this is undefined [S3 p. 22].\n3. If there is an even root (like a square root), we must exclude any input values that result in a negative number inside the root (the radicand), because taking an even root of a negative number is not permitted in the set of real numbers [S3 p. 22].\n\nOnce you identify the allowed inputs, we use interval notation to describe the domain [S3 p. 22]. We use square brackets `[` or `]` to include an endpoint, and parentheses `(` or `)` to exclude an endpoint or represent infinity [S3 p. 22].\n\n## Worked example\n\n**Problem:** Find the domain of the function $f(x) = \\frac{5}{\\sqrt{x - 4}}$.\n\n**Step 1: Identify restrictions.**\nThis function has two restrictions: a denominator and an even square root [S4 p. 23]. We must ensure the denominator is not zero and the value inside the square root is not negative [S3 p. 22].\n\n**Step 2: Set up the inequality for the radicand.**\nSince the expression inside the square root must be non-negative ($x - 4 \\geq 0$), we would normally include 4. However, because this root is in the denominator, the entire expression $\\sqrt{x-4}$ cannot be zero. Therefore, $x - 4$ must be strictly greater than zero.\n$$x - 4 > 0$$\n\n**Step 3: Solve the inequality.**\nAdd 4 to both sides of the inequality:\n$$x > 4$$\n\n**Step 4: Write the domain in interval notation.**\nSince $x$ must be strictly greater than 4, we do not include 4. We use a parenthesis for 4 and extend to infinity [S4 p. 23].\n**Result:** $(4, \\infty)$",
+        "outsideSources": false
+      },
+      "blocked": null
+    }
+  }
+}

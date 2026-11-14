@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import { citationOf, resolveCitation, splitCitations, type SourceRef } from '../../src/shared/citations'
 import { probeStatus, type ProbeNode } from '../../src/main/tutor/diagnostic'
-import { parseContest, parseDiagnostic, parseExplanation, parseGrade, parseLessonQuestions, verdictOf, type Criterion } from '../../src/main/tutor/schemas'
+import { normalizeCitation, parseContest, parseDiagnostic, parseExplanation, parseGrade, parseLessonQuestions, verdictOf, type Criterion } from '../../src/main/tutor/schemas'
 
 const allowed = new Set(['S1 p. 12', 'S1 p. 13', 'S2 p. A-2'])
 
@@ -73,7 +73,19 @@ describe('reply checks', () => {
     expect(parseContest(grade({ assessment: 'Your objection holds.', changed: true }), rubric, allowed).changed).toBe(true)
   })
 
+  it('accepts the citation variants models write, and keeps page labels with hyphens', () => {
+    expect(normalizeCitation('S2 p.17')).toBe('S2 p. 17')
+    expect(normalizeCitation('[S2, p. 17]')).toBe('S2 p. 17')
+    expect(normalizeCitation('s2 page 17')).toBe('S2 p. 17')
+    expect(normalizeCitation('S2 pp. 17-18')).toBe('S2 p. 17')
+    expect(normalizeCitation('S2 p. 17, 18')).toBe('S2 p. 17')
+    expect(normalizeCitation('S2 p. A-2')).toBe('S2 p. A-2')
+    expect(parseGrade(grade({ pages: ['S1 p.12', 'S1, p. 13'] }), rubric, allowed).pages).toEqual(['S1 p. 12', 'S1 p. 13'])
+  })
+
   it('checks an explanation for both headings and only known citations', () => {
+    const variants = '## Explanation:\nInputs [S1, p.12].\n\n### **Worked Example**\nSteps.'
+    expect(parseExplanation(variants, allowed).markdown).toContain('[S1 p. 12]')
     const ok = '## Explanation\nThe domain is the set of inputs [S1 p. 12].\n\n## Worked example\nFor $\\sqrt{x-2}$ ...'
     expect(parseExplanation(ok, allowed)).toEqual({ markdown: ok, outsideSources: false })
     expect(() => parseExplanation(ok.replace('[S1 p. 12]', '[S1 p. 40]'), allowed)).toThrow('S1 p. 40')
@@ -97,7 +109,10 @@ describe('reply checks', () => {
     const plan = ['unaided', 'opening', 'guided', 'partial', 'unaided', 'unaided'].map((k) => question(k))
     const parsed = parseLessonQuestions(JSON.stringify({ covered: true, questions: plan }), allowed)
     expect(parsed.questions.map((q) => q.kind)).toEqual(['opening', 'guided', 'partial', 'unaided', 'unaided', 'unaided'])
-    expect(() => parseLessonQuestions(JSON.stringify({ covered: true, questions: plan.slice(1) }), allowed)).toThrow('expected 3 unaided')
+    // Two unaided questions are enough; one is not. Extra opening questions are left out.
+    expect(parseLessonQuestions(JSON.stringify({ covered: true, questions: [...plan.slice(1), question('opening', { stem: 'Second opening' })] }), allowed).questions.map((q) => q.kind)).toEqual(['opening', 'guided', 'partial', 'unaided', 'unaided'])
+    const oneUnaided = ['opening', 'guided', 'partial', 'unaided'].map((k) => question(k))
+    expect(() => parseLessonQuestions(JSON.stringify({ covered: true, questions: oneUnaided }), allowed)).toThrow('expected 3 unaided questions, got 1')
     const noScaffold = plan.map((q) => (q.kind === 'guided' ? { ...q, scaffold: null } : q))
     expect(() => parseLessonQuestions(JSON.stringify({ covered: true, questions: noScaffold }), allowed)).toThrow('no scaffold')
     const extra = ['unaided', 'unaided', 'unaided'].map((k) => question(k))

@@ -1,4 +1,4 @@
-version: 1
+version: 2
 thinking: minimal
 max-output-tokens: 6000
 output-base: 900
@@ -12,11 +12,11 @@ You write the questions for one lesson of a tutor that teaches from the student'
 4-6. "unaided": three problems with no scaffold, each different from the others and from the guided and partial ones.
 
 For every question:
-- "stem": the question, self-contained. Do not mention the passages, the book or page numbers. When the answer needs a reason, ask for it ("Explain why ...").
+- "stem": the problem only, self-contained. Do not mention the passages, the book or page numbers, and never repeat the scaffold in the stem. When the answer needs a reason, ask for it ("Explain why ...").
 - "referenceAnswer": a complete model answer, with the reasoning where the question asks for it.
 - "criteria": the rubric, 1 to 4 criteria a grader checks, each something specific and checkable in the student's answer (a value, a step, a correct reason), never vague ("shows understanding"). Give each 1 to 3 points by importance and mark it "essential" when an answer without it cannot be called correct. When the question asks for a reason, the correct reason is an essential criterion of its own. Base the criteria on what the passages say.
-- "scaffold": the scaffold for guided and partial questions; null for the others.
-- "pages": one to three citations of the pages the question and its answer rest on, copied exactly from the "Cite as" lists, like "S2 p. 17".
+- "scaffold": required for the guided and the partial question (never null for them); null for the others.
+- "pages": one to three citations of the pages the question and its answer rest on, each a single page copied exactly from the "Cite as" lists, like "S2 p. 17".
 - Use LaTeX in $...$ for mathematics.
 
 Set "covered" to false when the passages do not actually explain this concept. Still write the questions from standard knowledge of the subject in that case, with "pages" empty.
