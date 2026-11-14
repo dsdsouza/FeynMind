@@ -14,8 +14,10 @@ interface Recorded {
   usage: { inputTokens: number; outputTokens: number } | null
 }
 
-const files = readdirSync(RECORDED).filter((f) => f.endsWith('.json'))
 const load = (f: string): Recorded => JSON.parse(readFileSync(join(RECORDED, f), 'utf8')) as Recorded
+// Knowledge recordings hold one reply each, named by its prompt. Tutor recordings (G-tutor,
+// grading-*, contest) are checked by recordedTutor.test.ts.
+const files = readdirSync(RECORDED).filter((f) => f.endsWith('.json') && typeof load(f).prompt === 'string')
 
 describe('recorded replies', () => {
   it('are present for every kind of request', () => {
