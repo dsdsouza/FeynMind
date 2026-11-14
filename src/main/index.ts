@@ -10,6 +10,7 @@ import { registerIpcHandlers } from './ipc'
 import { KnowledgeService, PromptLibrary } from './knowledge'
 import { createGeminiAdapter, createReplayAdapter, ProviderService, UsageStore } from './providers'
 import { openDatabase, SessionStore, SettingsStore } from './storage'
+import { TutorService } from './tutor'
 
 // Lets end-to-end tests run against a throwaway profile instead of the user's real data.
 const userDataOverride = process.env['FEYNMIND_USER_DATA_DIR']
@@ -189,17 +190,29 @@ void app.whenReady().then(() => {
     limits: (sessionId) => sessions.limits(sessionId)
   })
   describeError = (error) => providers.safeErrorMessage(error)
+  const prompts = new PromptLibrary(loadPrompt)
   const knowledge = new KnowledgeService({
     db,
     providers,
     ingestion,
-    prompts: new PromptLibrary(loadPrompt),
+    prompts,
     settings,
     limits: (sessionId) => sessions.limits(sessionId),
     onJob: (job) => broadcast('knowledge:job', job),
     onUsage: (usage) => broadcast('usage:changed', usage)
   })
   knowledge.start()
+  const tutor = new TutorService({
+    db,
+    providers,
+    unitGraphs: (sessionId) => knowledge.unitGraphs(sessionId),
+    retrieval: { reader: ingestion.reader, search: (sessionId, query) => ingestion.search(sessionId, query) },
+    prompts,
+    consentGiven: (sessionId) => knowledge.consent(sessionId).given,
+    onLesson: (view) => broadcast('tutor:lesson', view),
+    onStream: (event) => broadcast('tutor:stream', event),
+    onUsage: (usage) => broadcast('usage:changed', usage)
+  })
 
   // Let the worker finish its current page, and a model request in flight be cached, before the
   // app exits; anything unfinished resumes next time.
@@ -207,13 +220,13 @@ void app.whenReady().then(() => {
   app.on('before-quit', (event) => {
     if (stopped) return
     event.preventDefault()
-    void Promise.allSettled([knowledge.stop(), ingestion.stop()]).finally(() => {
+    void Promise.allSettled([knowledge.stop(), tutor.stop(), ingestion.stop()]).finally(() => {
       stopped = true
       app.quit()
     })
   })
 
-  registerIpcHandlers({ providers, ingestion, sessions, knowledge, pickMaterialFiles, pickSyllabusFile }, (event) =>
+  registerIpcHandlers({ providers, ingestion, sessions, knowledge, tutor, pickMaterialFiles, pickSyllabusFile }, (event) =>
     isAppUrl(event.senderFrame?.url ?? '')
   )
 

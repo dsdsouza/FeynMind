@@ -56,6 +56,21 @@ const api: FeynMindApi = {
   'concepts:delete': (request) => invoke('concepts:delete', request),
   'concepts:link': (request) => invoke('concepts:link', request),
   'concepts:unlink': (request) => invoke('concepts:unlink', request),
+  'tutor:path': (request) => invoke('tutor:path', request),
+  'diagnostic:start': (request) => invoke('diagnostic:start', request),
+  'diagnostic:state': (request) => invoke('diagnostic:state', request),
+  'diagnostic:answer': (request) => invoke('diagnostic:answer', request),
+  'standing:claimKnown': (request) => invoke('standing:claimKnown', request),
+  'standing:markNew': (request) => invoke('standing:markNew', request),
+  'lesson:open': (request) => invoke('lesson:open', request),
+  'lesson:current': (request) => invoke('lesson:current', request),
+  'lesson:answer': (request) => invoke('lesson:answer', request),
+  'lesson:continue': (request) => invoke('lesson:continue', request),
+  'lesson:contest': (request) => invoke('lesson:contest', request),
+  'lesson:draft': (request) => invoke('lesson:draft', request),
+  'lesson:more': (request) => invoke('lesson:more', request),
+  'lesson:retry': (request) => invoke('lesson:retry', request),
+  'usage:raiseCap': (request) => invoke('usage:raiseCap', request),
   on
 }
 

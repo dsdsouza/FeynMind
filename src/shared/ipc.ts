@@ -21,6 +21,7 @@ import type {
   UsageLimitsInput,
   UsageSummary
 } from './knowledge'
+import type { DiagnosticState, LessonView, PathState, StreamEvent } from './tutor'
 
 export type ProviderId = 'gemini'
 
@@ -93,6 +94,24 @@ export interface IpcContract {
   'concepts:delete': { request: { unitId: number; conceptId: number }; response: UnitReview }
   'concepts:link': { request: { unitId: number; conceptId: number; prereqId: number }; response: UnitReview }
   'concepts:unlink': { request: { unitId: number; conceptId: number; prereqId: number }; response: UnitReview }
+  'tutor:path': { request: { sessionId: number }; response: PathState }
+  /** Writes the diagnostic's questions if needed (model calls), then starts it; or returns the one in progress. */
+  'diagnostic:start': { request: { sessionId: number }; response: DiagnosticState }
+  'diagnostic:state': { request: { diagnosticId: number }; response: DiagnosticState }
+  /** choice null means "I don't know". */
+  'diagnostic:answer': { request: { diagnosticId: number; questionId: number; choice: number | null }; response: DiagnosticState }
+  'standing:claimKnown': { request: { sessionId: number; unitId: number }; response: DiagnosticState }
+  'standing:markNew': { request: { sessionId: number; unitId: number }; response: PathState }
+  'lesson:open': { request: { sessionId: number; conceptId: number }; response: LessonView }
+  'lesson:current': { request: { sessionId: number }; response: LessonView | null }
+  'lesson:answer': { request: { lessonId: number; questionId: number; answer: string; skipped: boolean }; response: LessonView }
+  'lesson:continue': { request: { lessonId: number; fastTrack: boolean }; response: LessonView }
+  'lesson:contest': { request: { attemptId: number; objection: string }; response: LessonView }
+  'lesson:draft': { request: { lessonId: number; text: string }; response: null }
+  'lesson:more': { request: { lessonId: number }; response: LessonView }
+  'lesson:retry': { request: { lessonId: number }; response: LessonView }
+  /** Raises the session's call cap, then grades the answers that were waiting for it. */
+  'usage:raiseCap': { request: { sessionId: number; callCap: number }; response: UsageSummary }
 }
 
 /** Events the main process pushes to the renderer. */
@@ -102,11 +121,13 @@ export interface IpcEvents {
   'ingestion:worker': WorkerStatus
   'knowledge:job': JobSummary
   'usage:changed': UsageSummary
+  'tutor:lesson': LessonView
+  'tutor:stream': StreamEvent
 }
 
 export type IpcEvent = keyof IpcEvents
 
-export const IPC_EVENTS = ['ingestion:progress', 'models:progress', 'ingestion:worker', 'knowledge:job', 'usage:changed'] as const satisfies readonly IpcEvent[]
+export const IPC_EVENTS = ['ingestion:progress', 'models:progress', 'ingestion:worker', 'knowledge:job', 'usage:changed', 'tutor:lesson', 'tutor:stream'] as const satisfies readonly IpcEvent[]
 
 export type IpcChannel = keyof IpcContract
 export type IpcRequest<C extends IpcChannel> = IpcContract[C]['request']
@@ -148,7 +169,22 @@ export const IPC_CHANNELS = [
   'concepts:merge',
   'concepts:delete',
   'concepts:link',
-  'concepts:unlink'
+  'concepts:unlink',
+  'tutor:path',
+  'diagnostic:start',
+  'diagnostic:state',
+  'diagnostic:answer',
+  'standing:claimKnown',
+  'standing:markNew',
+  'lesson:open',
+  'lesson:current',
+  'lesson:answer',
+  'lesson:continue',
+  'lesson:contest',
+  'lesson:draft',
+  'lesson:more',
+  'lesson:retry',
+  'usage:raiseCap'
 ] as const satisfies readonly IpcChannel[]
 
 /** The API the preload script exposes on window.feynmind. */

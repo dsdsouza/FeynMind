@@ -5,12 +5,14 @@ import type { IngestionService } from './ingestion'
 import type { KnowledgeService } from './knowledge'
 import type { ProviderService } from './providers'
 import type { SessionStore } from './storage'
+import type { TutorService } from './tutor'
 
 export interface IpcServices {
   providers: ProviderService
   ingestion: IngestionService
   sessions: SessionStore
   knowledge: KnowledgeService
+  tutor: TutorService
   /** Shows a file picker for course materials; returns the chosen paths (empty when cancelled). */
   pickMaterialFiles: () => Promise<string[]>
   /** Shows a file picker for a syllabus PDF; returns its path, or null when cancelled. */
@@ -40,6 +42,12 @@ function requireId(value: unknown, field: string): number {
   return value
 }
 
+/** A whole number from 0, such as the position of a chosen answer. */
+function requireIndex(value: unknown, field: string): number {
+  if (typeof value !== 'number' || !Number.isSafeInteger(value) || value < 0) throw new InvalidRequestError(`Invalid request: ${field} must be a whole number of 0 or more.`)
+  return value
+}
+
 /** A whole number, a decimal or null; for optional caps and prices. */
 function optionalNumber(value: unknown, field: string, integer: boolean): number | null {
   if (value === null) return null
@@ -57,9 +65,10 @@ function requireSession(services: IpcServices, request: unknown): number {
 }
 
 function handlersFor(services: IpcServices): Handlers {
-  const { providers, ingestion, sessions, knowledge } = services
+  const { providers, ingestion, sessions, knowledge, tutor } = services
   const unitId = (req: unknown): number => requireId(requireObject(req).unitId, 'unitId')
   const jobId = (req: unknown): number => requireId(requireObject(req).jobId, 'jobId')
+  const lessonId = (req: unknown): number => requireId(requireObject(req).lessonId, 'lessonId')
   return {
     'settings:getState': () => providers.getState(),
     'settings:saveKey': (req) => providers.saveKey(requireString(requireObject(req).apiKey, 'apiKey')),
@@ -142,6 +151,42 @@ function handlersFor(services: IpcServices): Handlers {
     'concepts:unlink': (req) => {
       const r = requireObject(req)
       return knowledge.unlinkConcepts(unitId(req), requireId(r.conceptId, 'conceptId'), requireId(r.prereqId, 'prereqId'))
+    },
+    'tutor:path': (req) => tutor.path(requireSession(services, req)),
+    'diagnostic:start': (req) => tutor.startDiagnostic(requireSession(services, req)),
+    'diagnostic:state': (req) => tutor.diagnosticState(requireId(requireObject(req).diagnosticId, 'diagnosticId')),
+    'diagnostic:answer': (req) => {
+      const r = requireObject(req)
+      const choice = r.choice === null ? null : requireIndex(r.choice, 'choice')
+      return tutor.answerDiagnostic(requireId(r.diagnosticId, 'diagnosticId'), requireId(r.questionId, 'questionId'), choice)
+    },
+    'standing:claimKnown': (req) => tutor.claimUnitKnown(requireSession(services, req), unitId(req)),
+    'standing:markNew': (req) => tutor.markUnitNew(requireSession(services, req), unitId(req)),
+    'lesson:open': (req) => tutor.openLesson(requireSession(services, req), requireId(requireObject(req).conceptId, 'conceptId')),
+    'lesson:current': (req) => tutor.currentLesson(requireSession(services, req)),
+    'lesson:answer': (req) => {
+      const r = requireObject(req)
+      if (typeof r.skipped !== 'boolean') throw new InvalidRequestError('Invalid request: skipped must be true or false.')
+      return tutor.answer(lessonId(req), requireId(r.questionId, 'questionId'), requireString(r.answer, 'answer'), r.skipped)
+    },
+    'lesson:continue': (req) => tutor.continue(lessonId(req), requireObject(req).fastTrack === true),
+    'lesson:contest': (req) => {
+      const r = requireObject(req)
+      return tutor.contest(requireId(r.attemptId, 'attemptId'), requireString(r.objection, 'objection'))
+    },
+    'lesson:draft': (req) => {
+      tutor.saveDraft(lessonId(req), requireString(requireObject(req).text, 'text'))
+      return null
+    },
+    'lesson:more': (req) => tutor.moreQuestions(lessonId(req)),
+    'lesson:retry': (req) => tutor.retry(lessonId(req)),
+    'usage:raiseCap': (req) => {
+      const sessionId = requireSession(services, req)
+      const callCap = requireId(requireObject(req).callCap, 'callCap')
+      const limits = sessions.limits(sessionId)
+      sessions.setLimits(sessionId, { callCap, spendCapUsd: limits.spendCapUsd })
+      tutor.resumePending(sessionId)
+      return providers.usageSummary(sessionId)
     }
   }
 }
