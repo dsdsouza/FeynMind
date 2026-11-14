@@ -343,6 +343,144 @@ export const MIGRATIONS: readonly Migration[] = [
         DELETE FROM concept_vectors WHERE concept_id = old.id;
       END;
     `
+  },
+  {
+    version: 4,
+    name: 'tutor',
+    // Milestone 4: questions with their rubrics, lessons, the diagnostic, every answer and grade,
+    // and mastery with its evidence log. Answers and grades are kept in full (with times) so that
+    // review scheduling can be derived from them later without changing these tables.
+    up: `
+      -- Generated questions, reused instead of generated again. criteria is the rubric:
+      -- [{ id, text, points, essential, pages }]. sources: the passages it was written from.
+      CREATE TABLE questions (
+        id               INTEGER PRIMARY KEY,
+        session_id       INTEGER NOT NULL REFERENCES sessions(id) ON DELETE CASCADE,
+        concept_id       INTEGER NOT NULL REFERENCES concepts(id) ON DELETE CASCADE,
+        kind             TEXT NOT NULL CHECK (kind IN ('diagnostic', 'opening', 'guided', 'partial', 'unaided')),
+        ordinal          INTEGER NOT NULL,
+        stem             TEXT NOT NULL,
+        choices          TEXT,
+        answer_index     INTEGER,
+        explanation      TEXT,
+        reference_answer TEXT,
+        criteria         TEXT NOT NULL DEFAULT '[]',
+        scaffold         TEXT,
+        pages            TEXT NOT NULL DEFAULT '[]',
+        sources          TEXT NOT NULL DEFAULT '[]',
+        outside_sources  INTEGER NOT NULL DEFAULT 0,
+        prompt           TEXT NOT NULL,
+        prompt_version   INTEGER NOT NULL,
+        cache_key        TEXT NOT NULL,
+        created_at       TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%fZ', 'now')),
+        UNIQUE (concept_id, kind, ordinal)
+      ) STRICT;
+
+      -- One lesson per concept. step is where the learner is; question_id the question shown.
+      CREATE TABLE lessons (
+        id                  INTEGER PRIMARY KEY,
+        session_id          INTEGER NOT NULL REFERENCES sessions(id) ON DELETE CASCADE,
+        concept_id          INTEGER NOT NULL UNIQUE REFERENCES concepts(id) ON DELETE CASCADE,
+        step                TEXT NOT NULL CHECK (step IN ('opening', 'explain', 'guided', 'partial', 'unaided', 'done')),
+        question_id         INTEGER REFERENCES questions(id) ON DELETE SET NULL,
+        explanation         TEXT,
+        explanation_sources TEXT,
+        explanation_key     TEXT,
+        draft_answer        TEXT NOT NULL DEFAULT '',
+        started_at          TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%fZ', 'now')),
+        updated_at          TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%fZ', 'now')),
+        finished_at         TEXT
+      ) STRICT;
+
+      -- A diagnostic quiz, or the quick check that confirms "I know this unit".
+      CREATE TABLE diagnostics (
+        id          INTEGER PRIMARY KEY,
+        session_id  INTEGER NOT NULL REFERENCES sessions(id) ON DELETE CASCADE,
+        kind        TEXT NOT NULL CHECK (kind IN ('diagnostic', 'confirm')),
+        unit_id     INTEGER REFERENCES units(id) ON DELETE CASCADE,
+        status      TEXT NOT NULL CHECK (status IN ('in-progress', 'done', 'abandoned')),
+        started_at  TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%fZ', 'now')),
+        finished_at TEXT
+      ) STRICT;
+
+      -- Every answer, saved before it is graded. status 'saved' means not graded yet.
+      CREATE TABLE attempts (
+        id            INTEGER PRIMARY KEY,
+        session_id    INTEGER NOT NULL REFERENCES sessions(id) ON DELETE CASCADE,
+        concept_id    INTEGER NOT NULL REFERENCES concepts(id) ON DELETE CASCADE,
+        question_id   INTEGER NOT NULL REFERENCES questions(id) ON DELETE CASCADE,
+        lesson_id     INTEGER REFERENCES lessons(id) ON DELETE CASCADE,
+        diagnostic_id INTEGER REFERENCES diagnostics(id) ON DELETE CASCADE,
+        answer_text   TEXT NOT NULL DEFAULT '',
+        choice_index  INTEGER,
+        skipped       INTEGER NOT NULL DEFAULT 0,
+        shown_at      TEXT NOT NULL,
+        submitted_at  TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%fZ', 'now')),
+        status        TEXT NOT NULL CHECK (status IN ('saved', 'graded', 'failed')),
+        error         TEXT,
+        CHECK ((lesson_id IS NULL) != (diagnostic_id IS NULL))
+      ) STRICT;
+      CREATE INDEX attempts_by_concept ON attempts (concept_id, id);
+      CREATE INDEX attempts_by_lesson ON attempts (lesson_id, id);
+      CREATE INDEX attempts_by_diagnostic ON attempts (diagnostic_id, id);
+
+      -- Grades of an answer: pass 1 is the first grade, pass 2 the second grade after a contest.
+      CREATE TABLE grades (
+        id              INTEGER PRIMARY KEY,
+        attempt_id      INTEGER NOT NULL REFERENCES attempts(id) ON DELETE CASCADE,
+        pass            INTEGER NOT NULL CHECK (pass IN (1, 2)),
+        verdict         TEXT NOT NULL CHECK (verdict IN ('correct', 'partial', 'incorrect')),
+        score           REAL NOT NULL,
+        criteria        TEXT NOT NULL DEFAULT '[]',
+        reason          TEXT NOT NULL,
+        feedback        TEXT NOT NULL DEFAULT '',
+        pages           TEXT NOT NULL DEFAULT '[]',
+        outside_sources INTEGER NOT NULL DEFAULT 0,
+        objection       TEXT,
+        assessment      TEXT,
+        graded_by       TEXT NOT NULL CHECK (graded_by IN ('model', 'local')),
+        model           TEXT,
+        prompt_version  INTEGER,
+        cache_key       TEXT,
+        created_at      TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%fZ', 'now')),
+        UNIQUE (attempt_id, pass)
+      ) STRICT;
+
+      CREATE TABLE mastery (
+        concept_id  INTEGER PRIMARY KEY REFERENCES concepts(id) ON DELETE CASCADE,
+        session_id  INTEGER NOT NULL REFERENCES sessions(id) ON DELETE CASCADE,
+        p_known     REAL NOT NULL,
+        evidence    INTEGER NOT NULL,
+        mastered_at TEXT,
+        updated_at  TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%fZ', 'now'))
+      ) STRICT;
+
+      -- Append-only evidence. Mastery is recomputed by replaying it, using each answer's final grade.
+      -- value: for overrides, the probability set; p_before/p_after as computed when the row was added.
+      CREATE TABLE mastery_events (
+        id         INTEGER PRIMARY KEY,
+        session_id INTEGER NOT NULL REFERENCES sessions(id) ON DELETE CASCADE,
+        concept_id INTEGER NOT NULL REFERENCES concepts(id) ON DELETE CASCADE,
+        kind       TEXT NOT NULL CHECK (kind IN ('diagnostic', 'inferred-known', 'inferred-new', 'answer', 'regrade', 'override-known', 'override-new')),
+        attempt_id INTEGER REFERENCES attempts(id) ON DELETE CASCADE,
+        value      REAL,
+        p_before   REAL NOT NULL,
+        p_after    REAL NOT NULL,
+        at         TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%fZ', 'now'))
+      ) STRICT;
+      CREATE INDEX mastery_events_by_concept ON mastery_events (concept_id, id);
+
+      -- The learner's corrections to a unit's standing, and how the confirming check went.
+      CREATE TABLE unit_overrides (
+        id            INTEGER PRIMARY KEY,
+        session_id    INTEGER NOT NULL REFERENCES sessions(id) ON DELETE CASCADE,
+        unit_id       INTEGER NOT NULL REFERENCES units(id) ON DELETE CASCADE,
+        claimed       TEXT NOT NULL CHECK (claimed IN ('known', 'new')),
+        diagnostic_id INTEGER REFERENCES diagnostics(id) ON DELETE SET NULL,
+        outcome       TEXT NOT NULL CHECK (outcome IN ('pending', 'confirmed', 'not-confirmed', 'accepted')),
+        created_at    TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%fZ', 'now'))
+      ) STRICT;
+    `
   }
 ]
 
