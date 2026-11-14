@@ -36,6 +36,28 @@ PDF.js and saved as PDF with Pillow.
 | `vectors-dot-product.pptx` | PowerPoint import: four slides with speaker notes on every slide. Slide 3 has only a title and a picture (figure-heavy). Built with python-pptx. |
 | `syllabus-precalculus.txt` | Syllabus import: a made-up MATH 120 syllabus with a weekly schedule, readings from the OpenStax fixtures' sections (1.1, 1.2, 9.5) and ones they do not contain (9.6), a review week, exams with weights, and policies to ignore. |
 
+## LibriSpeech speech clips (`audio/`, CC BY 4.0)
+
+Source: LibriSpeech ASR corpus by Vassil Panayotov, Guoguo Chen, Daniel Povey and Sanjeev
+Khudanpur (<https://www.openslr.org/12>), licensed under Creative Commons Attribution 4.0
+International (<https://creativecommons.org/licenses/by/4.0/>). The recordings are LibriVox
+readings of public-domain books. Both clips are utterances of speaker 1272 from the dev-clean
+set, taken from the Hugging Face sample `hf-internal-testing/librispeech_asr_dummy` at commit
+`5be91486e11a2d616f4ec5db8d3fd248585ac07a` (`clean/validation-00000-of-00001.parquet`,
+SHA-256 `4e69a06fa5edc90921e5e7e39a7084881f8b3ed9c805c574f4f39c6fde27c603`), decoded from FLAC
+and saved unchanged as 16 kHz 16-bit mono WAV. `transcripts.json` holds the corpus's own
+transcript of each clip.
+
+| File | Utterance | What it tests |
+| --- | --- | --- |
+| `speech-9s.wav` | 1272-128104-0007 (9.2 s) | The fake microphone in the end-to-end test and the packaged-app smoke test; recognition accuracy. |
+| `speech-29s.wav` | 1272-128104-0004 (29.4 s) | Recognition accuracy and speed on a half-minute take (hard: many proper names); splitting long recordings. |
+
+Neither clip contains mathematical vocabulary; recognition of spoken math is untested.
+
+`tests/unit/whisper-mel-reference.json` (no audio) holds log-mel values of `speech-9s.wav`
+computed independently with numpy and librosa, following OpenAI's Whisper recipe.
+
 ## Recorded model replies (`recorded/`)
 
 Replies from real Gemini calls (`gemini-3.1-flash-lite`, free tier, 2026-11-13) made by

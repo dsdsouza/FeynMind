@@ -1,3 +1,4 @@
-// The dictation module. Its public interface is exported from this file.
-// Empty until its milestone (see docs/tech-plan.md, Build plan).
-export {}
+// The dictation module: local speech recognition with Whisper. Other modules use only what is
+// exported here.
+export { createWhisperTranscriber, type Transcriber } from './whisper'
+export { SPEECH_MODELS } from './models'
