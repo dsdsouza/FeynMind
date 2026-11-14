@@ -58,6 +58,8 @@ const MAX_OBJECTION = 2000
 /** Lesson answers graded by the model in a usual lesson: opening, guided, partial, one unaided. */
 const USUAL_GRADED_ANSWERS = 4
 const CAP_PREFIX = 'cap: '
+/** Tokens of a rubric, the question and a typed answer, as a grade request adds them to the passages. */
+const GRADED_TEXT_TOKENS = 250
 
 interface CourseConcept {
   id: number
@@ -185,13 +187,21 @@ export class TutorService {
       const s = byId.get(c.id)
       return s && !s.locked && !s.mastery.mastered
     })
+    const nextLesson = nextConcept ? (this.repo.lessonOfConcept(nextConcept.id) ?? null) : null
     const latest = this.repo.latestDiagnostic(sessionId, 'diagnostic')
     const open = this.repo.openLesson(sessionId)
     const openConcept = open ? concepts.find((c) => c.id === open.conceptId) : undefined
     return {
       sessionId,
       units,
-      next: nextConcept ? { conceptId: nextConcept.id, name: nextConcept.name, unitTitle: nextConcept.unitTitle } : null,
+      next: nextConcept
+        ? {
+            conceptId: nextConcept.id,
+            name: nextConcept.name,
+            unitTitle: nextConcept.unitTitle,
+            estimate: this.lessonEstimate(nextLesson, nextConcept.id, nextLesson ? this.repo.attemptsOfLesson(nextLesson.id) : [])
+          }
+        : null,
       diagnostic: {
         status: !latest ? 'not-started' : latest.status === 'in-progress' ? 'in-progress' : 'done',
         estimate: concepts.length > 0 ? this.diagnosticEstimate(sessionId, concepts) : null
@@ -801,7 +811,7 @@ export class TutorService {
       mastery: { p: m.p, band: m.band, mastered: m.mastered },
       canFastTrack: lesson.step === 'opening' && graded && m.p >= MASTERY.fastTrack && unanswered.length > 0,
       canMoreQuestions: (lesson.step === 'unaided' || lesson.step === 'partial') && graded && !m.mastered && unanswered.length === 0,
-      estimate: this.lessonEstimate(lesson, concept, attempts),
+      estimate: this.lessonEstimate(lesson, concept.id, attempts),
       blocked: this.lessonBlock(lesson, attempts),
       next
     }
@@ -857,15 +867,21 @@ export class TutorService {
   }
 
   /** Calls the rest of this lesson usually needs: its questions and explanation if not written yet, and a grade per remaining usual answer. */
-  private lessonEstimate(lesson: LessonRow, concept: CourseConcept, attempts: AttemptRow[]): CallEstimate {
+  /**
+   * Calls the rest of a lesson usually needs: its questions and explanation if not written yet,
+   * and a grade per remaining usual answer. Before the lesson exists, its passages are assumed to
+   * fill the retrieval budget.
+   */
+  private lessonEstimate(lesson: LessonRow | null, conceptId: number, attempts: AttemptRow[]): CallEstimate {
     const model = this.options.providers.modelForRole('teaching')
-    const parts: { prompt: string; role: Role; count: number; variable: number }[] = []
-    const passageTokens = lesson.passages.reduce((n, p) => n + textTokens(p.text) + 30, 0)
-    if (this.repo.questionsOf(concept.id, 'opening').length === 0) parts.push({ prompt: 'lesson-questions', role: 'teaching', count: 1, variable: passageTokens })
-    if (lesson.explanation === null && lesson.step !== 'done') parts.push({ prompt: 'lesson-explain', role: 'teaching', count: 1, variable: passageTokens })
-    const gradedByModel = attempts.filter((a) => !a.skipped).length
-    const grades = lesson.step === 'done' ? 0 : Math.max(0, USUAL_GRADED_ANSWERS - gradedByModel)
-    if (grades > 0) parts.push({ prompt: 'grade', role: 'grading', count: grades, variable: passageTokens + 300 })
+    // input: the variable part of the prompt; output: the part the prompt's output ratio applies to.
+    const parts: { prompt: string; role: Role; count: number; input: number; output: number }[] = []
+    const passageTokens = lesson ? lesson.passages.reduce((n, p) => n + textTokens(p.text) + 30, 0) : LESSON_BUDGET
+    const done = lesson?.step === 'done'
+    if (this.repo.questionsOf(conceptId, 'opening').length === 0) parts.push({ prompt: 'lesson-questions', role: 'teaching', count: 1, input: passageTokens, output: passageTokens })
+    if (!lesson?.explanation && !done) parts.push({ prompt: 'lesson-explain', role: 'teaching', count: 1, input: passageTokens, output: passageTokens })
+    const grades = done ? 0 : Math.max(0, USUAL_GRADED_ANSWERS - attempts.filter((a) => !a.skipped).length)
+    if (grades > 0) parts.push({ prompt: 'grade', role: 'grading', count: grades, input: passageTokens + GRADED_TEXT_TOKENS, output: GRADED_TEXT_TOKENS })
     let calls = 0
     let input = 0
     let output = 0
@@ -874,8 +890,8 @@ export class TutorService {
       const f = this.options.providers.calibration(part.role, part.prompt)
       const weight = f.samples / (f.samples + 3)
       calls += part.count
-      input += part.count * (textTokens(prompt.system) + textTokens(prompt.template) + part.variable) * (1 + (f.inputFactor - 1) * weight)
-      output += part.count * (prompt.outputBase + prompt.outputRatio * part.variable) * (1 + (f.outputFactor - 1) * weight)
+      input += part.count * (textTokens(prompt.system) + textTokens(prompt.template) + part.input) * (1 + (f.inputFactor - 1) * weight)
+      output += part.count * (prompt.outputBase + prompt.outputRatio * part.output) * (1 + (f.outputFactor - 1) * weight)
     }
     return this.estimateOf(model, calls, Math.round(input), Math.round(output))
   }

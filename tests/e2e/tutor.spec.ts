@@ -147,7 +147,9 @@ test('diagnostic, standing, and a whole lesson that survives two kills', async (
     // Diagnostic: one call writes it; answers are graded here.
     await page.getByRole('button', { name: 'Learn' }).click()
     await expect(page.getByTestId('standing')).toHaveText(['Not assessed', 'Not assessed'])
-    await expect(page.getByTestId('tutor-estimate')).toContainText('about 1 model call')
+    await expect(page.getByTestId('tutor-estimate').filter({ hasText: 'Writing the quiz' })).toContainText('about 1 model call')
+    // The next lesson's estimate is shown before it makes its first call.
+    await expect(page.getByTestId('tutor-estimate').filter({ hasText: 'This lesson' })).toContainText('about 6 model calls')
     await page.getByRole('button', { name: 'Take the diagnostic' }).click()
     await expect(page.getByText('Question 1 of at most 3 · relation')).toBeVisible({ timeout: 30_000 })
     expect(logLines(replayFile).length).toBe(afterKnowledge + 1)
@@ -222,12 +224,26 @@ test('diagnostic, standing, and a whole lesson that survives two kills', async (
     await page.getByLabel('Your answer').press('Control+Enter')
     await expect(page.getByTestId('grade-reason')).toHaveText('You found the repeated input and said why.', { timeout: 30_000 })
 
-    // On your own: a correct answer masters the concept and unlocks the next one.
+    // On your own, with the call cap reached: the answer is kept, the lesson offers to raise the
+    // cap, and the answer is graded once it is raised. A correct answer masters the concept.
     await page.getByRole('button', { name: 'Next question' }).click()
     await expect(page.getByRole('heading', { name: 'On your own (1)' })).toBeVisible()
+    const used = Number(/(\d+) calls/.exec((await page.getByTestId('session-total').textContent()) ?? '')?.[1])
+    await page.getByRole('button', { name: 'Settings' }).click()
+    await page.getByLabel('Call cap for this course (empty for none)').fill(String(used))
+    await page.getByRole('button', { name: 'Save limits' }).click()
+    await expect(page.getByText('Saved.')).toBeVisible()
+    await page.getByRole('button', { name: 'Learn' }).click()
+    await expect(page.getByRole('heading', { name: 'On your own (1)' })).toBeVisible({ timeout: 30_000 })
     await page.getByLabel('Your answer').fill('No, because 1 maps to both 2 and 3.')
     await page.getByRole('button', { name: 'Submit (Ctrl+Enter)' }).click()
+    const cap = page.getByTestId('cap-prompt')
+    await expect(cap).toContainText(`used ${used} of its ${used} model calls`, { timeout: 30_000 })
+    await expect(page.locator('blockquote')).toContainText('1 maps to both 2 and 3')
+    await cap.getByLabel('New cap').fill(String(used + 10))
+    await cap.getByRole('button', { name: 'Raise cap and continue' }).click()
     await expect(page.getByText('mastered')).toBeVisible({ timeout: 30_000 })
+    await expect(cap).toHaveCount(0)
     await page.getByRole('button', { name: 'Finish' }).click()
     await expect(page.getByRole('heading', { name: 'Mastered.' })).toBeVisible()
     await expect(page.getByRole('button', { name: 'Next: function' })).toBeVisible()

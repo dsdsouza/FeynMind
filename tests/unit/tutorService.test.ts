@@ -183,6 +183,8 @@ describe('diagnostic', () => {
     expect(path.units.map((u) => [u.title, u.standing])).toEqual([['Functions', 'new'], ['Matrices', 'not-assessed']])
     // relation is not mastered, so function and domain are locked; relation comes first.
     expect(path.next?.name).toBe('relation')
+    // Before the lesson starts: questions, explanation and four grades.
+    expect(path.next?.estimate.calls).toBe(6)
     expect(path.units[0]?.concepts.find((c) => c.name === 'domain')?.waitingFor).toEqual(['function'])
 
     // A second diagnostic reuses the stored questions.

@@ -50,7 +50,7 @@ export interface PathState {
   sessionId: number
   units: UnitStatus[]
   /** The earliest concept in syllabus order that is unlocked and not mastered. */
-  next: { conceptId: number; name: string; unitTitle: string } | null
+  next: { conceptId: number; name: string; unitTitle: string; estimate: CallEstimate } | null
   diagnostic: { status: 'not-started' | 'in-progress' | 'done'; estimate: CallEstimate | null }
   /** A lesson that was left part way, to reopen where it stopped. */
   openLesson: { conceptId: number; name: string; step: LessonStep } | null

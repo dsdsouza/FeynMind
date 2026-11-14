@@ -187,6 +187,7 @@ function PathView(props: {
               <>
                 <h2>Next</h2>
                 <p className="muted">{path.next.unitTitle}</p>
+                <EstimateLine estimate={path.next.estimate} what="This lesson" />
                 <button type="button" onClick={() => props.onLesson(path.next?.conceptId ?? 0)} disabled={busy}>
                   Start: {path.next.name}
                 </button>
