@@ -160,7 +160,7 @@ Harder questions require the learner to show their thinking. The canvas is alway
 
 - Reasoning goes into a text field beside the question. The app uses only the text.
 - Show a hint next to the field: Windows key + H on Windows, or Dictation on macOS.
-- A built-in microphone button uses the dictation model set at onboarding. It ships in the first release.
+- A built-in microphone button uses the dictation model chosen in Settings (and at onboarding, once onboarding exists). It ships in the first release.
 - Audio is never stored and never sent to the teaching or grading model.
 
 **Canvas**

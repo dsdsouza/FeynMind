@@ -15,7 +15,7 @@ One language, TypeScript, runs the whole app, so contributors need to know only 
 | Scanned pages | Tesseract.js, with the English language data bundled (@tesseract.js-data/eng) | Local text recognition, no API cost, works offline |
 | Slide decks | Read PowerPoint (.pptx) files directly for text and speaker notes, with fflate (unzip) and fast-xml-parser; PDF export for image-heavy decks | No extra software to install |
 | Embeddings | onnxruntime-node and @huggingface/tokenizers running bge-small-en-v1.5, behind an embedder interface so the model can be swapped | Search runs on the user's machine for free. Calling the runtime directly avoids Transformers.js, whose image dependency (sharp) ships LGPL-licensed libvips binaries |
-| Dictation | Whisper running locally (whisper.cpp), model downloaded on first use | Private, free, works offline; operating system dictation remains an alternative |
+| Dictation | Whisper running locally through the existing onnxruntime-node (English-only tiny, base or small, int8 ONNX), model downloaded on first use | Private, free, works offline; no new native dependency and no installer growth. whisper.cpp was measured and deferred (see Dictation). Operating system dictation remains an alternative |
 | Model calls | Vercel AI SDK | One interface across providers, with streaming and image input |
 | Review scheduling | ts-fsrs | An existing implementation of the FSRS spacing algorithm |
 | Canvas | Excalidraw | Pen, touch and mouse drawing under a permissive license |
@@ -143,6 +143,7 @@ The tutor (milestone 4) runs in the main process like the knowledge jobs. The le
 - **Standing.** From the concepts with any evidence: known when at least 80% are known or mastered, new when at least 60% are new, otherwise shaky; not assessed without evidence or concepts. "I know this unit" starts a 3-question check on its last concepts in learning order (the spare questions); 2 right raise each concept to at least 0.9. "Treat as new" is accepted without a check.
 - **Mastery.** Bayesian Knowledge Tracing per concept: prior 0.2, learning 0.15 per taught answer, slip 0.1, guess 0.25 for multiple choice, 0.15 for opening and unaided questions, 0.3 guided, 0.2 partial; a partly correct answer counts half. Bands: new < 0.3 ≤ shaky < 0.6 ≤ known. Mastered needs at least 0.95 and a correct unaided answer in the lesson, with the last answer correct; the diagnostic or the opening question alone never masters a concept. The estimate is a replay of an append-only evidence log using each answer's final grade, so a contest only recomputes it. Typical paths: one correct diagnostic answer gives 0.47 (shaky); corroborated by a correct answer on a dependent concept, 0.76 (known), after which a correct opening answer passes 0.9 and the lesson offers to skip to an unaided question. A new learner who answers opening, guided, partial and unaided correctly goes 0.66, 0.875, 0.974, 0.996; one who misses the opening question and then gets all practice right goes 0.17, 0.48, 0.84, 0.97 (`tests/unit/mastery.test.ts` checks these figures).
 - **Lesson.** Opening question, then the explanation and a worked example (streamed, written once per concept and stored), then a guided question (full scaffold), a partial one (first step), and unaided questions until mastered: three are written with the lesson, three more on request (one call). The next concept is the earliest in syllabus and learning order that is not mastered and whose prerequisites are all mastered; others are locked.
+- **Reasoning.** Every lesson question has an optional "Your thinking" field beside the answer, typed or dictated. It is stored with the answer (same row, before grading) and drafted like the answer. An answer with reasoning is graded by `grade-reasoning` (and contested by `grade-contest-reasoning`): the rubric is judged on the answer and the reasoning together, and the grader also judges the reasoning as sound, flawed or none (no reasoning to judge), naming the faulty step. It is told to ignore dictation artifacts (filler words, repeats, numbers as words, similar-sounding math terms). Flawed reasoning caps the verdict at partly correct, so a right answer reached by faulty thinking never counts toward mastery. Answers without reasoning use the unchanged `grade` prompt. Reasoning tiers (required reasoning by difficulty) come in milestone 7.
 - **Grading.** The rubric (one to four criteria with points and an "essential" flag) is written with the question from the passages. The grader decides each criterion (yes, partly, no) with quoted evidence and a reason; the app computes the verdict: correct needs a score of at least 0.85 and every essential criterion fully met, below 0.4 is incorrect, anything else partly correct. A right answer with a wrong reason is therefore partly correct. "I don't know" is graded locally. A learner can contest a grade once: the objection is saved, a second grading sees it, and both grades are kept; the second counts.
 - **Reliability.** Every answer and objection is saved before its grading request starts. A lesson reopened after a crash grades what is still waiting (a reply that arrived before the crash comes from the cache) and restarts an explanation that was cut off. The step, the current question and the draft answer are stored, so the app reopens on the lesson where it stopped. Reaching the call cap leaves answers saved; the lesson screen offers to raise the cap and then grades them.
 - **Cost.** About 6 calls per concept (questions 1, explanation 1, four grades) plus contests and extra questions; the diagnostic costs one call per eight concepts. Each lesson and the diagnostic show their estimate before the first call, and the lesson screen shows the course's running total.
@@ -150,8 +151,53 @@ The tutor (milestone 4) runs in the main process like the knowledge jobs. The le
 
 ### Known limitations
 
+- **Two grading prompts (debt, 2026-11-14).** `grade` and `grade-reasoning` (and their contest versions) overlap. They were kept apart so that answer-only grading stays byte-for-byte what the 22-case benchmark measured, because rerunning it was outside milestone 5's call budget. Merge them in a later milestone, when the full benchmark can be rerun on the merged prompt.
 - **Grading waits behind other calls.** The rate limiter sends one request at a time at the configured rate (10 a minute by default). While a unit is being processed, a lesson's grade can wait up to a minute; the lesson shows the answer as saved meanwhile.
 - **Benchmark size.** 22 cases on six questions from two chapters is enough to catch gross errors, not to measure a 95% grading accuracy. The rubrics in the benchmark are hand-written; generated rubrics may be weaker.
+
+## Dictation
+
+Dictation (milestone 5) turns speech into text on the user's machine. Audio never leaves memory: it is not written to disk, not sent over the network and not given to any model provider; only the final text is used.
+
+- **Engine.** Whisper's English-only models, exported to ONNX by onnx-community (OpenAI's weights, MIT; exports Apache-2.0), run through the onnxruntime-node the app already ships for embeddings. The app computes the log-mel features itself (checked against an independent numpy and librosa reference to four decimals in `tests/unit/whisperMel.test.ts`) and decodes greedily with a key/value cache, without timestamps. Only the decoder outputs that are used are fetched: copying the cached encoder values out tripled each step's time. Recordings over 30 s are split at the quietest moment, silence is never sent to the model (Whisper invents words for it), and non-speech markers are removed.
+- **Models.** Tiny (44 MB download), base (80 MB) and small (252 MB), int8 encoder and decoder, each pinned to a commit with a SHA-256 per file, downloaded on first use into the data folder with visible progress. Tiny is the default; base and small can be chosen in Settings, which also offers "Check speed on this computer". There is no automatic speed check: it would mostly run on mains power and pick a model too slow for the same machine on battery.
+- **Segments.** While the learner speaks, the recording is cut at pauses (0.6 s of quiet relative to the speaker's level) into segments of at least 8 s, or at the quietest moment by 25 s, and each is transcribed at once with the text before it as context. After stop, only the last segment is left to transcribe.
+
+### Measurements (2026-11-14, 16-core Windows laptop)
+
+Word error rate (WER) is against LibriSpeech's transcripts; the 29 s clip is hard on purpose (many proper names). Times are for transcription only; loading takes 1 to 6 s once per app session.
+
+| Model (ONNX, int8) | 29.4 s clip, mains | 29.4 s clip, battery | 9.2 s clip, mains / battery | WER, 29 s / 9 s |
+| --- | --- | --- | --- | --- |
+| Tiny | 3.1 s | 9.1 s | 1.2 / 3.3 s | 10.3% / 5.3% |
+| Base | 10.6 s | 16.0 s | 3.6 / 6.0 s | 11.8% / 5.3% |
+| Small | 18.3 s | 28.1 s | 8.8 / 14.0 s | 10.3% / 5.3% |
+
+- **Sustained speed is a fraction of burst speed.** Every process ran at full speed for about 1.5 s, then settled at roughly a quarter: base's encoder took 280 ms, then about 1,250 ms on mains and 2,200 ms on battery; its decoder 22 ms per token, then 60 to 90 ms. Raising process priority did not change it; it is the CPU's power limit.
+- **Base missed the 8 s target** for 30 s of speech on mains (10.6 s), so tiny is the default. A float32 decoder made base 8.5 s on mains for a 234 MB download; the fp16 decoder export does not load in ONNX Runtime 1.31 (malformed graph).
+- **Segmenting**, on two LibriSpeech takes of 143 s and 118 s on mains: with an 8 s minimum, WER rose by 1.8 and 0.7 points for tiny and by 0.6 and 1.8 for base, and the wait after stop was about 2 s (tiny) and 3 s (base). A 4 s minimum cost tiny up to 4.0 points, so 8 s was chosen.
+
+### whisper.cpp (measured, deferred)
+
+`@fugood/whisper.node` 1.1.3 (the latest stable release; 1.2.0 is at release candidates), MIT, prebuilt for Windows x64 (CPU, Vulkan), Apple silicon (CPU and Metal) and Linux x64 (CPU, Vulkan), with q5_1 GGML models, measured on the same clips and laptop on mains power:
+
+| Model | CPU, 29.4 s clip | GPU (Vulkan, Intel integrated), 29.4 s clip | WER, 29 s / 9 s |
+| --- | --- | --- | --- |
+| Tiny | 7.7 s | 0.6 s | 16.2% / 5.3% |
+| Base | 16.3 s (greedy, 8 threads) | 0.9 s | 13.2% / 5.3% |
+| Small | 88 s | 2.8 s | 16.2% / 5.3% |
+
+- On the GPU it is about ten times faster than ONNX on the CPU. The very first GPU run took 10.5 s while the driver prepared itself; later processes started at full speed. On the CPU it is 1.5 to 5 times slower than ONNX, and its q5_1 models were somewhat less accurate on the long clip.
+- A diagnostic run with the binding's native log listener switched on ran for 15 minutes on about 1.5 cores without finishing and was stopped; the cause is unknown.
+- The Windows install also brings a CUDA variant (125 MB) containing NVIDIA's runtime libraries, which are licensed under NVIDIA's terms, not MIT. It would have to be left out of the package, as would a WASM build (9 MB) and bundled whisper.cpp sources (12 MB). The installer would grow by about 6.5 MB on Windows.
+- CI runners have no GPU, so the GPU path cannot be tested in CI; it would need a manual check on each platform.
+- **Decision (2026-11-14): ONNX only for milestone 5.** Revisit whisper.cpp, as a second engine behind the same transcriber interface for machines with a working GPU, if users report dictation as too slow or too inaccurate.
+
+### Known limitations
+
+- **English only**, like search and text recognition.
+- **Math vocabulary is untested.** The fixture clips are read English prose; no recording of spoken mathematics was available. The grader is told to read similar-sounding math terms as the student evidently meant them, and the text is shown and editable before it is submitted.
+- **Slow on battery.** On the test laptop, base needs about half a minute of computing per minute of speech on battery; segmenting hides most of it while the learner talks.
 
 ## Build plan
 
@@ -180,7 +226,7 @@ The two risks most likely to hurt the product are poor math extraction and unrel
 | Ingesting a whole book costs more than users expect | Estimate up front, process the first unit only, cache every result, spending caps |
 | Providers change their interfaces or models | One adapter per provider behind a fixed internal interface; model lists fetched live |
 | Unsigned apps trigger security warnings on Windows and Mac | Document the workaround at first; signing certificates cost money each year, so decide when the project can fund them |
-| Local Whisper is slow on older laptops | Offer a smaller model, and keep operating system dictation and typing as equal options |
+| Local Whisper is slow on older laptops | Tiny is the default, larger models are opt-in with a speed check, recordings are transcribed in segments while the learner speaks, and operating system dictation and typing stay equal options. whisper.cpp on the GPU is the measured fallback plan (see Dictation) |
 | A library's license conflicts with the project's | The project is MIT; check every dependency before adopting it, and never copy code from AGPL or GPL projects |
 | The download is large because of Electron and local models | Download the speech and embedding models on first use, not inside the installer |
 | The installer grew from 132 MB to 195 MB in milestone 2 (Windows), mostly the ONNX runtime, Tesseract's WASM core and English data, and the canvas library | Only the build's own platform and architecture of the ONNX runtime is packed; the embedding model is downloaded on first use. Tesseract's core still ships several WASM variants that could be trimmed |
