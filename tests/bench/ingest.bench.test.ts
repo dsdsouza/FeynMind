@@ -21,7 +21,7 @@ import { openDatabase, SessionStore } from '../../src/main/storage'
 // never copies the files anywhere but a temporary folder that is deleted afterwards.
 
 const files = (process.env['FEYNMIND_BENCH_FILES'] ?? '').split('\n').filter(Boolean)
-const queriesFile = process.env['FEYNMIND_BENCH_QUERIES']
+const queriesFiles = (process.env['FEYNMIND_BENCH_QUERIES'] ?? '').split('\n').filter(Boolean)
 const transcriptsDb = process.env['FEYNMIND_BENCH_TRANSCRIPTS']
 const cacheDir = process.env['FEYNMIND_MODEL_CACHE'] ?? join(tmpdir(), 'feynmind-model-cache')
 
@@ -75,8 +75,8 @@ it('ingests and searches', async () => {
       await runner.run()
     }
 
-    if (queriesFile) {
-      const failures = await runQueries(loadQueries(queriesFile), async (query) => (await searchPassages(repo, sessionId, query, embedder)).results)
+    if (queriesFiles.length > 0) {
+      const failures = await runQueries(queriesFiles.flatMap(loadQueries), async (query) => (await searchPassages(repo, sessionId, query, embedder)).results)
       if (failures > 0) throw new Error(`${failures} search check(s) failed; see the lines marked FAIL above.`)
     }
     await embedder.close()
