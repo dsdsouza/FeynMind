@@ -16,6 +16,17 @@ export interface SectionContent {
   pageRange: { from: number; to: number }
 }
 
+/** A whole chunk with the pages it spans, for grounding the tutor's answers. */
+export interface ChunkText {
+  chunkId: number
+  materialId: number
+  fileName: string
+  chapter: string | null
+  section: string | null
+  pages: PageRef[]
+  text: string
+}
+
 /**
  * Read-only access to imported material for other modules (the knowledge module). Runs on the
  * main process's own database connection; all writes to ingestion tables stay in the worker.
@@ -116,6 +127,31 @@ export class IngestionReader {
 
   fileName(materialId: number): string | undefined {
     return this.repo.getMaterial(materialId)?.originalName
+  }
+
+  /** Chunks that cover any of these pages of a material, in book order. */
+  chunksCoveringPages(materialId: number, pageIndexes: number[]): number[] {
+    return pageIndexes.length === 0 ? [] : this.repo.chunksCoveringPages(materialId, pageIndexes)
+  }
+
+  /** Whole chunks with every page they span (and its printed number), in the order asked for. Missing ids are left out. */
+  chunks(ids: number[]): ChunkText[] {
+    const details = this.repo.chunkDetails(ids)
+    const result: ChunkText[] = []
+    for (const id of ids) {
+      const c = details.get(id)
+      if (!c) continue
+      result.push({
+        chunkId: c.id,
+        materialId: c.materialId,
+        fileName: c.fileName,
+        chapter: c.chapter,
+        section: c.section,
+        pages: this.repo.pageLabels(c.materialId, c.pageStart, c.pageEnd),
+        text: c.text
+      })
+    }
+    return result
   }
 
   pageRef(materialId: number, pageIndex: number): PageRef {

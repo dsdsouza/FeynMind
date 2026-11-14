@@ -503,6 +503,26 @@ export class IngestionRepo {
       .all(materialId, from, to)
   }
 
+  /** Printed page numbers of a range of pages, in order (null where the page has none). */
+  pageLabels(materialId: number, from: number, to: number): { index: number; label: string | null }[] {
+    return this.db
+      .prepare<[number, number, number], { index: number; label: string | null }>(
+        'SELECT page_index AS "index", page_label AS label FROM pages WHERE material_id = ? AND page_index BETWEEN ? AND ? ORDER BY page_index'
+      )
+      .all(materialId, from, to)
+  }
+
+  /** Chunks whose pages include any of these pages, in book order. */
+  chunksCoveringPages(materialId: number, pageIndexes: number[]): number[] {
+    return this.db
+      .prepare<[string, number], { id: number }>(
+        `SELECT DISTINCT c.id, c.page_start, c.ordinal FROM json_each(?) p JOIN chunks c ON p.value BETWEEN c.page_start AND c.page_end
+         WHERE c.material_id = ? ORDER BY c.page_start, c.ordinal, c.id`
+      )
+      .all(JSON.stringify(pageIndexes), materialId)
+      .map((r) => r.id)
+  }
+
   chunkDetails(ids: number[]): Map<number, ChunkDetails> {
     const get = this.db.prepare<[number], ChunkDetails>(
       `SELECT c.id, c.material_id AS materialId, m.original_name AS fileName, m.kind, c.chapter, c.section,

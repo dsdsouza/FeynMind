@@ -85,6 +85,19 @@ export interface KnowledgeServiceOptions {
   now?: () => number
 }
 
+/** A unit with its concepts in learning order, for the tutor. */
+export interface UnitGraph {
+  unit: { id: number; sessionId: number; ordinal: number; title: string }
+  concepts: {
+    id: number
+    name: string
+    definition: string
+    pages: { materialId: number; pageIndex: number }[]
+    /** Active prerequisite links, to concepts in any unit. */
+    prerequisites: number[]
+  }[]
+}
+
 /** Raised by a step that cannot finish but should not stop the rest of the job. */
 class StepFailed extends Error {}
 
@@ -553,6 +566,39 @@ export class KnowledgeService {
     const timer = this.timers.get(jobId)
     if (timer) clearTimeout(timer)
     this.timers.delete(jobId)
+  }
+
+  // Graph for the tutor
+
+  /**
+   * Every unit of the session's confirmed syllabus in order, each with its concepts in learning
+   * order and their active prerequisites (which may belong to other units). Read-only.
+   */
+  unitGraphs(sessionId: number): UnitGraph[] {
+    const all = this.repo.concepts(sessionId)
+    const byId = new Map(all.map((c) => [c.id, c]))
+    const active = this.repo.activeEdges(sessionId)
+    const pos = (id: number): number => {
+      const c = byId.get(id)
+      return c ? position(c.firstMaterialId, c.firstPage) : 0
+    }
+    return this.repo.units(sessionId).map((unit) => {
+      const order = learningOrder(this.repo.conceptsOfUnit(unit.id).map((c) => c.id), active, pos)
+      return {
+        unit: { id: unit.id, sessionId: unit.sessionId, ordinal: unit.ordinal, title: unit.title },
+        concepts: order.map((id) => {
+          const c = byId.get(id)
+          if (!c) throw new Error(`Concept ${id} is missing.`)
+          return {
+            id,
+            name: c.name,
+            definition: c.definition,
+            pages: this.repo.conceptPages(id),
+            prerequisites: active.filter((e) => e.concept === id).map((e) => e.prereq)
+          }
+        })
+      }
+    })
   }
 
   // Review
