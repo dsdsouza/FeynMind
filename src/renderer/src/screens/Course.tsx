@@ -135,7 +135,7 @@ export function Course() {
   )
 }
 
-function UsageLine({ usage }: { usage: UsageSummary }) {
+export function UsageLine({ usage }: { usage: UsageSummary }) {
   const cap = usage.callCap === null ? 'no cap' : `cap ${usage.callCap}`
   return (
     <p className="muted" aria-live="polite" data-testid="usage">
@@ -146,7 +146,7 @@ function UsageLine({ usage }: { usage: UsageSummary }) {
 }
 
 /** The one-time notice before course material is first sent to the provider. */
-function ConsentNotice({ consent, onConfirm, onCancel }: { consent: ConsentState; onConfirm: () => void; onCancel: () => void }) {
+export function ConsentNotice({ consent, onConfirm, onCancel }: { consent: ConsentState; onConfirm: () => void; onCancel: () => void }) {
   return (
     <div className="card warning-card" role="alertdialog" aria-labelledby="consent-title" aria-describedby="consent-text">
       <h2 id="consent-title">Before sending course material</h2>

@@ -345,3 +345,232 @@ button.link {
   cursor: pointer;
   font: inherit;
 }
+
+/* Learn: path, diagnostic and lessons */
+
+.app-main:has(.lesson-body.with-preview) {
+  max-width: 1200px;
+}
+
+.path {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+}
+
+.standing {
+  padding: 2px 10px;
+  border-radius: 999px;
+  border: 1px solid var(--border);
+  font-size: 0.85rem;
+}
+
+.standing-known {
+  color: var(--success);
+  border-color: var(--success);
+}
+
+.standing-shaky {
+  color: var(--warning);
+  border-color: var(--warning);
+}
+
+.standing-new {
+  color: var(--accent);
+  border-color: var(--accent);
+}
+
+.standing-not-assessed {
+  color: var(--muted);
+}
+
+.path-concepts {
+  list-style: none;
+  padding: 0;
+  margin: 8px 0 0;
+}
+
+.path-concepts li {
+  padding: 4px 0;
+  border-top: 1px solid var(--border);
+}
+
+meter {
+  width: 120px;
+}
+
+.choices {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin-top: 12px;
+}
+
+button.choice {
+  display: flex;
+  gap: 12px;
+  align-items: baseline;
+  text-align: left;
+  color: var(--text);
+  border-color: var(--border);
+}
+
+.choice-key {
+  font-weight: 600;
+  color: var(--muted);
+  min-width: 1em;
+}
+
+.results li {
+  margin-bottom: 12px;
+}
+
+.steps {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+  list-style: none;
+  padding: 0;
+  margin: 0 0 12px;
+  font-size: 0.85rem;
+}
+
+.steps li {
+  padding: 2px 8px;
+  border-radius: 4px;
+  color: var(--muted);
+  border: 1px solid transparent;
+}
+
+.steps li.current {
+  color: var(--text);
+  border-color: var(--accent);
+  font-weight: 600;
+}
+
+.lesson-status {
+  margin-bottom: 8px;
+}
+
+.lesson-body.with-preview {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+  gap: 16px;
+  align-items: start;
+}
+
+.lesson-preview {
+  position: sticky;
+  top: 8px;
+}
+
+.lesson-preview img {
+  max-height: 85vh;
+  object-fit: contain;
+}
+
+textarea {
+  width: 100%;
+  padding: 8px 10px;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  background: var(--bg);
+  color: var(--text);
+  font: inherit;
+  margin: 4px 0 8px;
+}
+
+.scaffold {
+  border-left: 3px solid var(--border);
+  padding-left: 12px;
+  margin: 8px 0;
+}
+
+blockquote {
+  margin: 4px 0 8px;
+  padding: 4px 12px;
+  border-left: 3px solid var(--border);
+}
+
+.grades.two {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 8px;
+}
+
+.grade {
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  padding: 8px 12px;
+  margin: 8px 0;
+}
+
+.grade-correct {
+  border-color: var(--success);
+}
+
+.grade-partial {
+  border-color: var(--warning);
+}
+
+.grade-incorrect {
+  border-color: var(--error);
+}
+
+.criteria {
+  list-style: none;
+  padding: 0;
+  margin: 4px 0;
+}
+
+.met {
+  display: inline-block;
+  width: 1.4em;
+  text-align: center;
+  font-weight: 600;
+}
+
+.met-yes {
+  color: var(--success);
+}
+
+.met-partly {
+  color: var(--warning);
+}
+
+.met-no {
+  color: var(--error);
+}
+
+button.cite {
+  padding: 0 6px;
+  font-size: 0.85em;
+  background: transparent;
+  color: var(--accent);
+  border: 1px solid var(--accent);
+  border-radius: 4px;
+  vertical-align: baseline;
+}
+
+.cite-bad {
+  color: var(--warning);
+  font-size: 0.85em;
+}
+
+.tutor-text.inline,
+.tutor-text.inline > * {
+  display: inline;
+}
+
+.tutor-text p:first-child {
+  margin-top: 0;
+}
+
+.tutor-text .katex-display {
+  overflow-x: auto;
+  overflow-y: hidden;
+}
+
+.contest {
+  margin-top: 8px;
+}
