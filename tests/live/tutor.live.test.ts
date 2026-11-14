@@ -39,6 +39,12 @@ const BENCH = join(import.meta.dirname, '..', 'bench', 'grading-cases.json')
 const live = process.env['FEYNMIND_LIVE'] === '1'
 const batch = process.env['FEYNMIND_LIVE_BATCH'] ?? ''
 const MODEL = process.env['FEYNMIND_LIVE_MODEL'] ?? 'gemini-3.1-flash-lite'
+/** Requests a batch may send at most, retries included; the next one fails instead of being sent. */
+const CEILING: Record<string, number> = { G: 15, 'bench-minimal': 24, 'bench-low': 24, contest: 3 }
+
+function checkCeiling(): void {
+  if (calls.length >= (CEILING[batch] ?? 0)) throw new Error(`Batch ${batch} reached its ceiling of ${CEILING[batch] ?? 0} requests; nothing more is sent.`)
+}
 
 function readKey(): string | null {
   if (process.env['GEMINI_API_KEY']) return process.env['GEMINI_API_KEY']
@@ -124,11 +130,13 @@ describe.runIf(live && batch !== '')(`tutor (live, batch ${batch})`, () => {
         return {
           ...adapter,
           generate: async (request) => {
+            checkCeiling()
             const reply = await adapter.generate(request)
             capture(request, reply)
             return reply
           },
           stream: async (request, onText) => {
+            checkCeiling()
             const reply = await adapter.stream(request, onText)
             capture(request, reply)
             return reply

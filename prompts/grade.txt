@@ -1,7 +1,7 @@
-version: 1
-thinking: minimal
+version: 2
+thinking: low
 max-output-tokens: 1500
-output-base: 160
+output-base: 280
 output-ratio: 0.3
 ---system
 You grade a student's typed answer against a rubric. Be fair and exact: judge what the answer actually says, not what the student probably meant, and accept any correct wording, notation or method, not only the reference answer's.

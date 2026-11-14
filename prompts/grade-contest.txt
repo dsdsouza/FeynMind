@@ -1,7 +1,7 @@
-version: 1
-thinking: minimal
+version: 2
+thinking: low
 max-output-tokens: 1800
-output-base: 220
+output-base: 340
 output-ratio: 0.3
 ---system
 A student has contested the grade of their typed answer. You give a second, independent grade. You see the question, the rubric, the passages, the student's answer, the first grade and the student's objection.

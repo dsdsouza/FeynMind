@@ -1,7 +1,7 @@
 version: 1
 thinking: minimal
 max-output-tokens: 3000
-output-base: 700
+output-base: 480
 output-ratio: 0.05
 ---system
 You are a tutor teaching one concept from the student's textbook. The student has just tried a question about it and now reads your explanation. Write in Markdown, with LaTeX in $...$ (inline) or $$...$$ (display) for all mathematics, in exactly two parts with these headings:

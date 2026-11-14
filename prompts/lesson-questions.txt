@@ -1,7 +1,7 @@
 version: 2
 thinking: minimal
 max-output-tokens: 6000
-output-base: 900
+output-base: 1400
 output-ratio: 0.1
 ---system
 You write the questions for one lesson of a tutor that teaches from the student's textbook. The lesson asks one question before teaching, then gives practice that moves from guided to unaided. Write six questions about the concept, all answerable in a few lines of typed text:

@@ -1,0 +1,671 @@
+{
+  "model": "gemini-3.1-flash-lite",
+  "thinking": "low",
+  "agreement": "22/22",
+  "tokens": {
+    "input": 43345,
+    "output": 7086,
+    "thinking": 2845
+  },
+  "calls": 22,
+  "results": [
+    {
+      "id": "Q1-correct",
+      "category": "correct",
+      "expected": "correct",
+      "got": "correct",
+      "agree": true,
+      "score": 1,
+      "criteria": [
+        {
+          "id": "c1",
+          "met": "yes",
+          "evidence": "No, it is not a function"
+        },
+        {
+          "id": "c2",
+          "met": "yes",
+          "evidence": "because the input 1 goes to both 4 and 6"
+        }
+      ],
+      "reason": "You correctly identified that the relation is not a function and provided the correct reason by pointing out the repeat input.",
+      "attempts": 1,
+      "usage": [
+        {
+          "inputTokens": 2024,
+          "outputTokens": 248,
+          "thinkingTokens": 96
+        }
+      ]
+    },
+    {
+      "id": "Q1-wording",
+      "category": "different wording",
+      "expected": "correct",
+      "got": "correct",
+      "agree": true,
+      "score": 1,
+      "criteria": [
+        {
+          "id": "c1",
+          "met": "yes",
+          "evidence": "Not a function"
+        },
+        {
+          "id": "c2",
+          "met": "yes",
+          "evidence": "x = 1 shows up with y = 4 and again with y = 6"
+        }
+      ],
+      "reason": "You correctly identified that the relation is not a function and provided the correct explanation that the input 1 corresponds to two different outputs.",
+      "attempts": 1,
+      "usage": [
+        {
+          "inputTokens": 2038,
+          "outputTokens": 277,
+          "thinkingTokens": 110
+        }
+      ]
+    },
+    {
+      "id": "Q1-reason",
+      "category": "right answer, wrong reason",
+      "expected": "partial",
+      "got": "partial",
+      "agree": true,
+      "score": 0.5,
+      "criteria": [
+        {
+          "id": "c1",
+          "met": "yes",
+          "evidence": "No"
+        },
+        {
+          "id": "c2",
+          "met": "no",
+          "evidence": ""
+        }
+      ],
+      "reason": "You correctly identified that the relation is not a function, but you failed to explain why. Simply noting that the outputs are different does not explain the requirement for unique mapping from input to output.",
+      "attempts": 1,
+      "usage": [
+        {
+          "inputTokens": 2020,
+          "outputTokens": 292,
+          "thinkingTokens": 96
+        }
+      ]
+    },
+    {
+      "id": "Q1-wrong",
+      "category": "wrong",
+      "expected": "incorrect",
+      "got": "incorrect",
+      "agree": true,
+      "score": 0,
+      "criteria": [
+        {
+          "id": "c1",
+          "met": "no",
+          "evidence": "Yes, it is a function"
+        },
+        {
+          "id": "c2",
+          "met": "no",
+          "evidence": ""
+        }
+      ],
+      "reason": "You incorrectly stated that the relation is a function. You also failed to recognize that the input 1 is associated with two different outputs, 4 and 6, which violates the definition of a function.",
+      "attempts": 1,
+      "usage": [
+        {
+          "inputTokens": 2018,
+          "outputTokens": 327,
+          "thinkingTokens": 128
+        }
+      ]
+    },
+    {
+      "id": "Q2-correct",
+      "category": "correct",
+      "expected": "correct",
+      "got": "correct",
+      "agree": true,
+      "score": 1,
+      "criteria": [
+        {
+          "id": "c1",
+          "met": "yes",
+          "evidence": "Domain = {2, 3, 4, 5, 6}"
+        },
+        {
+          "id": "c2",
+          "met": "yes",
+          "evidence": "range = {10, 20, 30, 40}"
+        }
+      ],
+      "reason": "You correctly identified the domain as the set of first coordinates and the range as the set of second coordinates.",
+      "attempts": 1,
+      "usage": [
+        {
+          "inputTokens": 1384,
+          "outputTokens": 307,
+          "thinkingTokens": 142
+        }
+      ]
+    },
+    {
+      "id": "Q2-wording",
+      "category": "different wording",
+      "expected": "correct",
+      "got": "correct",
+      "agree": true,
+      "score": 1,
+      "criteria": [
+        {
+          "id": "c1",
+          "met": "yes",
+          "evidence": "inputs are the whole numbers 2 through 6"
+        },
+        {
+          "id": "c2",
+          "met": "yes",
+          "evidence": "outputs are 10, 20, 30 and 40"
+        }
+      ],
+      "reason": "You correctly identified the set of input values as the domain and the set of unique output values as the range.",
+      "attempts": 1,
+      "usage": [
+        {
+          "inputTokens": 1387,
+          "outputTokens": 324,
+          "thinkingTokens": 164
+        }
+      ]
+    },
+    {
+      "id": "Q2-partial",
+      "category": "partly correct",
+      "expected": "partial",
+      "got": "partial",
+      "agree": true,
+      "score": 0.5,
+      "criteria": [
+        {
+          "id": "c1",
+          "met": "yes",
+          "evidence": "Domain: {2, 3, 4, 5, 6}"
+        },
+        {
+          "id": "c2",
+          "met": "no",
+          "evidence": "Range: {10, 20, 30}"
+        }
+      ],
+      "reason": "You correctly identified the domain, but your range is missing the value 40 from the set of second coordinates.",
+      "attempts": 1,
+      "usage": [
+        {
+          "inputTokens": 1380,
+          "outputTokens": 326,
+          "thinkingTokens": 134
+        }
+      ]
+    },
+    {
+      "id": "Q2-wrong",
+      "category": "wrong",
+      "expected": "incorrect",
+      "got": "incorrect",
+      "agree": true,
+      "score": 0,
+      "criteria": [
+        {
+          "id": "c1",
+          "met": "no",
+          "evidence": "Domain {10, 20, 30, 40}"
+        },
+        {
+          "id": "c2",
+          "met": "no",
+          "evidence": "range {2, 3, 4, 5, 6}"
+        }
+      ],
+      "reason": "You swapped the definitions of domain and range. The domain is the set of first coordinates (inputs), and the range is the set of second coordinates (outputs).",
+      "attempts": 1,
+      "usage": [
+        {
+          "inputTokens": 1383,
+          "outputTokens": 368,
+          "thinkingTokens": 150
+        }
+      ]
+    },
+    {
+      "id": "Q3-correct",
+      "category": "correct",
+      "expected": "correct",
+      "got": "correct",
+      "agree": true,
+      "score": 1,
+      "criteria": [
+        {
+          "id": "c1",
+          "met": "yes",
+          "evidence": "The denominator is 0 when x = 2, so 2 is left out"
+        },
+        {
+          "id": "c2",
+          "met": "yes",
+          "evidence": "the interval (−∞, 2) ∪ (2, ∞) implies all other real numbers are allowed"
+        },
+        {
+          "id": "c3",
+          "met": "yes",
+          "evidence": "(−∞, 2) ∪ (2, ∞)"
+        }
+      ],
+      "reason": "You correctly identified that the denominator cannot be zero at x = 2 and successfully expressed the domain in the correct interval notation.",
+      "attempts": 1,
+      "usage": [
+        {
+          "inputTokens": 2588,
+          "outputTokens": 367,
+          "thinkingTokens": 150
+        }
+      ]
+    },
+    {
+      "id": "Q3-wording",
+      "category": "different wording",
+      "expected": "correct",
+      "got": "correct",
+      "agree": true,
+      "score": 1,
+      "criteria": [
+        {
+          "id": "c1",
+          "met": "yes",
+          "evidence": "x ≠ 2, since x - 2 = 0 there and we can't divide by zero"
+        },
+        {
+          "id": "c2",
+          "met": "yes",
+          "evidence": "any other real number works"
+        },
+        {
+          "id": "c3",
+          "met": "yes",
+          "evidence": "(-∞, 2) U (2, ∞)"
+        }
+      ],
+      "reason": "You correctly identified that the denominator cannot be zero and provided the domain in the correct interval notation.",
+      "attempts": 1,
+      "usage": [
+        {
+          "inputTokens": 2608,
+          "outputTokens": 340,
+          "thinkingTokens": 142
+        }
+      ]
+    },
+    {
+      "id": "Q3-partial",
+      "category": "partly correct",
+      "expected": "partial",
+      "got": "partial",
+      "agree": true,
+      "score": 0.75,
+      "criteria": [
+        {
+          "id": "c1",
+          "met": "yes",
+          "evidence": "x = 2 would mean dividing by zero"
+        },
+        {
+          "id": "c2",
+          "met": "yes",
+          "evidence": "All real numbers except 2"
+        },
+        {
+          "id": "c3",
+          "met": "no",
+          "evidence": ""
+        }
+      ],
+      "reason": "You correctly identified that the domain excludes x=2 due to division by zero, but you did not write the final answer in the requested interval notation.",
+      "attempts": 1,
+      "usage": [
+        {
+          "inputTokens": 2575,
+          "outputTokens": 317,
+          "thinkingTokens": 104
+        }
+      ]
+    },
+    {
+      "id": "Q3-reason",
+      "category": "right answer, wrong reason",
+      "expected": "partial",
+      "got": "partial",
+      "agree": true,
+      "score": 0.5,
+      "criteria": [
+        {
+          "id": "c1",
+          "met": "no",
+          "evidence": "because x = 2 would make the numerator equal to zero"
+        },
+        {
+          "id": "c2",
+          "met": "yes",
+          "evidence": "(−∞, 2) ∪ (2, ∞)"
+        },
+        {
+          "id": "c3",
+          "met": "yes",
+          "evidence": "(−∞, 2) ∪ (2, ∞)"
+        }
+      ],
+      "reason": "You correctly identified the domain in interval notation, but your explanation is incorrect. The domain is restricted because dividing by zero is undefined, not because the numerator is zero.",
+      "attempts": 1,
+      "usage": [
+        {
+          "inputTokens": 2583,
+          "outputTokens": 353,
+          "thinkingTokens": 122
+        }
+      ]
+    },
+    {
+      "id": "Q4-correct",
+      "category": "correct",
+      "expected": "correct",
+      "got": "correct",
+      "agree": true,
+      "score": 1,
+      "criteria": [
+        {
+          "id": "c1",
+          "met": "yes",
+          "evidence": "[3, ∞)"
+        },
+        {
+          "id": "c2",
+          "met": "yes",
+          "evidence": "you can't take the square root of a negative number, so x − 3 has to be at least 0"
+        }
+      ],
+      "reason": "You correctly identified the domain and provided a clear, accurate explanation for why the radicand must be non-negative.",
+      "attempts": 1,
+      "usage": [
+        {
+          "inputTokens": 2585,
+          "outputTokens": 298,
+          "thinkingTokens": 125
+        }
+      ]
+    },
+    {
+      "id": "Q4-wording",
+      "category": "different wording",
+      "expected": "correct",
+      "got": "correct",
+      "agree": true,
+      "score": 1,
+      "criteria": [
+        {
+          "id": "c1",
+          "met": "yes",
+          "evidence": "x needs to be 3 or bigger"
+        },
+        {
+          "id": "c2",
+          "met": "yes",
+          "evidence": "If x were less than 3 then x minus 3 would be negative and the square root wouldn't be a real number."
+        }
+      ],
+      "reason": "You correctly identified the domain and provided a complete explanation for why the radicand cannot be negative.",
+      "attempts": 1,
+      "usage": [
+        {
+          "inputTokens": 2589,
+          "outputTokens": 297,
+          "thinkingTokens": 122
+        }
+      ]
+    },
+    {
+      "id": "Q4-reason",
+      "category": "right answer, wrong reason",
+      "expected": "partial",
+      "got": "partial",
+      "agree": true,
+      "score": 0.5,
+      "criteria": [
+        {
+          "id": "c1",
+          "met": "yes",
+          "evidence": "x ≥ 3"
+        },
+        {
+          "id": "c2",
+          "met": "no",
+          "evidence": "because the square root of 3 is the smallest square root there is"
+        }
+      ],
+      "reason": "You correctly identified the domain, but your explanation is incorrect. The domain restriction exists because the radicand cannot be negative, not because of the value of the square root itself.",
+      "attempts": 1,
+      "usage": [
+        {
+          "inputTokens": 2573,
+          "outputTokens": 347,
+          "thinkingTokens": 125
+        }
+      ]
+    },
+    {
+      "id": "Q4-partial",
+      "category": "partly correct",
+      "expected": "partial",
+      "got": "partial",
+      "agree": true,
+      "score": 0.75,
+      "criteria": [
+        {
+          "id": "c1",
+          "met": "partly",
+          "evidence": "(3, ∞)"
+        },
+        {
+          "id": "c2",
+          "met": "yes",
+          "evidence": "since x − 3 can't be negative under a square root"
+        }
+      ],
+      "reason": "You identified the correct logic for the domain, but you used parentheses instead of a square bracket for the endpoint 3, implying that 3 is excluded when it should be included.",
+      "attempts": 1,
+      "usage": [
+        {
+          "inputTokens": 2573,
+          "outputTokens": 336,
+          "thinkingTokens": 122
+        }
+      ]
+    },
+    {
+      "id": "Q4-wrong",
+      "category": "wrong",
+      "expected": "incorrect",
+      "got": "incorrect",
+      "agree": true,
+      "score": 0,
+      "criteria": [
+        {
+          "id": "c1",
+          "met": "no",
+          "evidence": "All real numbers"
+        },
+        {
+          "id": "c2",
+          "met": "no",
+          "evidence": "you can take the square root of anything"
+        }
+      ],
+      "reason": "You incorrectly stated the domain as all real numbers and incorrectly claimed that you can take the square root of any number. In reality, the square root function is only defined for non-negative values when working with real numbers.",
+      "attempts": 1,
+      "usage": [
+        {
+          "inputTokens": 2567,
+          "outputTokens": 326,
+          "thinkingTokens": 115
+        }
+      ]
+    },
+    {
+      "id": "Q5-correct",
+      "category": "correct",
+      "expected": "correct",
+      "got": "correct",
+      "agree": true,
+      "score": 1,
+      "criteria": [
+        {
+          "id": "c1",
+          "met": "yes",
+          "evidence": "[[5, 4], [2, 5], [−3, 0]]"
+        },
+        {
+          "id": "c2",
+          "met": "yes",
+          "evidence": "[[5, 4], [2, 5], [−3, 0]]"
+        }
+      ],
+      "reason": "You correctly added the matrices and obtained the correct final result.",
+      "attempts": 1,
+      "usage": [
+        {
+          "inputTokens": 1298,
+          "outputTokens": 343,
+          "thinkingTokens": 181
+        }
+      ]
+    },
+    {
+      "id": "Q5-wording",
+      "category": "different wording",
+      "expected": "correct",
+      "got": "correct",
+      "agree": true,
+      "score": 1,
+      "criteria": [
+        {
+          "id": "c1",
+          "met": "yes",
+          "evidence": "Each entry of the sum is the sum of the two entries in the same spot"
+        },
+        {
+          "id": "c2",
+          "met": "yes",
+          "evidence": "5 & 4 \\\\ 2 & 5 \\\\ -3 & 0"
+        }
+      ],
+      "reason": "You correctly added the matrices by summing the corresponding entries and obtained the correct resulting matrix.",
+      "attempts": 1,
+      "usage": [
+        {
+          "inputTokens": 1319,
+          "outputTokens": 290,
+          "thinkingTokens": 127
+        }
+      ]
+    },
+    {
+      "id": "Q5-partial",
+      "category": "partly correct",
+      "expected": "partial",
+      "got": "partial",
+      "agree": true,
+      "score": 0.625,
+      "criteria": [
+        {
+          "id": "c1",
+          "met": "yes",
+          "evidence": "Adding entry by entry"
+        },
+        {
+          "id": "c2",
+          "met": "partly",
+          "evidence": "rows (5, 4), (2, 5) and (−3, 6)"
+        }
+      ],
+      "reason": "You correctly identified that you should add the matrices entry by entry and performed the addition correctly for the first two rows. However, you made a calculation error in the bottom-right entry, calculating -3 + 3 = 6 instead of 0.",
+      "attempts": 1,
+      "usage": [
+        {
+          "inputTokens": 1300,
+          "outputTokens": 365,
+          "thinkingTokens": 160
+        }
+      ]
+    },
+    {
+      "id": "Q6-reason",
+      "category": "right answer, wrong reason",
+      "expected": "partial",
+      "got": "partial",
+      "agree": true,
+      "score": 0.5,
+      "criteria": [
+        {
+          "id": "c1",
+          "met": "no",
+          "evidence": "multiply only the entries on the main diagonal"
+        },
+        {
+          "id": "c2",
+          "met": "yes",
+          "evidence": "3 times the matrix is [[3, −6], [0, 12]]"
+        }
+      ],
+      "reason": "You correctly calculated the resulting matrix, but you incorrectly described the definition of scalar multiplication; you must multiply every entry in the matrix, not just those on the diagonal.",
+      "attempts": 1,
+      "usage": [
+        {
+          "inputTokens": 1281,
+          "outputTokens": 306,
+          "thinkingTokens": 113
+        }
+      ]
+    },
+    {
+      "id": "Q6-wrong",
+      "category": "wrong",
+      "expected": "incorrect",
+      "got": "incorrect",
+      "agree": true,
+      "score": 0,
+      "criteria": [
+        {
+          "id": "c1",
+          "met": "no",
+          "evidence": "Scalar multiplication adds the number to each entry"
+        },
+        {
+          "id": "c2",
+          "met": "no",
+          "evidence": "result is [[4, 1], [3, 7]]"
+        }
+      ],
+      "reason": "You incorrectly described scalar multiplication as addition rather than multiplication, and your final calculation was incorrect.",
+      "attempts": 1,
+      "usage": [
+        {
+          "inputTokens": 1272,
+          "outputTokens": 332,
+          "thinkingTokens": 117
+        }
+      ]
+    }
+  ]
+}
