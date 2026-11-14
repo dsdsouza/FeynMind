@@ -1,7 +1,7 @@
 {
   "name": "feynmind",
   "productName": "FeynMind",
-  "version": "0.0.3",
+  "version": "0.0.4",
   "description": "Local-first adaptive tutor built from your course materials",
   "license": "MIT",
   "author": "FeynMind contributors",

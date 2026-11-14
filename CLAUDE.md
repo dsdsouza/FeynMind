@@ -11,7 +11,7 @@ If a request conflicts with either document, say so and ask before proceeding. I
 
 ## Current milestone
 
-**Milestone 3: Knowledge** (see `docs/tech-plan.md`, Build plan). Milestones 1 (Skeleton) and 2 (Ingestion) are done.
+**Milestone 4: Tutor loop** (see `docs/tech-plan.md`, Build plan). Milestones 1 (Skeleton), 2 (Ingestion) and 3 (Knowledge) are done.
 
 Work on one milestone at a time. Do not build features from later milestones, even when it seems convenient. A milestone is finished only when its "Done when" test passes. Update this section when a milestone is completed.
 
@@ -75,7 +75,7 @@ FEYNMIND_LIVE_BATCH=A node scripts/run-vitest.mjs --live run --config vitest.liv
 npm run test:models  # opt-in: downloads the pinned embedding model once (~35 MB) and checks its vectors; no model API calls
 npm run bench:ingest -- <file> [...] [--queries q.json]  # real pipeline on your own files, throwaway database, prints timings; checks expected pages in q.json
 npm run bench:ingest -- "<Strang PDF>" --queries tests/bench/strang-regression.json  # search regression set (13 checks, ~8 min); run after any search change
-npm run bench:ingest -- "<Strang PDF>" --queries tests/bench/strang-regression.json --transcripts-from "%APPDATA%eynmindeynmind.db"  # the same with the app's vision transcriptions of that book loaded (read-only, no model calls)
+npm run bench:ingest -- "<Strang PDF>" --queries tests/bench/strang-regression.json --queries tests/bench/strang-transcribed.json --transcripts-from "%APPDATA%\feynmind\feynmind.db"  # the same plus 8 checks on transcribed pages, with the app's vision transcriptions of that book loaded (read-only, no model calls; needs unit 1 processed)
 npm run typecheck    # TypeScript check for main/preload and renderer
 npm run lint         # ESLint
 npm run build        # typecheck, then production build into out/
