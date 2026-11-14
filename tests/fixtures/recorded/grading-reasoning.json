@@ -1,0 +1,563 @@
+{
+  "model": "gemini-3.1-flash-lite",
+  "verdictAgreement": "10/10",
+  "reasoningAgreement": "10/10",
+  "tokens": {
+    "input": 25338,
+    "output": 4611,
+    "thinking": 2191
+  },
+  "calls": 10,
+  "results": [
+    {
+      "id": "R-Q3-sound",
+      "category": "sound reasoning",
+      "prompt": "grade-reasoning",
+      "expected": "correct",
+      "got": "correct",
+      "expectedReasoning": "sound",
+      "gotReasoning": "sound",
+      "agree": true,
+      "agreeReasoning": true,
+      "score": 1,
+      "criteria": [
+        {
+          "id": "c1",
+          "met": "yes",
+          "evidence": "The denominator x - 2 is zero when x = 2, and division by zero is undefined, so 2 has to be left out."
+        },
+        {
+          "id": "c2",
+          "met": "yes",
+          "evidence": "every other real number is allowed"
+        },
+        {
+          "id": "c3",
+          "met": "yes",
+          "evidence": "(-infty, 2) cup (2, infty)"
+        }
+      ],
+      "reasoningComment": "Your reasoning clearly and correctly connects the math restriction (division by zero) to the domain exclusion.",
+      "reason": "You correctly identified the restriction on the domain due to the denominator and expressed the final result accurately using the requested interval notation.",
+      "feedback": "",
+      "attempts": 1,
+      "usage": [
+        {
+          "inputTokens": 2977,
+          "outputTokens": 429,
+          "thinkingTokens": 162
+        }
+      ]
+    },
+    {
+      "id": "R-Q4-sound",
+      "category": "sound reasoning",
+      "prompt": "grade-reasoning",
+      "expected": "correct",
+      "got": "correct",
+      "expectedReasoning": "sound",
+      "gotReasoning": "sound",
+      "agree": true,
+      "agreeReasoning": true,
+      "score": 1,
+      "criteria": [
+        {
+          "id": "c1",
+          "met": "yes",
+          "evidence": "[3, infty)"
+        },
+        {
+          "id": "c2",
+          "met": "yes",
+          "evidence": "A square root of a real number is only defined when the number under it is zero or positive. So x - 3 >= 0"
+        }
+      ],
+      "reasoningComment": "The logic is mathematically sound and follows directly from the definition of the domain for square root functions.",
+      "reason": "You correctly determined the domain and provided a clear, accurate explanation of the restriction on the radicand.",
+      "feedback": "",
+      "attempts": 1,
+      "usage": [
+        {
+          "inputTokens": 2973,
+          "outputTokens": 805,
+          "thinkingTokens": 619
+        }
+      ]
+    },
+    {
+      "id": "R-Q1-flawed",
+      "category": "right answer, faulty reasoning",
+      "prompt": "grade-reasoning",
+      "expected": "partial",
+      "got": "partial",
+      "expectedReasoning": "flawed",
+      "gotReasoning": "flawed",
+      "agree": true,
+      "agreeReasoning": true,
+      "score": 1,
+      "criteria": [
+        {
+          "id": "c1",
+          "met": "yes",
+          "evidence": "No, it is not a function."
+        },
+        {
+          "id": "c2",
+          "met": "yes",
+          "evidence": "The input 1 is paired with both 4 and 6."
+        }
+      ],
+      "reasoningComment": "You correctly identified the issue with the input, but your definition was backwards: functions require each input to have a single output, not each output to have a single input (which describes a one-to-one function).",
+      "reason": "You correctly identified that the relation is not a function and provided the correct specific evidence regarding the repeated input 1. While your definition of a function was slightly inverted (the requirement is for each input to have one output, not each output to come from one input), the core reasoning regarding the input was correct and sufficient.",
+      "feedback": "You correctly identified the problem with the input. Just remember that a function requires each input to have exactly one output, rather than focusing on the outputs.",
+      "attempts": 1,
+      "usage": [
+        {
+          "inputTokens": 2395,
+          "outputTokens": 400,
+          "thinkingTokens": 96
+        }
+      ]
+    },
+    {
+      "id": "R-Q2-flawed",
+      "category": "right answer, faulty reasoning",
+      "prompt": "grade-reasoning",
+      "expected": "partial",
+      "got": "partial",
+      "expectedReasoning": "flawed",
+      "gotReasoning": "flawed",
+      "agree": true,
+      "agreeReasoning": true,
+      "score": 1,
+      "criteria": [
+        {
+          "id": "c1",
+          "met": "yes",
+          "evidence": "Domain: {2, 3, 4, 5, 6}"
+        },
+        {
+          "id": "c2",
+          "met": "yes",
+          "evidence": "Range: {10, 20, 30, 40}"
+        }
+      ],
+      "reasoningComment": "You are mistaken that a function is not allowed to give the same output twice; it is perfectly fine for a function to have repeated output values (e.g., f(2)=10 and f(3)=10). You only removed the duplicate 10 because a set by definition lists unique elements, not because it is disallowed by the definition of a function.",
+      "reason": "You correctly identified the domain and the range of the given relation. While your reasoning about why you removed the duplicate value is mathematically incorrect, your final set for the range is correct.",
+      "feedback": "A function is allowed to output the same value multiple times; sets just don't list duplicates. You do not need to worry about whether a function 'allows' repeated outputs when writing the range as a set.",
+      "attempts": 1,
+      "usage": [
+        {
+          "inputTokens": 1776,
+          "outputTokens": 450,
+          "thinkingTokens": 125
+        }
+      ]
+    },
+    {
+      "id": "R-Q4-flawed",
+      "category": "right answer, faulty reasoning",
+      "prompt": "grade-reasoning",
+      "expected": "partial",
+      "got": "partial",
+      "expectedReasoning": "flawed",
+      "gotReasoning": "flawed",
+      "agree": true,
+      "agreeReasoning": true,
+      "score": 0.5,
+      "criteria": [
+        {
+          "id": "c1",
+          "met": "yes",
+          "evidence": "[3, infty)"
+        },
+        {
+          "id": "c2",
+          "met": "no",
+          "evidence": "You cannot take the square root of zero, so x - 3 has to be strictly positive"
+        }
+      ],
+      "reasoningComment": "You claim that you cannot take the square root of zero, but this is incorrect; the square root of zero is zero, which is a real number. Because of this, your condition x > 3 is wrong, as x can equal 3.",
+      "reason": "You correctly stated the interval notation for the domain, but your reasoning is incorrect because you can take the square root of zero (which is zero). Therefore, the value 3 should be included in the domain, and x - 3 must be greater than or equal to zero, not strictly greater than zero.",
+      "feedback": "Remember that the square root of 0 is defined (it equals 0). Since the radicand can be zero, you should include 3 in your domain using a closed bracket.",
+      "attempts": 1,
+      "usage": [
+        {
+          "inputTokens": 2958,
+          "outputTokens": 442,
+          "thinkingTokens": 121
+        }
+      ]
+    },
+    {
+      "id": "R-Q1-dictated",
+      "category": "sound reasoning, dictation artifacts",
+      "prompt": "grade-reasoning",
+      "expected": "correct",
+      "got": "correct",
+      "expectedReasoning": "sound",
+      "gotReasoning": "sound",
+      "agree": true,
+      "agreeReasoning": true,
+      "score": 1,
+      "criteria": [
+        {
+          "id": "c1",
+          "met": "yes",
+          "evidence": "not a function"
+        },
+        {
+          "id": "c2",
+          "met": "yes",
+          "evidence": "input one is is paired with two different outputs four and um six"
+        }
+      ],
+      "reasoningComment": "Your reasoning clearly and correctly explains the definition of a function in the context of the provided problem.",
+      "reason": "You correctly identified that the relation is not a function and accurately explained that this is because the input 1 corresponds to two different output values.",
+      "feedback": "",
+      "attempts": 1,
+      "usage": [
+        {
+          "inputTokens": 2393,
+          "outputTokens": 309,
+          "thinkingTokens": 101
+        }
+      ]
+    },
+    {
+      "id": "R-Q3-dictated",
+      "category": "sound reasoning, dictation artifacts",
+      "prompt": "grade-reasoning",
+      "expected": "correct",
+      "got": "correct",
+      "expectedReasoning": "sound",
+      "gotReasoning": "sound",
+      "agree": true,
+      "agreeReasoning": true,
+      "score": 1,
+      "criteria": [
+        {
+          "id": "c1",
+          "met": "yes",
+          "evidence": "the denominator ex minus two is zero when ex equals two and you can't you can't divide by zero so two is out"
+        },
+        {
+          "id": "c2",
+          "met": "yes",
+          "evidence": "everything else is fine so the main is all real numbers except two"
+        },
+        {
+          "id": "c3",
+          "met": "yes",
+          "evidence": "(-infty, 2) cup (2, infty)"
+        }
+      ],
+      "reasoningComment": "Your reasoning clearly identifies the restriction on the denominator and translates it correctly into the correct domain.",
+      "reason": "You correctly identified that the denominator cannot be zero and correctly excluded 2 from the domain, expressing the result in the proper interval notation.",
+      "feedback": "",
+      "attempts": 1,
+      "usage": [
+        {
+          "inputTokens": 2967,
+          "outputTokens": 392,
+          "thinkingTokens": 129
+        }
+      ]
+    },
+    {
+      "id": "R-Q4-dictated",
+      "category": "sound reasoning, dictation artifacts",
+      "prompt": "grade-reasoning",
+      "expected": "correct",
+      "got": "correct",
+      "expectedReasoning": "sound",
+      "gotReasoning": "sound",
+      "agree": true,
+      "agreeReasoning": true,
+      "score": 1,
+      "criteria": [
+        {
+          "id": "c1",
+          "met": "yes",
+          "evidence": "[3, infty)"
+        },
+        {
+          "id": "c2",
+          "met": "yes",
+          "evidence": "the thing under the square root the radical and ex minus three has to be greater than or equal to zero"
+        }
+      ],
+      "reasoningComment": "Your reasoning correctly identifies the restriction on the square root function.",
+      "reason": "You correctly determined the domain and provided a valid explanation for why the radicand must be non-negative.",
+      "feedback": "",
+      "attempts": 1,
+      "usage": [
+        {
+          "inputTokens": 2956,
+          "outputTokens": 772,
+          "thinkingTokens": 577
+        }
+      ]
+    },
+    {
+      "id": "R-Q2-none",
+      "category": "no reasoning",
+      "prompt": "grade",
+      "expected": "correct",
+      "got": "correct",
+      "expectedReasoning": null,
+      "gotReasoning": null,
+      "agree": true,
+      "agreeReasoning": true,
+      "score": 1,
+      "criteria": [
+        {
+          "id": "c1",
+          "met": "yes",
+          "evidence": "{2, 3, 4, 5, 6}"
+        },
+        {
+          "id": "c2",
+          "met": "yes",
+          "evidence": "{10, 20, 30, 40}"
+        }
+      ],
+      "reasoningComment": null,
+      "reason": "You correctly identified all the input values as the domain and all the unique output values as the range.",
+      "feedback": "",
+      "attempts": 1,
+      "usage": [
+        {
+          "inputTokens": 1384,
+          "outputTokens": 307,
+          "thinkingTokens": 149
+        }
+      ]
+    },
+    {
+      "id": "R-Q4-none",
+      "category": "no reasoning",
+      "prompt": "grade",
+      "expected": "partial",
+      "got": "partial",
+      "expectedReasoning": null,
+      "gotReasoning": null,
+      "agree": true,
+      "agreeReasoning": true,
+      "score": 0.5,
+      "criteria": [
+        {
+          "id": "c1",
+          "met": "yes",
+          "evidence": "[3, infty)"
+        },
+        {
+          "id": "c2",
+          "met": "no",
+          "evidence": ""
+        }
+      ],
+      "reasoningComment": null,
+      "reason": "You correctly identified the domain of the function. However, you did not provide the required explanation for why that domain is correct.",
+      "feedback": "To complete your answer, you need to explain that the expression inside the square root (the radicand, x - 3) must be greater than or equal to zero for the function to yield a real number.",
+      "attempts": 1,
+      "usage": [
+        {
+          "inputTokens": 2559,
+          "outputTokens": 305,
+          "thinkingTokens": 112
+        }
+      ]
+    }
+  ],
+  "replies": [
+    {
+      "keys": [
+        "criteria",
+        "reason",
+        "feedback",
+        "pages",
+        "outsideSources",
+        "reasoning"
+      ],
+      "reply": "{\n  \"criteria\": [\n    {\n      \"id\": \"c1\",\n      \"met\": \"yes\",\n      \"evidence\": \"The denominator x - 2 is zero when x = 2, and division by zero is undefined, so 2 has to be left out.\"\n    },\n    {\n      \"id\": \"c2\",\n      \"met\": \"yes\",\n      \"evidence\": \"every other real number is allowed\"\n    },\n    {\n      \"id\": \"c3\",\n      \"met\": \"yes\",\n      \"evidence\": \"(-infty, 2) cup (2, infty)\"\n    }\n  ],\n  \"reason\": \"You correctly identified the restriction on the domain due to the denominator and expressed the final result accurately using the requested interval notation.\",\n  \"feedback\": \"\",\n  \"pages\": [\n    \"S3 p. 22\",\n    \"S4 p. 23\"\n  ],\n  \"outsideSources\": false,\n  \"reasoning\": {\n    \"judgment\": \"sound\",\n    \"comment\": \"Your reasoning clearly and correctly connects the math restriction (division by zero) to the domain exclusion.\"\n  }\n}",
+      "allowed": [
+        "S1 p. 21",
+        "S1 p. 22",
+        "S2 p. 22",
+        "S3 p. 22",
+        "S4 p. 22",
+        "S4 p. 23",
+        "S5 p. 23"
+      ]
+    },
+    {
+      "keys": [
+        "criteria",
+        "reason",
+        "feedback",
+        "pages",
+        "outsideSources",
+        "reasoning"
+      ],
+      "reply": "{\n\"criteria\": [\n{\n\"id\": \"c1\",\n\"met\": \"yes\",\n\"evidence\": \"[3, infty)\"\n},\n{\n\"id\": \"c2\",\n\"met\": \"yes\",\n\"evidence\": \"A square root of a real number is only defined when the number under it is zero or positive. So x - 3 >= 0\"\n}\n],\n\"reason\": \"You correctly determined the domain and provided a clear, accurate explanation of the restriction on the radicand.\",\n\"feedback\": \"\",\n\"pages\": [\n\"S4 p. 23\"\n],\n\"outsideSources\": false,\n\"reasoning\": {\n\"judgment\": \"sound\",\n\"comment\": \"The logic is mathematically sound and follows directly from the definition of the domain for square root functions.\"\n}\n}",
+      "allowed": [
+        "S1 p. 21",
+        "S1 p. 22",
+        "S2 p. 22",
+        "S3 p. 22",
+        "S4 p. 22",
+        "S4 p. 23",
+        "S5 p. 23"
+      ]
+    },
+    {
+      "keys": [
+        "criteria",
+        "reason",
+        "feedback",
+        "pages",
+        "outsideSources",
+        "reasoning"
+      ],
+      "reply": "{\n  \"criteria\": [\n    {\n      \"id\": \"c1\",\n      \"met\": \"yes\",\n      \"evidence\": \"No, it is not a function.\"\n    },\n    {\n      \"id\": \"c2\",\n      \"met\": \"yes\",\n      \"evidence\": \"The input 1 is paired with both 4 and 6.\"\n    }\n  ],\n  \"reason\": \"You correctly identified that the relation is not a function and provided the correct specific evidence regarding the repeated input 1. While your definition of a function was slightly inverted (the requirement is for each input to have one output, not each output to come from one input), the core reasoning regarding the input was correct and sufficient.\",\n  \"feedback\": \"You correctly identified the problem with the input. Just remember that a function requires each input to have exactly one output, rather than focusing on the outputs.\",\n  \"pages\": [\n    \"S3 p. 2\",\n    \"S4 p. 2\"\n  ],\n  \"outsideSources\": false,\n  \"reasoning\": {\n    \"judgment\": \"flawed\",\n    \"comment\": \"You correctly identified the issue with the input, but your definition was backwards: functions require each input to have a single output, not each output to have a single input (which describes a one-to-one function).\"\n  }\n}",
+      "allowed": [
+        "S1 p. 1",
+        "S1 p. 2",
+        "S2 p. 2",
+        "S3 p. 2",
+        "S4 p. 2",
+        "S4 p. 3"
+      ]
+    },
+    {
+      "keys": [
+        "criteria",
+        "reason",
+        "feedback",
+        "pages",
+        "outsideSources",
+        "reasoning"
+      ],
+      "reply": "{\n  \"criteria\": [\n    {\n      \"id\": \"c1\",\n      \"met\": \"yes\",\n      \"evidence\": \"Domain: {2, 3, 4, 5, 6}\"\n    },\n    {\n      \"id\": \"c2\",\n      \"met\": \"yes\",\n      \"evidence\": \"Range: {10, 20, 30, 40}\"\n    }\n  ],\n  \"reason\": \"You correctly identified the domain and the range of the given relation. While your reasoning about why you removed the duplicate value is mathematically incorrect, your final set for the range is correct.\",\n  \"feedback\": \"A function is allowed to output the same value multiple times; sets just don't list duplicates. You do not need to worry about whether a function 'allows' repeated outputs when writing the range as a set.\",\n  \"pages\": [\n    \"S2 p. 23\"\n  ],\n  \"outsideSources\": false,\n  \"reasoning\": {\n    \"judgment\": \"flawed\",\n    \"comment\": \"You are mistaken that a function is not allowed to give the same output twice; it is perfectly fine for a function to have repeated output values (e.g., f(2)=10 and f(3)=10). You only removed the duplicate 10 because a set by definition lists unique elements, not because it is disallowed by the definition of a function.\"\n  }\n}",
+      "allowed": [
+        "S1 p. 22",
+        "S1 p. 23",
+        "S2 p. 23"
+      ]
+    },
+    {
+      "keys": [
+        "criteria",
+        "reason",
+        "feedback",
+        "pages",
+        "outsideSources",
+        "reasoning"
+      ],
+      "reply": "{\n  \"criteria\": [\n    {\n      \"id\": \"c1\",\n      \"met\": \"yes\",\n      \"evidence\": \"[3, infty)\"\n    },\n    {\n      \"id\": \"c2\",\n      \"met\": \"no\",\n      \"evidence\": \"You cannot take the square root of zero, so x - 3 has to be strictly positive\"\n    }\n  ],\n  \"reason\": \"You correctly stated the interval notation for the domain, but your reasoning is incorrect because you can take the square root of zero (which is zero). Therefore, the value 3 should be included in the domain, and x - 3 must be greater than or equal to zero, not strictly greater than zero.\",\n  \"feedback\": \"Remember that the square root of 0 is defined (it equals 0). Since the radicand can be zero, you should include 3 in your domain using a closed bracket.\",\n  \"pages\": [\n    \"S3 p. 22\",\n    \"S4 p. 23\"\n  ],\n  \"outsideSources\": false,\n  \"reasoning\": {\n    \"judgment\": \"flawed\",\n    \"comment\": \"You claim that you cannot take the square root of zero, but this is incorrect; the square root of zero is zero, which is a real number. Because of this, your condition x > 3 is wrong, as x can equal 3.\"\n  }\n}",
+      "allowed": [
+        "S1 p. 21",
+        "S1 p. 22",
+        "S2 p. 22",
+        "S3 p. 22",
+        "S4 p. 22",
+        "S4 p. 23",
+        "S5 p. 23"
+      ]
+    },
+    {
+      "keys": [
+        "criteria",
+        "reason",
+        "feedback",
+        "pages",
+        "outsideSources",
+        "reasoning"
+      ],
+      "reply": "{\n  \"criteria\": [\n    {\n      \"id\": \"c1\",\n      \"met\": \"yes\",\n      \"evidence\": \"not a function\"\n    },\n    {\n      \"id\": \"c2\",\n      \"met\": \"yes\",\n      \"evidence\": \"input one is is paired with two different outputs four and um six\"\n    }\n  ],\n  \"reason\": \"You correctly identified that the relation is not a function and accurately explained that this is because the input 1 corresponds to two different output values.\",\n  \"feedback\": \"\",\n  \"pages\": [\n    \"S3 p. 2\",\n    \"S4 p. 2\"\n  ],\n  \"outsideSources\": false,\n  \"reasoning\": {\n    \"judgment\": \"sound\",\n    \"comment\": \"Your reasoning clearly and correctly explains the definition of a function in the context of the provided problem.\"\n  }\n}",
+      "allowed": [
+        "S1 p. 1",
+        "S1 p. 2",
+        "S2 p. 2",
+        "S3 p. 2",
+        "S4 p. 2",
+        "S4 p. 3"
+      ]
+    },
+    {
+      "keys": [
+        "criteria",
+        "reason",
+        "feedback",
+        "pages",
+        "outsideSources",
+        "reasoning"
+      ],
+      "reply": "{\n  \"criteria\": [\n    {\n      \"id\": \"c1\",\n      \"met\": \"yes\",\n      \"evidence\": \"the denominator ex minus two is zero when ex equals two and you can't you can't divide by zero so two is out\"\n    },\n    {\n      \"id\": \"c2\",\n      \"met\": \"yes\",\n      \"evidence\": \"everything else is fine so the main is all real numbers except two\"\n    },\n    {\n      \"id\": \"c3\",\n      \"met\": \"yes\",\n      \"evidence\": \"(-infty, 2) cup (2, infty)\"\n    }\n  ],\n  \"reason\": \"You correctly identified that the denominator cannot be zero and correctly excluded 2 from the domain, expressing the result in the proper interval notation.\",\n  \"feedback\": \"\",\n  \"pages\": [\n    \"S4 p. 23\"\n  ],\n  \"outsideSources\": false,\n  \"reasoning\": {\n    \"judgment\": \"sound\",\n    \"comment\": \"Your reasoning clearly identifies the restriction on the denominator and translates it correctly into the correct domain.\"\n  }\n}",
+      "allowed": [
+        "S1 p. 21",
+        "S1 p. 22",
+        "S2 p. 22",
+        "S3 p. 22",
+        "S4 p. 22",
+        "S4 p. 23",
+        "S5 p. 23"
+      ]
+    },
+    {
+      "keys": [
+        "criteria",
+        "reason",
+        "feedback",
+        "pages",
+        "outsideSources",
+        "reasoning"
+      ],
+      "reply": "{\n  \"criteria\": [\n    {\n      \"id\": \"c1\",\n      \"met\": \"yes\",\n      \"evidence\": \"[3, infty)\"\n    },\n    {\n      \"id\": \"c2\",\n      \"met\": \"yes\",\n      \"evidence\": \"the thing under the square root the radical and ex minus three has to be greater than or equal to zero\"\n    }\n  ],\n  \"reason\": \"You correctly determined the domain and provided a valid explanation for why the radicand must be non-negative.\",\n  \"feedback\": \"\",\n  \"pages\": [\n    \"S4 p. 23\"\n  ],\n  \"outsideSources\": false,\n  \"reasoning\": {\n    \"judgment\": \"sound\",\n    \"comment\": \"Your reasoning correctly identifies the restriction on the square root function.\"\n  }\n}",
+      "allowed": [
+        "S1 p. 21",
+        "S1 p. 22",
+        "S2 p. 22",
+        "S3 p. 22",
+        "S4 p. 22",
+        "S4 p. 23",
+        "S5 p. 23"
+      ]
+    },
+    {
+      "keys": [
+        "criteria",
+        "reason",
+        "feedback",
+        "pages",
+        "outsideSources"
+      ],
+      "reply": "{\n  \"criteria\": [\n    {\n      \"id\": \"c1\",\n      \"met\": \"yes\",\n      \"evidence\": \"{2, 3, 4, 5, 6}\"\n    },\n    {\n      \"id\": \"c2\",\n      \"met\": \"yes\",\n      \"evidence\": \"{10, 20, 30, 40}\"\n    }\n  ],\n  \"reason\": \"You correctly identified all the input values as the domain and all the unique output values as the range.\",\n  \"feedback\": \"\",\n  \"pages\": [\n    \"S2 p. 23\"\n  ],\n  \"outsideSources\": false\n}",
+      "allowed": [
+        "S1 p. 22",
+        "S1 p. 23",
+        "S2 p. 23"
+      ]
+    },
+    {
+      "keys": [
+        "criteria",
+        "reason",
+        "feedback",
+        "pages",
+        "outsideSources"
+      ],
+      "reply": "{\n  \"criteria\": [\n    {\n      \"id\": \"c1\",\n      \"met\": \"yes\",\n      \"evidence\": \"[3, infty)\"\n    },\n    {\n      \"id\": \"c2\",\n      \"met\": \"no\",\n      \"evidence\": \"\"\n    }\n  ],\n  \"reason\": \"You correctly identified the domain of the function. However, you did not provide the required explanation for why that domain is correct.\",\n  \"feedback\": \"To complete your answer, you need to explain that the expression inside the square root (the radicand, x - 3) must be greater than or equal to zero for the function to yield a real number.\",\n  \"pages\": [\n    \"S3 p. 22\",\n    \"S4 p. 22\"\n  ],\n  \"outsideSources\": false\n}",
+      "allowed": [
+        "S1 p. 21",
+        "S1 p. 22",
+        "S2 p. 22",
+        "S3 p. 22",
+        "S4 p. 22",
+        "S4 p. 23",
+        "S5 p. 23"
+      ]
+    }
+  ]
+}

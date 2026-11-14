@@ -91,6 +91,7 @@ adaptations of *Precalculus* by Jay Abramson et al., OpenStax, CC BY 4.0,
 | `G-tutor.json` | Batch G: diagnostic questions for three concepts, lesson questions and the streamed explanation for "function" and "domain", with every reply (including one the checks of that time rejected, and why) and its tokens. |
 | `grading-minimal.json`, `grading-low.json` | The grading benchmark at thinking "minimal" and "low": verdict per case, the grader's criteria and reason, tokens. |
 | `contest.json` | Contested grading: a valid objection and a confidently worded invalid one. |
+| `grading-reasoning.json` | Batch "reasoning" (2026-11-14, 10 calls): the benchmark's reasoning cases, each graded by the prompt the app chooses, with the verdict, the reasoning judgment and comment, every raw reply and its tokens. |
 
 ## Grading benchmark (`tests/bench/grading-cases.json`)
 
