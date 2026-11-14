@@ -17,7 +17,7 @@ import { openDatabase, SessionStore, SettingsStore } from '../../src/main/storag
 import { TutorService, verdictOf, type Criterion } from '../../src/main/tutor'
 import { allowedCitations, LESSON_BUDGET, retrievePassages, type Passage } from '../../src/main/tutor/passages'
 import { parseDiagnostic, parseExplanation, parseLessonQuestions } from '../../src/main/tutor/schemas'
-import { contestTask, gradeTask } from '../../src/main/tutor/tasks'
+import { contestTask, gradeTask, gradingPromptName } from '../../src/main/tutor/tasks'
 
 // Real tutor calls against Gemini, on openly licensed fixtures only (OpenStax pages, and questions
 // and answers written for this project). Opt-in: `npm run test:live` with FEYNMIND_LIVE_BATCH set
@@ -29,6 +29,8 @@ import { contestTask, gradeTask } from '../../src/main/tutor/tasks'
 //   bench-minimal 22 calls   the grading benchmark (tests/bench/grading-cases.json) at thinking "minimal"
 //   bench-low     22 calls   the same at thinking "low"
 //   contest        2 calls   a valid objection that should change a grade, and a confident invalid one that should not
+//   reasoning     10 calls   the benchmark's reasoning cases (answers with typed or dictated reasoning, and two
+//                            without), each graded by the prompt the app would choose
 //
 // Replies are written to tests/fixtures/recorded/ with their tokens.
 
@@ -40,7 +42,7 @@ const live = process.env['FEYNMIND_LIVE'] === '1'
 const batch = process.env['FEYNMIND_LIVE_BATCH'] ?? ''
 const MODEL = process.env['FEYNMIND_LIVE_MODEL'] ?? 'gemini-3.1-flash-lite'
 /** Requests a batch may send at most, retries included; the next one fails instead of being sent. */
-const CEILING: Record<string, number> = { G: 15, 'bench-minimal': 24, 'bench-low': 24, contest: 3 }
+const CEILING: Record<string, number> = { G: 15, 'bench-minimal': 24, 'bench-low': 24, contest: 3, reasoning: 11 }
 
 function checkCeiling(): void {
   if (calls.length >= (CEILING[batch] ?? 0)) throw new Error(`Batch ${batch} reached its ceiling of ${CEILING[batch] ?? 0} requests; nothing more is sent.`)
@@ -249,6 +251,57 @@ describe.runIf(live && batch !== '')(`tutor (live, batch ${batch})`, () => {
       expect(results).toHaveLength(22)
     }, 600_000)
   }
+
+  interface ReasoningCase extends BenchCase {
+    reasoning: string
+    expectedReasoning: 'sound' | 'flawed' | 'none' | null
+  }
+
+  it.runIf(batch === 'reasoning')('grades the reasoning cases of the benchmark (10 calls)', async () => {
+    const bench = JSON.parse(readFileSync(BENCH, 'utf8')) as { questions: BenchQuestion[]; reasoningCases: ReasoningCase[] }
+    const results = []
+    for (const c of bench.reasoningCases) {
+      const q = bench.questions.find((x) => x.id === c.question) as BenchQuestion
+      const passages = await passagesOn(q.pages.file, q.pages.pages)
+      const input = { question: q.question, referenceAnswer: q.referenceAnswer, criteria: q.criteria, passages, answer: c.answer, reasoning: c.reasoning }
+      const p = prompt(gradingPromptName('grade', input))
+      const before = calls.length
+      const grade = (await providers.run(gradeTask(p, input, ctx()))).value
+      const judgment = grade.reasoning?.judgment ?? null
+      const { verdict, score } = verdictOf(q.criteria, grade.criteria, judgment)
+      const used = calls.slice(before)
+      results.push({
+        id: c.id,
+        category: c.category,
+        prompt: p.name,
+        expected: c.expected,
+        got: verdict,
+        expectedReasoning: c.expectedReasoning,
+        gotReasoning: judgment,
+        agree: verdict === c.expected,
+        agreeReasoning: judgment === c.expectedReasoning,
+        score,
+        criteria: grade.criteria,
+        reasoningComment: grade.reasoning?.comment ?? null,
+        reason: grade.reason,
+        feedback: grade.feedback,
+        attempts: used.length,
+        usage: used.map((u) => u.usage)
+      })
+    }
+    const verdicts = results.filter((r) => r.agree).length
+    const judgments = results.filter((r) => r.agreeReasoning).length
+    const tokens = calls.reduce((n, c) => ({ input: n.input + c.usage.inputTokens, output: n.output + c.usage.outputTokens, thinking: n.thinking + c.usage.thinkingTokens }), { input: 0, output: 0, thinking: 0 })
+    writeFileSync(
+      join(RECORDED, 'grading-reasoning.json'),
+      `${JSON.stringify({ model: MODEL, verdictAgreement: `${verdicts}/${results.length}`, reasoningAgreement: `${judgments}/${results.length}`, tokens, calls: calls.length, results, replies: calls.map((c) => ({ keys: c.keys, reply: c.reply, allowed: c.allowed })) }, null, 2)}\n`
+    )
+    console.log(`verdicts ${verdicts}/${results.length}, reasoning judgments ${judgments}/${results.length}; ${calls.length} requests; tokens ${JSON.stringify(tokens)}`)
+    for (const r of results.filter((x) => !x.agree || !x.agreeReasoning)) {
+      console.log(`DISAGREE ${r.id}: verdict expected ${r.expected}, got ${r.got}; reasoning expected ${r.expectedReasoning}, got ${r.gotReasoning} (${r.criteria.map((c) => `${c.id}=${c.met}`).join(' ')}) ${r.reasoningComment ?? ''} | ${r.reason}`)
+    }
+    expect(results).toHaveLength(10)
+  }, 600_000)
 
   it.runIf(batch === 'contest')('a valid objection changes the grade; a confident invalid one does not (2 calls)', async () => {
     const bench = JSON.parse(readFileSync(BENCH, 'utf8')) as { questions: BenchQuestion[]; cases: BenchCase[] }
