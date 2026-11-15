@@ -71,6 +71,16 @@ const api: FeynMindApi = {
   'lesson:more': (request) => invoke('lesson:more', request),
   'lesson:retry': (request) => invoke('lesson:retry', request),
   'usage:raiseCap': (request) => invoke('usage:raiseCap', request),
+  'dictation:status': () => invoke('dictation:status'),
+  'dictation:selectModel': (request) => invoke('dictation:selectModel', request),
+  'dictation:download': (request) => invoke('dictation:download', request),
+  'dictation:cancelDownload': () => invoke('dictation:cancelDownload'),
+  'dictation:speedCheck': () => invoke('dictation:speedCheck'),
+  'dictation:prepareMic': () => invoke('dictation:prepareMic'),
+  'dictation:start': () => invoke('dictation:start'),
+  'dictation:audio': (request) => invoke('dictation:audio', request),
+  'dictation:stop': (request) => invoke('dictation:stop', request),
+  'dictation:cancel': (request) => invoke('dictation:cancel', request),
   on
 }
 

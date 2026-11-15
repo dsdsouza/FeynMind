@@ -18,6 +18,11 @@ files:
 extraResources:
   - from: prompts
     to: prompts
+  # The clip "Check speed on this computer" transcribes (LibriSpeech, CC BY 4.0), with its attribution.
+  - from: tests/fixtures/audio/speech-29s.wav
+    to: speech-check/speech-29s.wav
+  - from: assets/speech-check/ATTRIBUTION.txt
+    to: speech-check/ATTRIBUTION.txt
 # Native libraries, WASM files and worker scripts must live outside app.asar. Tesseract's worker
 # thread loads its dependencies from the unpacked folder, so they are unpacked with it.
 asarUnpack:
@@ -45,6 +50,9 @@ mac:
   artifactName: ${productName}-${version}-mac-${arch}.${ext}
   # Unsigned for now; see docs/tech-plan.md, Risks.
   identity: null
+  # Required before macOS lets the app use the microphone (without it, the app is stopped).
+  extendInfo:
+    NSMicrophoneUsageDescription: FeynMind turns what you say into text on this computer, so you can explain your thinking out loud. Audio is never stored or sent anywhere.
 linux:
   target: AppImage
   category: Education

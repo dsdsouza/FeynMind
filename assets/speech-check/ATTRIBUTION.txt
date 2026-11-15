@@ -1,0 +1,5 @@
+speech-29s.wav, used by "Check speed on this computer" in Settings, is utterance 1272-128104-0004
+of the LibriSpeech ASR corpus by Vassil Panayotov, Guoguo Chen, Daniel Povey and Sanjeev Khudanpur
+(https://www.openslr.org/12), licensed under Creative Commons Attribution 4.0 International
+(https://creativecommons.org/licenses/by/4.0/). The recording is a LibriVox reading of a
+public-domain book. It was decoded from FLAC and saved unchanged as 16 kHz 16-bit mono WAV.

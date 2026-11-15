@@ -1,14 +1,17 @@
 import { readFileSync } from 'node:fs'
 import { join } from 'node:path'
 import { parseEnv } from 'node:util'
-import { app, BrowserWindow, dialog, safeStorage, shell } from 'electron'
+import { app, BrowserWindow, dialog, safeStorage, session, shell, systemPreferences, utilityProcess, type WebContents } from 'electron'
 import type { IpcEvent, IpcEvents } from '../shared/ipc'
+import { DictationService, type DictationToMain, type DictationWorker } from './dictation'
+import dictationWorkerPath from './dictation/worker?modulePath'
 import { ExitLog } from './exitLog'
 import { IngestionService } from './ingestion'
 import ingestionWorkerPath from './ingestion/worker?modulePath'
 import { registerIpcHandlers } from './ipc'
 import { KnowledgeService, PromptLibrary } from './knowledge'
 import { createGeminiAdapter, createReplayAdapter, ProviderService, UsageStore } from './providers'
+import { allowPermission } from './permissions'
 import { openDatabase, SessionStore, SettingsStore } from './storage'
 import { TutorService } from './tutor'
 
@@ -45,6 +48,9 @@ function loadPrompt(name: string): string {
   return readFileSync(join(promptsDir(), `${name}.txt`), 'utf8').trim()
 }
 
+/** The web contents of the app's own windows: the only ones that may use the microphone. */
+const appWindows = new Set<number>()
+
 function createWindow(): BrowserWindow {
   const window = new BrowserWindow({
     width: 960,
@@ -63,6 +69,9 @@ function createWindow(): BrowserWindow {
   })
 
   window.once('ready-to-show', () => window.show())
+  const contentsId = window.webContents.id
+  appWindows.add(contentsId)
+  window.on('closed', () => appWindows.delete(contentsId))
 
   // Open external links in the browser; never navigate the app window away from the app.
   window.webContents.setWindowOpenHandler(({ url }) => {
@@ -106,6 +115,51 @@ async function pickMaterialFiles(): Promise<string[]> {
 function isAppUrl(url: string): boolean {
   if (isDev && rendererDevUrl) return url.startsWith(rendererDevUrl)
   return url.startsWith('file://')
+}
+
+/**
+ * Grants the microphone to the app's own window and denies every other permission request
+ * (camera, screen, notifications, location, devices and the rest).
+ */
+function restrictPermissions(): void {
+  const fromAppWindow = (contents: WebContents | null): boolean => contents !== null && appWindows.has(contents.id)
+  session.defaultSession.setPermissionRequestHandler((contents, permission, callback, details) => {
+    const mediaTypes = 'mediaTypes' in details ? (details.mediaTypes ?? []) : []
+    callback(allowPermission({ permission, mediaTypes, url: details.requestingUrl ?? contents.getURL(), fromAppWindow: fromAppWindow(contents) }, isAppUrl))
+  })
+  session.defaultSession.setPermissionCheckHandler((contents, permission, origin, details) =>
+    allowPermission({ permission, mediaTypes: details.mediaType ? [details.mediaType] : [], url: details.requestingUrl ?? origin, fromAppWindow: fromAppWindow(contents) }, isAppUrl)
+  )
+  session.defaultSession.setDevicePermissionHandler(() => false)
+}
+
+/**
+ * macOS asks the user once before an app may use the microphone. Tests feed a fake microphone that
+ * never reaches the system, so they skip the question (a CI machine cannot answer it).
+ */
+async function prepareMicrophone(): Promise<{ granted: boolean; message: string | null }> {
+  if (process.platform !== 'darwin' || app.commandLine.hasSwitch('use-fake-device-for-media-stream')) return { granted: true, message: null }
+  let status = systemPreferences.getMediaAccessStatus('microphone')
+  if (status === 'not-determined') status = (await systemPreferences.askForMediaAccess('microphone')) ? 'granted' : 'denied'
+  if (status === 'granted') return { granted: true, message: null }
+  return { granted: false, message: 'FeynMind may not use the microphone. Allow it in System Settings › Privacy & Security › Microphone, then try again.' }
+}
+
+function spawnDictationWorker(): DictationWorker {
+  const child = utilityProcess.fork(dictationWorkerPath, [], { serviceName: 'FeynMind dictation', stdio: 'pipe' })
+  child.stdout?.on('data', (data: Buffer) => console.log(`[dictation] ${String(data).trimEnd()}`))
+  child.stderr?.on('data', (data: Buffer) => console.error(`[dictation] ${String(data).trimEnd()}`))
+  return {
+    postMessage: (message) => child.postMessage(message),
+    onMessage: (listener) => child.on('message', (message: DictationToMain) => listener(message)),
+    onExit: (listener) => child.on('exit', listener),
+    kill: () => child.kill()
+  }
+}
+
+/** The half-minute speech clip the speed check transcribes (LibriSpeech, CC BY 4.0; see its ATTRIBUTION.txt). */
+function speedClipPath(): string {
+  return app.isPackaged ? join(process.resourcesPath, 'speech-check', 'speech-29s.wav') : join(app.getAppPath(), 'tests', 'fixtures', 'audio', 'speech-29s.wav')
 }
 
 /** Error stack frames without the message (which could hold anything); the message is added redacted. */
@@ -177,6 +231,7 @@ void app.whenReady().then(() => {
     exitLogPath: exitLog.path
   })
   ingestion.start()
+  restrictPermissions()
 
   const sessions = new SessionStore(db)
   const settings = new SettingsStore(db)
@@ -214,19 +269,32 @@ void app.whenReady().then(() => {
     onUsage: (usage) => broadcast('usage:changed', usage)
   })
 
+  const dictation = new DictationService({
+    modelsDir: join(dataDir, 'models'),
+    settings,
+    fetch: (url, init) => fetch(url, init),
+    allowDownload: process.env['FEYNMIND_MODEL_DOWNLOAD'] !== 'off',
+    spawn: spawnDictationWorker,
+    onStatus: (status) => broadcast('dictation:status', status),
+    recordExit: (message) => exitLog.record(message),
+    speedClipPath: speedClipPath(),
+    platform: process.platform
+  })
+  void dictation.start()
+
   // Let the worker finish its current page, and a model request in flight be cached, before the
   // app exits; anything unfinished resumes next time.
   let stopped = false
   app.on('before-quit', (event) => {
     if (stopped) return
     event.preventDefault()
-    void Promise.allSettled([knowledge.stop(), tutor.stop(), ingestion.stop()]).finally(() => {
+    void Promise.allSettled([knowledge.stop(), tutor.stop(), ingestion.stop(), dictation.stop()]).finally(() => {
       stopped = true
       app.quit()
     })
   })
 
-  registerIpcHandlers({ providers, ingestion, sessions, knowledge, tutor, pickMaterialFiles, pickSyllabusFile }, (event) =>
+  registerIpcHandlers({ providers, ingestion, sessions, knowledge, tutor, dictation, prepareMicrophone, pickMaterialFiles, pickSyllabusFile }, (event) =>
     isAppUrl(event.senderFrame?.url ?? '')
   )
 

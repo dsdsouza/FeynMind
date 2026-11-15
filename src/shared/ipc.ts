@@ -21,6 +21,7 @@ import type {
   UsageLimitsInput,
   UsageSummary
 } from './knowledge'
+import type { DictationStatus, SpeechModelId, SpeedCheckResult } from './dictation'
 import type { DiagnosticState, LessonView, PathState, StreamEvent } from './tutor'
 
 export type ProviderId = 'gemini'
@@ -112,6 +113,20 @@ export interface IpcContract {
   'lesson:retry': { request: { lessonId: number }; response: LessonView }
   /** Raises the session's call cap, then grades the answers that were waiting for it. */
   'usage:raiseCap': { request: { sessionId: number; callCap: number }; response: UsageSummary }
+  'dictation:status': { request: undefined; response: DictationStatus }
+  'dictation:selectModel': { request: { model: SpeechModelId }; response: DictationStatus }
+  /** Downloads a speech model; progress arrives as dictation:status events. */
+  'dictation:download': { request: { model: SpeechModelId }; response: DictationStatus }
+  'dictation:cancelDownload': { request: undefined; response: DictationStatus }
+  /** Transcribes a bundled half-minute clip with the selected model and reports the time taken. */
+  'dictation:speedCheck': { request: undefined; response: SpeedCheckResult }
+  /** Asks the operating system for microphone access where it needs asking (macOS). */
+  'dictation:prepareMic': { request: undefined; response: { granted: boolean; message: string | null } }
+  'dictation:start': { request: undefined; response: { recordingId: number } }
+  /** 16 kHz mono samples in [-1, 1], kept in memory only. */
+  'dictation:audio': { request: { recordingId: number; samples: Float32Array }; response: null }
+  'dictation:stop': { request: { recordingId: number }; response: { text: string } }
+  'dictation:cancel': { request: { recordingId: number }; response: null }
 }
 
 /** Events the main process pushes to the renderer. */
@@ -123,11 +138,12 @@ export interface IpcEvents {
   'usage:changed': UsageSummary
   'tutor:lesson': LessonView
   'tutor:stream': StreamEvent
+  'dictation:status': DictationStatus
 }
 
 export type IpcEvent = keyof IpcEvents
 
-export const IPC_EVENTS = ['ingestion:progress', 'models:progress', 'ingestion:worker', 'knowledge:job', 'usage:changed', 'tutor:lesson', 'tutor:stream'] as const satisfies readonly IpcEvent[]
+export const IPC_EVENTS = ['ingestion:progress', 'models:progress', 'ingestion:worker', 'knowledge:job', 'usage:changed', 'tutor:lesson', 'tutor:stream', 'dictation:status'] as const satisfies readonly IpcEvent[]
 
 export type IpcChannel = keyof IpcContract
 export type IpcRequest<C extends IpcChannel> = IpcContract[C]['request']
@@ -184,7 +200,17 @@ export const IPC_CHANNELS = [
   'lesson:draft',
   'lesson:more',
   'lesson:retry',
-  'usage:raiseCap'
+  'usage:raiseCap',
+  'dictation:status',
+  'dictation:selectModel',
+  'dictation:download',
+  'dictation:cancelDownload',
+  'dictation:speedCheck',
+  'dictation:prepareMic',
+  'dictation:start',
+  'dictation:audio',
+  'dictation:stop',
+  'dictation:cancel'
 ] as const satisfies readonly IpcChannel[]
 
 /** The API the preload script exposes on window.feynmind. */

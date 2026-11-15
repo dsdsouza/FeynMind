@@ -1,6 +1,8 @@
 import { ipcMain, type IpcMainInvokeEvent } from 'electron'
 import type { IpcChannel, IpcContract, IpcRequest, IpcResponse } from '../shared/ipc'
+import { SPEECH_MODEL_IDS, type SpeechModelId } from '../shared/dictation'
 import type { SyllabusDraft } from '../shared/knowledge'
+import type { DictationService } from './dictation'
 import type { IngestionService } from './ingestion'
 import type { KnowledgeService } from './knowledge'
 import type { ProviderService } from './providers'
@@ -13,6 +15,9 @@ export interface IpcServices {
   sessions: SessionStore
   knowledge: KnowledgeService
   tutor: TutorService
+  dictation: DictationService
+  /** Asks the operating system for microphone access where it needs asking (macOS). */
+  prepareMicrophone: () => Promise<{ granted: boolean; message: string | null }>
   /** Shows a file picker for course materials; returns the chosen paths (empty when cancelled). */
   pickMaterialFiles: () => Promise<string[]>
   /** Shows a file picker for a syllabus PDF; returns its path, or null when cancelled. */
@@ -57,6 +62,16 @@ function optionalNumber(value: unknown, field: string, integer: boolean): number
   return value
 }
 
+function requireSpeechModel(value: unknown): SpeechModelId {
+  if (typeof value !== 'string' || !(SPEECH_MODEL_IDS as readonly string[]).includes(value)) throw new InvalidRequestError('Invalid request: unknown speech model.')
+  return value as SpeechModelId
+}
+
+function requireSamples(value: unknown): Float32Array {
+  if (!(value instanceof Float32Array)) throw new InvalidRequestError('Invalid request: samples must be audio samples.')
+  return value
+}
+
 /** Checks that a session exists, so a renderer cannot reach another session's data by guessing ids. */
 function requireSession(services: IpcServices, request: unknown): number {
   const id = requireId(requireObject(request).sessionId, 'sessionId')
@@ -65,7 +80,8 @@ function requireSession(services: IpcServices, request: unknown): number {
 }
 
 function handlersFor(services: IpcServices): Handlers {
-  const { providers, ingestion, sessions, knowledge, tutor } = services
+  const { providers, ingestion, sessions, knowledge, tutor, dictation } = services
+  const recordingId = (req: unknown): number => requireId(requireObject(req).recordingId, 'recordingId')
   const unitId = (req: unknown): number => requireId(requireObject(req).unitId, 'unitId')
   const jobId = (req: unknown): number => requireId(requireObject(req).jobId, 'jobId')
   const lessonId = (req: unknown): number => requireId(requireObject(req).lessonId, 'lessonId')
@@ -190,6 +206,22 @@ function handlersFor(services: IpcServices): Handlers {
       sessions.setLimits(sessionId, { callCap, spendCapUsd: limits.spendCapUsd })
       tutor.resumePending(sessionId)
       return providers.usageSummary(sessionId)
+    },
+    'dictation:status': () => dictation.status(),
+    'dictation:selectModel': (req) => dictation.selectModel(requireSpeechModel(requireObject(req).model)),
+    'dictation:download': (req) => dictation.downloadModel(requireSpeechModel(requireObject(req).model)),
+    'dictation:cancelDownload': () => dictation.cancelDownload(),
+    'dictation:speedCheck': () => dictation.speedCheck(),
+    'dictation:prepareMic': () => services.prepareMicrophone(),
+    'dictation:start': () => ({ recordingId: dictation.startRecording() }),
+    'dictation:audio': (req) => {
+      dictation.addAudio(recordingId(req), requireSamples(requireObject(req).samples))
+      return null
+    },
+    'dictation:stop': (req) => dictation.stopRecording(recordingId(req)),
+    'dictation:cancel': (req) => {
+      dictation.cancelRecording(recordingId(req))
+      return null
     }
   }
 }
