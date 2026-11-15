@@ -11,8 +11,10 @@ import type {
   Session,
   WorkerStatus
 } from './ingestion'
+import type { DevClockState, ProgressView, ReviewStreamEvent, SittingView, TodayState } from './reviews'
 import type {
   ConsentState,
+  ExamInfo,
   JobSummary,
   SyllabusDraft,
   SyllabusState,
@@ -111,6 +113,36 @@ export interface IpcContract {
   'lesson:draft': { request: { lessonId: number; field: 'answer' | 'reasoning'; text: string }; response: null }
   'lesson:more': { request: { lessonId: number }; response: LessonView }
   'lesson:retry': { request: { lessonId: number }; response: LessonView }
+  /** Answers the question from an earlier concept mixed into a lesson. */
+  'lesson:interleaveAnswer': { request: { lessonId: number; itemId: number; answer: string; skipped: boolean; reasoning?: string }; response: LessonView }
+  /** What is due today, the plan for a sitting and its estimate. Local only: works offline. */
+  'reviews:today': { request: { sessionId: number }; response: TodayState }
+  /** Starts today's sitting (writing new review questions where needed), or returns the one in progress. */
+  'reviews:start': { request: { sessionId: number }; response: SittingView }
+  'reviews:current': { request: { sessionId: number }; response: SittingView | null }
+  /** The learner sees this review's question now (its shown time). */
+  'reviews:shown': { request: { itemId: number }; response: null }
+  'reviews:answer': { request: { itemId: number; answer: string; skipped: boolean; reasoning?: string }; response: SittingView }
+  /** Shows the hint; asking for it counts as help in the rating. */
+  'reviews:hint': { request: { itemId: number }; response: SittingView }
+  'reviews:draft': { request: { itemId: number; field: 'answer' | 'reasoning'; text: string }; response: null }
+  /** Contests a review or re-teach grade (or one mixed into a lesson: the lesson then updates by event). */
+  'reviews:contest': { request: { attemptId: number; objection: string }; response: SittingView | null }
+  /** Starts the short re-teach after a missed review (one call, streamed as reviews:stream). */
+  'reviews:reteach': { request: { itemId: number }; response: SittingView }
+  'reviews:reteachAnswer': { request: { itemId: number; answer: string; skipped: boolean; reasoning?: string }; response: SittingView }
+  /** Lets new lessons start today without finishing the reviews; they stay due. */
+  'reviews:skipToday': { request: { sessionId: number }; response: TodayState }
+  'reviews:setLimit': { request: { sessionId: number; limit: number }; response: TodayState }
+  /** Delayed recall, reviews per day, the coming due reviews and every concept's memory. Local only. */
+  'reviews:progress': { request: { sessionId: number }; response: ProgressView }
+  'exams:list': { request: { sessionId: number }; response: ExamInfo[] }
+  /** Changes an exam's date and weight in place (units and their concepts are untouched). */
+  'exams:update': { request: { sessionId: number; examId: number; date: string | null; weight: number | null }; response: ExamInfo[] }
+  /** The window's time zone and connection, reported at start, on focus and when they change. */
+  'clock:report': { request: { timeZone: string; online: boolean }; response: null }
+  /** The development date control. Refused in packaged builds. */
+  'dev:clock': { request: { action: 'get' | 'move' | 'reset'; days?: number }; response: DevClockState }
   /** Raises the session's call cap, then grades the answers that were waiting for it. */
   'usage:raiseCap': { request: { sessionId: number; callCap: number }; response: UsageSummary }
   'dictation:status': { request: undefined; response: DictationStatus }
@@ -139,11 +171,24 @@ export interface IpcEvents {
   'tutor:lesson': LessonView
   'tutor:stream': StreamEvent
   'dictation:status': DictationStatus
+  'reviews:sitting': SittingView
+  'reviews:stream': ReviewStreamEvent
 }
 
 export type IpcEvent = keyof IpcEvents
 
-export const IPC_EVENTS = ['ingestion:progress', 'models:progress', 'ingestion:worker', 'knowledge:job', 'usage:changed', 'tutor:lesson', 'tutor:stream', 'dictation:status'] as const satisfies readonly IpcEvent[]
+export const IPC_EVENTS = [
+  'ingestion:progress',
+  'models:progress',
+  'ingestion:worker',
+  'knowledge:job',
+  'usage:changed',
+  'tutor:lesson',
+  'tutor:stream',
+  'dictation:status',
+  'reviews:sitting',
+  'reviews:stream'
+] as const satisfies readonly IpcEvent[]
 
 export type IpcChannel = keyof IpcContract
 export type IpcRequest<C extends IpcChannel> = IpcContract[C]['request']
@@ -200,6 +245,24 @@ export const IPC_CHANNELS = [
   'lesson:draft',
   'lesson:more',
   'lesson:retry',
+  'lesson:interleaveAnswer',
+  'reviews:today',
+  'reviews:start',
+  'reviews:current',
+  'reviews:shown',
+  'reviews:answer',
+  'reviews:hint',
+  'reviews:draft',
+  'reviews:contest',
+  'reviews:reteach',
+  'reviews:reteachAnswer',
+  'reviews:skipToday',
+  'reviews:setLimit',
+  'reviews:progress',
+  'exams:list',
+  'exams:update',
+  'clock:report',
+  'dev:clock',
   'usage:raiseCap',
   'dictation:status',
   'dictation:selectModel',

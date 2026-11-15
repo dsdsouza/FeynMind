@@ -1,7 +1,7 @@
 import { readFileSync } from 'node:fs'
 import { join } from 'node:path'
 import { parseEnv } from 'node:util'
-import { app, BrowserWindow, dialog, safeStorage, session, shell, systemPreferences, utilityProcess, type WebContents } from 'electron'
+import { app, BrowserWindow, dialog, net, safeStorage, session, shell, systemPreferences, utilityProcess, type WebContents } from 'electron'
 import type { IpcEvent, IpcEvents } from '../shared/ipc'
 import { DictationService, type DictationToMain, type DictationWorker } from './dictation'
 import dictationWorkerPath from './dictation/worker?modulePath'
@@ -11,6 +11,7 @@ import ingestionWorkerPath from './ingestion/worker?modulePath'
 import { registerIpcHandlers } from './ipc'
 import { KnowledgeService, PromptLibrary } from './knowledge'
 import { createGeminiAdapter, createReplayAdapter, ProviderService, UsageStore } from './providers'
+import { SchedulingClock } from './clock'
 import { allowPermission } from './permissions'
 import { openDatabase, SessionStore, SettingsStore } from './storage'
 import { TutorService } from './tutor'
@@ -23,6 +24,8 @@ const rendererDevUrl = process.env['ELECTRON_RENDERER_URL']
 const isDev = !app.isPackaged && rendererDevUrl !== undefined
 /** End-to-end tests answer model requests from a file. Never honoured in a packaged app. */
 const replayFile = !app.isPackaged ? (process.env['FEYNMIND_PROVIDER_REPLAY'] ?? null) : null
+/** End-to-end tests move the app's date by whole days. Never honoured in a packaged app. */
+const clockOffsetDays = !app.isPackaged && process.env['FEYNMIND_CLOCK_OFFSET_DAYS'] ? Number(process.env['FEYNMIND_CLOCK_OFFSET_DAYS']) : null
 
 /**
  * In development only, read GEMINI_API_KEY from .env.local without copying it into process.env.
@@ -257,6 +260,8 @@ void app.whenReady().then(() => {
     onUsage: (usage) => broadcast('usage:changed', usage)
   })
   knowledge.start()
+  // The development date control works only in an unpackaged app; packaged builds ignore any offset.
+  const clock = new SchedulingClock({ settings, allowDevOffset: !app.isPackaged, envOffsetDays: clockOffsetDays })
   const tutor = new TutorService({
     db,
     providers,
@@ -266,8 +271,18 @@ void app.whenReady().then(() => {
     consentGiven: (sessionId) => knowledge.consent(sessionId).given,
     onLesson: (view) => broadcast('tutor:lesson', view),
     onStream: (event) => broadcast('tutor:stream', event),
-    onUsage: (usage) => broadcast('usage:changed', usage)
+    onUsage: (usage) => broadcast('usage:changed', usage),
+    clock,
+    settings,
+    exams: (sessionId) => knowledge.exams(sessionId),
+    // Replayed model calls never need the network.
+    isOnline: () => replayFile !== null || net.isOnline(),
+    onSitting: (view) => broadcast('reviews:sitting', view),
+    onReviewStream: (event) => broadcast('reviews:stream', event)
   })
+  // Concepts mastered before review scheduling existed get their schedule; answers saved offline are graded.
+  tutor.learner.prepareSchedules()
+  tutor.reviews.resumePending()
 
   const dictation = new DictationService({
     modelsDir: join(dataDir, 'models'),
@@ -294,7 +309,7 @@ void app.whenReady().then(() => {
     })
   })
 
-  registerIpcHandlers({ providers, ingestion, sessions, knowledge, tutor, dictation, prepareMicrophone, pickMaterialFiles, pickSyllabusFile }, (event) =>
+  registerIpcHandlers({ providers, ingestion, sessions, knowledge, tutor, dictation, prepareMicrophone, pickMaterialFiles, pickSyllabusFile, clock }, (event) =>
     isAppUrl(event.senderFrame?.url ?? '')
   )
 

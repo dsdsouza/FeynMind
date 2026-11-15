@@ -35,8 +35,8 @@ describe('a learner over 90 days', () => {
     const t = seeded()
     const names = new Map(Object.entries(t.ids).map(([name, id]) => [id, name]))
     const start = studyDay(t.clock.now(), t.clock.timeZone())
-    const reviewed: Record<string, number[]> = { relation: [], function: [], vector: [] }
-    const missed: Record<string, number[]> = { relation: [], function: [], vector: [] }
+    const reviewed: { relation: number[]; function: number[]; vector: number[] } = { relation: [], function: [], vector: [] }
+    const missed: { relation: number[]; function: number[]; vector: number[] } = { relation: [], function: [], vector: [] }
     const lessons: Record<number, [number, string][]> = { 0: [[t.ids['relation'] as number, 'HALF']], 1: [[t.ids['vector'] as number, 'RIGHT']], 4: [[t.ids['function'] as number, 'HALF']] }
 
     for (let d = 0; d < DAYS; d++) {
@@ -53,8 +53,8 @@ describe('a learner over 90 days', () => {
             const wrong = name === 'relation' && reviewed.relation.length === 2 && missed.relation.length === 0
             t.tutor.reviews.answer(item.id, wrong ? 'wrong' : 'RIGHT', false)
             await t.tutor.idle()
-            reviewed[name]?.push(d)
-            if (wrong) missed[name]?.push(d)
+            reviewed[name as keyof typeof reviewed].push(d)
+            if (wrong) missed[name as keyof typeof missed].push(d)
           }
         }
         for (const [conceptId, opening] of lessons[d] ?? []) await learn(t, conceptId, opening)

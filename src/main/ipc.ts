@@ -2,11 +2,14 @@ import { ipcMain, type IpcMainInvokeEvent } from 'electron'
 import type { IpcChannel, IpcContract, IpcRequest, IpcResponse } from '../shared/ipc'
 import { SPEECH_MODEL_IDS, type SpeechModelId } from '../shared/dictation'
 import type { SyllabusDraft } from '../shared/knowledge'
+import type { DevClockState, SittingView } from '../shared/reviews'
+import type { SchedulingClock } from './clock'
 import type { DictationService } from './dictation'
 import type { IngestionService } from './ingestion'
 import type { KnowledgeService } from './knowledge'
 import type { ProviderService } from './providers'
 import type { SessionStore } from './storage'
+import { studyDay } from './learner'
 import type { TutorService } from './tutor'
 
 export interface IpcServices {
@@ -22,6 +25,8 @@ export interface IpcServices {
   pickMaterialFiles: () => Promise<string[]>
   /** Shows a file picker for a syllabus PDF; returns its path, or null when cancelled. */
   pickSyllabusFile: () => Promise<string | null>
+  /** The scheduling clock, with the development date control (refused in packaged builds). */
+  clock: SchedulingClock
 }
 
 type Handlers = {
@@ -79,8 +84,27 @@ function requireSession(services: IpcServices, request: unknown): number {
   return id
 }
 
+/** Answer, skipped and optional reasoning of an answer request. */
+function answerOf(request: unknown): { answer: string; skipped: boolean; reasoning: string } {
+  const r = requireObject(request)
+  if (typeof r.skipped !== 'boolean') throw new InvalidRequestError('Invalid request: skipped must be true or false.')
+  return { answer: requireString(r.answer, 'answer'), skipped: r.skipped, reasoning: r.reasoning === undefined ? '' : requireString(r.reasoning, 'reasoning') }
+}
+
+/** A review of a sitting (not one mixed into a lesson). */
+function sittingOf(view: SittingView | null): SittingView {
+  if (!view) throw new InvalidRequestError('Invalid request: that review belongs to a lesson.')
+  return view
+}
+
+function devClockState(clock: SchedulingClock): DevClockState {
+  return { enabled: clock.devControlsAllowed, day: studyDay(clock.now(), clock.timeZone()), offsetDays: Math.round(clock.devOffsetMs() / 86_400_000) }
+}
+
 function handlersFor(services: IpcServices): Handlers {
-  const { providers, ingestion, sessions, knowledge, tutor, dictation } = services
+  const { providers, ingestion, sessions, knowledge, tutor, dictation, clock } = services
+  const reviews = tutor.reviews
+  const itemId = (req: unknown): number => requireId(requireObject(req).itemId, 'itemId')
   const recordingId = (req: unknown): number => requireId(requireObject(req).recordingId, 'recordingId')
   const unitId = (req: unknown): number => requireId(requireObject(req).unitId, 'unitId')
   const jobId = (req: unknown): number => requireId(requireObject(req).jobId, 'jobId')
@@ -199,6 +223,61 @@ function handlersFor(services: IpcServices): Handlers {
     },
     'lesson:more': (req) => tutor.moreQuestions(lessonId(req)),
     'lesson:retry': (req) => tutor.retry(lessonId(req)),
+    'lesson:interleaveAnswer': (req) => {
+      const a = answerOf(req)
+      return tutor.answerInterleave(lessonId(req), itemId(req), a.answer, a.skipped, a.reasoning)
+    },
+    'reviews:today': (req) => reviews.todayState(requireSession(services, req)),
+    'reviews:start': (req) => reviews.start(requireSession(services, req)),
+    'reviews:current': (req) => reviews.current(requireSession(services, req)),
+    'reviews:shown': (req) => {
+      reviews.shown(itemId(req))
+      return null
+    },
+    'reviews:answer': (req) => {
+      const a = answerOf(req)
+      return sittingOf(reviews.answer(itemId(req), a.answer, a.skipped, a.reasoning))
+    },
+    'reviews:hint': (req) => sittingOf(reviews.showHint(itemId(req))),
+    'reviews:draft': (req) => {
+      const r = requireObject(req)
+      if (r.field !== 'answer' && r.field !== 'reasoning') throw new InvalidRequestError('Invalid request: field must be "answer" or "reasoning".')
+      reviews.saveDraft(itemId(req), r.field, requireString(r.text, 'text'))
+      return null
+    },
+    'reviews:contest': (req) => {
+      const r = requireObject(req)
+      return reviews.contest(requireId(r.attemptId, 'attemptId'), requireString(r.objection, 'objection'))
+    },
+    'reviews:reteach': async (req) => sittingOf(await reviews.reteach(itemId(req))),
+    'reviews:reteachAnswer': (req) => {
+      const a = answerOf(req)
+      return sittingOf(reviews.answerReteach(itemId(req), a.answer, a.skipped, a.reasoning))
+    },
+    'reviews:skipToday': (req) => reviews.skipToday(requireSession(services, req)),
+    'reviews:setLimit': (req) => reviews.setDailyLimit(requireSession(services, req), requireId(requireObject(req).limit, 'limit')),
+    'reviews:progress': (req) => reviews.progress(requireSession(services, req)),
+    'exams:list': (req) => knowledge.exams(requireSession(services, req)),
+    'exams:update': (req) => {
+      const r = requireObject(req)
+      const date = r.date === null ? null : requireString(r.date, 'date')
+      return knowledge.updateExam(requireSession(services, req), requireId(r.examId, 'examId'), date, optionalNumber(r.weight, 'weight', false))
+    },
+    'clock:report': (req) => {
+      const r = requireObject(req)
+      clock.setTimeZone(requireString(r.timeZone, 'timeZone'))
+      if (r.online === true) reviews.online()
+      return null
+    },
+    'dev:clock': (req) => {
+      const r = requireObject(req)
+      // Packaged builds refuse this whatever the renderer sends (the clock also ignores any saved offset there).
+      if (!clock.devControlsAllowed) throw new InvalidRequestError('The date control is only available in development builds.')
+      if (r.action === 'move') clock.moveDays(requireId(r.days, 'days'))
+      else if (r.action === 'reset') clock.resetDev()
+      else if (r.action !== 'get') throw new InvalidRequestError('Invalid request: action must be get, move or reset.')
+      return devClockState(clock)
+    },
     'usage:raiseCap': (req) => {
       const sessionId = requireSession(services, req)
       const callCap = requireId(requireObject(req).callCap, 'callCap')
