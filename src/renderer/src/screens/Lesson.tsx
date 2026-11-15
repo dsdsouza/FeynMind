@@ -282,6 +282,11 @@ function AnswerForm({ view, questionId, sending, act }: { view: LessonView; ques
         />
       </div>
       <DictationState phase={dictation.phase} seconds={dictation.seconds} level={dictation.level} onStop={() => dictation.toggle(dictation.field ?? 'reasoning')} onCancel={dictation.cancel} />
+      {dictation.status?.engine === 'restarting' && (
+        <p className="warning" role="status" data-testid="dictation-restarting">
+          Speech recognition stopped unexpectedly and is restarting. What you said is kept and will be transcribed.
+        </p>
+      )}
       {dictation.error && (
         <p className="error" role="alert" data-testid="dictation-error">
           {dictation.error}
