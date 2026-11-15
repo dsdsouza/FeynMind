@@ -89,6 +89,7 @@ export function Reviews({ initial, onBack }: { initial: SittingView; onBack: () 
               onOpenPage={open}
               onReteach={() => {
                 setStreamed('')
+                setShowing(null)
                 setReteaching(shown.id)
                 void act(async () => unwrap(await api['reviews:reteach']({ itemId: shown.id })))
               }}
