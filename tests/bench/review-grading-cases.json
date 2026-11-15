@@ -1,0 +1,44 @@
+[
+  {
+    "id": "fn-1-right",
+    "concept": "function",
+    "question": 1,
+    "expected": "correct",
+    "answer": "Yes, it is a function. Each input (1 and 2) has exactly one output. The definition only forbids one input having two outputs; two inputs may share the output 10."
+  },
+  {
+    "id": "fn-0-wrong-reason",
+    "concept": "function",
+    "question": 0,
+    "expected": "partial",
+    "answer": "No, it is not a function, because in a function all the outputs have to be different numbers."
+  },
+  {
+    "id": "domain-0-open-interval",
+    "concept": "domain",
+    "question": 0,
+    "expected": "partial",
+    "answer": "The square root needs 7 - x >= 0, so the domain is x < 7, which is (-infinity, 7)."
+  },
+  {
+    "id": "domain-2-wrong",
+    "concept": "domain",
+    "question": 2,
+    "expected": "incorrect",
+    "answer": "All real numbers except x = 2 and x = -2."
+  },
+  {
+    "id": "matrix-0-right",
+    "concept": "matrix-addition",
+    "question": 0,
+    "expected": "correct",
+    "answer": "C + D = [[-1, 4], [1, 3]]"
+  },
+  {
+    "id": "matrix-1-wrong",
+    "concept": "matrix-addition",
+    "question": 1,
+    "expected": "incorrect",
+    "answer": "No. Only square matrices can be added to each other."
+  }
+]

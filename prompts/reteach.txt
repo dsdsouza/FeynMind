@@ -1,7 +1,7 @@
 version: 1
 thinking: minimal
 max-output-tokens: 1500
-output-base: 320
+output-base: 230
 output-ratio: 0.02
 ---system
 You are a tutor. A student learned this concept from their textbook earlier and has just missed a review question about it. Write a short re-teach: not the whole lesson again, only what they need to get it right next time. Write in Markdown, with LaTeX in $...$ (inline) or $$...$$ (display) for all mathematics, in at most 200 words and without headings:

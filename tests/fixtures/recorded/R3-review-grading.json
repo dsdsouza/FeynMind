@@ -1,0 +1,306 @@
+{
+  "model": "gemini-3.1-flash-lite",
+  "calls": [
+    {
+      "keys": [
+        "criteria",
+        "reason",
+        "feedback",
+        "pages",
+        "outsideSources"
+      ],
+      "thinking": "low",
+      "usage": {
+        "inputTokens": 2073,
+        "outputTokens": 248,
+        "thinkingTokens": 91
+      },
+      "reply": "{\n  \"criteria\": [\n    {\n      \"id\": \"c1\",\n      \"met\": \"yes\",\n      \"evidence\": \"Yes, it is a function.\"\n    },\n    {\n      \"id\": \"c2\",\n      \"met\": \"yes\",\n      \"evidence\": \"The definition only forbids one input having two outputs; two inputs may share the output 10.\"\n    }\n  ],\n  \"reason\": \"You correctly identified that the relation is a function and provided a accurate explanation based on the definition of a function.\",\n  \"feedback\": \"\",\n  \"pages\": [\n    \"S4 p. 3\"\n  ],\n  \"outsideSources\": false\n}",
+      "allowed": [
+        "S1 p. 1",
+        "S1 p. 2",
+        "S2 p. 2",
+        "S3 p. 2",
+        "S4 p. 2",
+        "S4 p. 3"
+      ]
+    },
+    {
+      "keys": [
+        "criteria",
+        "reason",
+        "feedback",
+        "pages",
+        "outsideSources"
+      ],
+      "thinking": "low",
+      "usage": {
+        "inputTokens": 2034,
+        "outputTokens": 305,
+        "thinkingTokens": 99
+      },
+      "reply": "{\n  \"criteria\": [\n    {\n      \"id\": \"c1\",\n      \"met\": \"yes\",\n      \"evidence\": \"No, it is not a function\"\n    },\n    {\n      \"id\": \"c2\",\n      \"met\": \"no\",\n      \"evidence\": \"because in a function all the outputs have to be different numbers\"\n    }\n  ],\n  \"reason\": \"You correctly identified that the relation is not a function. However, your explanation is incorrect; the definition of a function does not require all output values to be distinct (different), but rather that each specific input must map to only one output.\",\n  \"feedback\": \"To be a function, each input value must produce exactly one output value. It is acceptable for two different inputs to share the same output value.\",\n  \"pages\": [\n    \"S4 p. 3\"\n  ],\n  \"outsideSources\": false\n}",
+      "allowed": [
+        "S1 p. 1",
+        "S1 p. 2",
+        "S2 p. 2",
+        "S3 p. 2",
+        "S4 p. 2",
+        "S4 p. 3"
+      ]
+    },
+    {
+      "keys": [
+        "criteria",
+        "reason",
+        "feedback",
+        "pages",
+        "outsideSources"
+      ],
+      "thinking": "low",
+      "usage": {
+        "inputTokens": 2583,
+        "outputTokens": 347,
+        "thinkingTokens": 126
+      },
+      "reply": "{\n  \"criteria\": [\n    {\n      \"id\": \"c1\",\n      \"met\": \"yes\",\n      \"evidence\": \"7 - x >= 0\"\n    },\n    {\n      \"id\": \"c2\",\n      \"met\": \"no\",\n      \"evidence\": \"x < 7, which is (-infinity, 7)\"\n    }\n  ],\n  \"reason\": \"You correctly identified the inequality required to find the domain, but you made an error in the final interval. Since the inequality is inclusive (greater than or equal to), the endpoint 7 should be included, which requires a square bracket.\",\n  \"feedback\": \"You correctly set up the inequality 7 - x >= 0, which leads to x <= 7. When writing this in interval notation, use a square bracket for the included endpoint: (-infinity, 7].\",\n  \"pages\": [\n    \"S4 p. 23\"\n  ],\n  \"outsideSources\": false\n}",
+      "allowed": [
+        "S1 p. 21",
+        "S1 p. 22",
+        "S2 p. 22",
+        "S3 p. 22",
+        "S4 p. 22",
+        "S4 p. 23",
+        "S5 p. 23"
+      ]
+    },
+    {
+      "keys": [
+        "criteria",
+        "reason",
+        "feedback",
+        "pages",
+        "outsideSources"
+      ],
+      "thinking": "low",
+      "usage": {
+        "inputTokens": 2600,
+        "outputTokens": 306,
+        "thinkingTokens": 96
+      },
+      "reply": "{\n  \"criteria\": [\n    {\n      \"id\": \"c1\",\n      \"met\": \"no\",\n      \"evidence\": \"\"\n    },\n    {\n      \"id\": \"c2\",\n      \"met\": \"no\",\n      \"evidence\": \"\"\n    },\n    {\n      \"id\": \"c3\",\n      \"met\": \"no\",\n      \"evidence\": \"All real numbers except x = 2 and x = -2.\"\n    }\n  ],\n  \"reason\": \"You incorrectly identified restrictions for the domain. The denominator x^2 + 2 can never be zero for real numbers, so there are no values to exclude.\",\n  \"feedback\": \"Since x^2 is always at least 0, x^2 + 2 is always at least 2, meaning the denominator is never zero. Therefore, the domain is all real numbers.\",\n  \"pages\": [],\n  \"outsideSources\": true\n}",
+      "allowed": [
+        "S1 p. 21",
+        "S1 p. 22",
+        "S2 p. 22",
+        "S3 p. 22",
+        "S4 p. 22",
+        "S4 p. 23",
+        "S5 p. 23"
+      ]
+    },
+    {
+      "keys": [
+        "criteria",
+        "reason",
+        "feedback",
+        "pages",
+        "outsideSources"
+      ],
+      "thinking": "low",
+      "usage": {
+        "inputTokens": 1249,
+        "outputTokens": 296,
+        "thinkingTokens": 139
+      },
+      "reply": "{\n  \"criteria\": [\n    {\n      \"id\": \"c1\",\n      \"met\": \"yes\",\n      \"evidence\": \"[[-1, 4], [1, 3]]\"\n    },\n    {\n      \"id\": \"c2\",\n      \"met\": \"yes\",\n      \"evidence\": \"[[-1, 4], [1, 3]]\"\n    }\n  ],\n  \"reason\": \"You correctly added the corresponding entries of the two matrices and presented the final answer in the correct matrix format.\",\n  \"feedback\": \"\",\n  \"pages\": [\n    \"S1 p. 808\"\n  ],\n  \"outsideSources\": false\n}",
+      "allowed": [
+        "S1 p. 808",
+        "S2 p. 808",
+        "S3 p. 808"
+      ]
+    },
+    {
+      "keys": [
+        "criteria",
+        "reason",
+        "feedback",
+        "pages",
+        "outsideSources"
+      ],
+      "thinking": "low",
+      "usage": {
+        "inputTokens": 1218,
+        "outputTokens": 292,
+        "thinkingTokens": 112
+      },
+      "reply": "{\n  \"criteria\": [\n    {\n      \"id\": \"c1\",\n      \"met\": \"no\",\n      \"evidence\": \"No.\"\n    },\n    {\n      \"id\": \"c2\",\n      \"met\": \"no\",\n      \"evidence\": \"Only square matrices can be added to each other.\"\n    }\n  ],\n  \"reason\": \"You incorrectly concluded that it is not possible to add these matrices and provided an incorrect rule that only square matrices can be added.\",\n  \"feedback\": \"Two matrices can be added if they have the same dimensions, regardless of whether they are square. Since both matrices are 2x3, they can be added.\",\n  \"pages\": [\n    \"S1 p. 808\"\n  ],\n  \"outsideSources\": false\n}",
+      "allowed": [
+        "S1 p. 808",
+        "S2 p. 808",
+        "S3 p. 808"
+      ]
+    }
+  ],
+  "cases": [
+    {
+      "id": "fn-1-right",
+      "expected": "correct",
+      "verdict": "correct",
+      "agrees": true,
+      "grade": {
+        "criteria": [
+          {
+            "id": "c1",
+            "met": "yes",
+            "evidence": "Yes, it is a function."
+          },
+          {
+            "id": "c2",
+            "met": "yes",
+            "evidence": "The definition only forbids one input having two outputs; two inputs may share the output 10."
+          }
+        ],
+        "reason": "You correctly identified that the relation is a function and provided a accurate explanation based on the definition of a function.",
+        "feedback": "",
+        "pages": [
+          "S4 p. 3"
+        ],
+        "outsideSources": false
+      }
+    },
+    {
+      "id": "fn-0-wrong-reason",
+      "expected": "partial",
+      "verdict": "partial",
+      "agrees": true,
+      "grade": {
+        "criteria": [
+          {
+            "id": "c1",
+            "met": "yes",
+            "evidence": "No, it is not a function"
+          },
+          {
+            "id": "c2",
+            "met": "no",
+            "evidence": "because in a function all the outputs have to be different numbers"
+          }
+        ],
+        "reason": "You correctly identified that the relation is not a function. However, your explanation is incorrect; the definition of a function does not require all output values to be distinct (different), but rather that each specific input must map to only one output.",
+        "feedback": "To be a function, each input value must produce exactly one output value. It is acceptable for two different inputs to share the same output value.",
+        "pages": [
+          "S4 p. 3"
+        ],
+        "outsideSources": false
+      }
+    },
+    {
+      "id": "domain-0-open-interval",
+      "expected": "partial",
+      "verdict": "partial",
+      "agrees": true,
+      "grade": {
+        "criteria": [
+          {
+            "id": "c1",
+            "met": "yes",
+            "evidence": "7 - x >= 0"
+          },
+          {
+            "id": "c2",
+            "met": "no",
+            "evidence": "x < 7, which is (-infinity, 7)"
+          }
+        ],
+        "reason": "You correctly identified the inequality required to find the domain, but you made an error in the final interval. Since the inequality is inclusive (greater than or equal to), the endpoint 7 should be included, which requires a square bracket.",
+        "feedback": "You correctly set up the inequality 7 - x >= 0, which leads to x <= 7. When writing this in interval notation, use a square bracket for the included endpoint: (-infinity, 7].",
+        "pages": [
+          "S4 p. 23"
+        ],
+        "outsideSources": false
+      }
+    },
+    {
+      "id": "domain-2-wrong",
+      "expected": "incorrect",
+      "verdict": "incorrect",
+      "agrees": true,
+      "grade": {
+        "criteria": [
+          {
+            "id": "c1",
+            "met": "no",
+            "evidence": ""
+          },
+          {
+            "id": "c2",
+            "met": "no",
+            "evidence": ""
+          },
+          {
+            "id": "c3",
+            "met": "no",
+            "evidence": "All real numbers except x = 2 and x = -2."
+          }
+        ],
+        "reason": "You incorrectly identified restrictions for the domain. The denominator x^2 + 2 can never be zero for real numbers, so there are no values to exclude.",
+        "feedback": "Since x^2 is always at least 0, x^2 + 2 is always at least 2, meaning the denominator is never zero. Therefore, the domain is all real numbers.",
+        "pages": [],
+        "outsideSources": true
+      }
+    },
+    {
+      "id": "matrix-0-right",
+      "expected": "correct",
+      "verdict": "correct",
+      "agrees": true,
+      "grade": {
+        "criteria": [
+          {
+            "id": "c1",
+            "met": "yes",
+            "evidence": "[[-1, 4], [1, 3]]"
+          },
+          {
+            "id": "c2",
+            "met": "yes",
+            "evidence": "[[-1, 4], [1, 3]]"
+          }
+        ],
+        "reason": "You correctly added the corresponding entries of the two matrices and presented the final answer in the correct matrix format.",
+        "feedback": "",
+        "pages": [
+          "S1 p. 808"
+        ],
+        "outsideSources": false
+      }
+    },
+    {
+      "id": "matrix-1-wrong",
+      "expected": "incorrect",
+      "verdict": "incorrect",
+      "agrees": true,
+      "grade": {
+        "criteria": [
+          {
+            "id": "c1",
+            "met": "no",
+            "evidence": "No."
+          },
+          {
+            "id": "c2",
+            "met": "no",
+            "evidence": "Only square matrices can be added to each other."
+          }
+        ],
+        "reason": "You incorrectly concluded that it is not possible to add these matrices and provided an incorrect rule that only square matrices can be added.",
+        "feedback": "Two matrices can be added if they have the same dimensions, regardless of whether they are square. Since both matrices are 2x3, they can be added.",
+        "pages": [
+          "S1 p. 808"
+        ],
+        "outsideSources": false
+      }
+    }
+  ]
+}

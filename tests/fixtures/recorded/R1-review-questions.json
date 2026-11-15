@@ -1,0 +1,437 @@
+{
+  "model": "gemini-3.1-flash-lite",
+  "calls": [
+    {
+      "keys": [
+        "covered",
+        "questions"
+      ],
+      "thinking": "minimal",
+      "usage": {
+        "inputTokens": 2282,
+        "outputTokens": 769,
+        "thinkingTokens": 0
+      },
+      "reply": "{\n  \"covered\": true,\n  \"questions\": [\n    {\n      \"stem\": \"Suppose you have a relation where one input value is associated with two different output values. Is this relation a function? Explain why.\",\n      \"referenceAnswer\": \"No, it is not a function. By definition, a function requires that each input value leads to exactly one output value; having one input result in two different outputs violates this requirement.\",\n      \"criteria\": [\n        {\n          \"id\": \"correctness_of_conclusion\",\n          \"text\": \"Correctly concludes that the relation is not a function.\",\n          \"points\": 2,\n          \"essential\": true\n        },\n        {\n          \"id\": \"reasoning\",\n          \"text\": \"Explains that the violation occurs because a single input must map to exactly one output according to the definition.\",\n          \"points\": 2,\n          \"essential\": true\n        }\n      ],\n      \"hint\": \"Recall the requirement for the number of outputs per input.\",\n      \"pages\": [\n        \"S4 p. 3\"\n      ]\n    },\n    {\n      \"stem\": \"If you have a set of ordered pairs where different inputs correspond to the same output value (e.g., {(1, 10), (2, 10)}), is this relation a function? Explain why.\",\n      \"referenceAnswer\": \"Yes, this relation is a function. The definition of a function states that each input must lead to exactly one output. It does not forbid different inputs from sharing the same output value.\",\n      \"criteria\": [\n        {\n          \"id\": \"correctness_of_conclusion\",\n          \"text\": \"Correctly concludes that the relation is a function.\",\n          \"points\": 2,\n          \"essential\": true\n        },\n        {\n          \"id\": \"reasoning\",\n          \"text\": \"Explains that the definition only restricts multiple outputs for a single input, not multiple inputs for a single output.\",\n          \"points\": 2,\n          \"essential\": true\n        }\n      ],\n      \"hint\": \"Re-read the definition of a function focusing on whether the restriction is on inputs or outputs.\",\n      \"pages\": [\n        \"S4 p. 3\"\n      ]\n    },\n    {\n      \"stem\": \"A vending machine is configured such that pressing button 'A' always releases a bag of chips. Is the bag of chips a function of the button pressed? Explain why.\",\n      \"referenceAnswer\": \"Yes, it is a function. Since pressing the specific button 'A' always leads to the same outcome (the bag of chips), each input (the button) results in exactly one output (the item dispensed), which satisfies the definition of a function.\",\n      \"criteria\": [\n        {\n          \"id\": \"identification_of_mapping\",\n          \"text\": \"Identifies that each input corresponds to a unique/singular output.\",\n          \"points\": 2,\n          \"essential\": true\n        },\n        {\n          \"id\": \"conclusion\",\n          \"text\": \"Concludes that it is a function because it meets the 'one input to one output' criteria.\",\n          \"points\": 2,\n          \"essential\": true\n        }\n      ],\n      \"hint\": \"Think about whether one button can result in different items being dispensed.\",\n      \"pages\": [\n        \"S4 p. 3\"\n      ]\n    }\n  ]\n}",
+      "allowed": [
+        "S1 p. 1",
+        "S1 p. 2",
+        "S2 p. 2",
+        "S3 p. 2",
+        "S4 p. 2",
+        "S4 p. 3"
+      ]
+    },
+    {
+      "keys": [
+        "covered",
+        "questions"
+      ],
+      "thinking": "minimal",
+      "usage": {
+        "inputTokens": 2684,
+        "outputTokens": 849,
+        "thinkingTokens": 0
+      },
+      "reply": "{\n  \"covered\": true,\n  \"questions\": [\n    {\n      \"stem\": \"Find the domain of the function $f(x) = \\\\sqrt{7 - x}$.\",\n      \"referenceAnswer\": \"The radicand $7 - x$ must be greater than or equal to zero for the square root to be defined as a real number. Solving $7 - x \\\\geq 0$ leads to $7 \\\\geq x$ or $x \\\\leq 7$. In interval notation, the domain is $(-\\\\infty, 7]$.\",\n      \"criteria\": [\n        {\n          \"id\": \"identifies_root_restriction\",\n          \"text\": \"Correctly sets up the inequality $7 - x \\\\geq 0$.\",\n          \"points\": 2,\n          \"essential\": true\n        },\n        {\n          \"id\": \"correct_interval\",\n          \"text\": \"Correctly identifies the interval $(-\\\\infty, 7]$.\",\n          \"points\": 1,\n          \"essential\": true\n        }\n      ],\n      \"hint\": \"Ensure the expression inside the square root is non-negative.\",\n      \"pages\": [\"S4 p. 23\"]\n    },\n    {\n      \"stem\": \"Explain why the domain of $f(x) = x^2 + 4$ is all real numbers.\",\n      \"referenceAnswer\": \"The function $f(x) = x^2 + 4$ does not contain a denominator that could be zero, nor does it contain an even root of a variable expression. Since there are no mathematical operations that would result in undefined values for any real number input, the domain is all real numbers.\",\n      \"criteria\": [\n        {\n          \"id\": \"identifies_no_restrictions\",\n          \"text\": \"Identifies that the function lacks denominators and even roots.\",\n          \"points\": 2,\n          \"essential\": true\n        },\n        {\n          \"id\": \"explains_all_reals\",\n          \"text\": \"Correctly concludes that because no restrictions exist, all real numbers are valid.\",\n          \"points\": 1,\n          \"essential\": true\n        }\n      ],\n      \"hint\": \"Check if the function contains any of the operations mentioned in the definition that restrict the domain.\",\n      \"pages\": [\"S4 p. 23\"]\n    },\n    {\n      \"stem\": \"Find the domain of the function $f(x) = \\\\frac{3}{x^2 + 2}$.\",\n      \"referenceAnswer\": \"To find the domain, we identify values that make the denominator zero. Setting $x^2 + 2 = 0$ results in $x^2 = -2$, which has no real number solutions. Since the denominator is never zero for any real input $x$, the domain is all real numbers, or $(-\\\\infty, \\\\infty)$.\",\n      \"criteria\": [\n        {\n          \"id\": \"sets_denominator_to_zero\",\n          \"text\": \"Correctly identifies the need to solve $x^2 + 2 = 0$.\",\n          \"points\": 1,\n          \"essential\": true\n        },\n        {\n          \"id\": \"recognizes_no_real_solution\",\n          \"text\": \"Explains that $x^2 = -2$ has no real solutions.\",\n          \"points\": 1,\n          \"essential\": true\n        },\n        {\n          \"id\": \"states_domain\",\n          \"text\": \"States the domain as all real numbers.\",\n          \"points\": 1,\n          \"essential\": true\n        }\n      ],\n      \"hint\": \"Consider if there are any real numbers that make the denominator equal to zero.\",\n      \"pages\": [\"S4 p. 23\"]\n    }\n  ]\n}",
+      "allowed": [
+        "S1 p. 21",
+        "S1 p. 22",
+        "S2 p. 22",
+        "S3 p. 22",
+        "S4 p. 22",
+        "S4 p. 23",
+        "S5 p. 23"
+      ]
+    },
+    {
+      "keys": [
+        "covered",
+        "questions"
+      ],
+      "thinking": "minimal",
+      "usage": {
+        "inputTokens": 1243,
+        "outputTokens": 736,
+        "thinkingTokens": 0
+      },
+      "reply": "{\n  \"covered\": true,\n  \"questions\": [\n    {\n      \"stem\": \"If matrix $C = [[0, 5], [-2, 1]]$ and matrix $D = [[-1, -1], [3, 2]]$, calculate $C + D$.\",\n      \"referenceAnswer\": \"$C + D = [[0 + (-1), 5 + (-1)], [-2 + 3, 1 + 2]] = [[-1, 4], [1, 3]]$\",\n      \"criteria\": [\n        {\n          \"id\": \"correct_calculation\",\n          \"text\": \"The student correctly adds each of the four corresponding pairs of entries.\",\n          \"points\": 3,\n          \"essential\": true\n        },\n        {\n          \"id\": \"correct_format\",\n          \"text\": \"The answer is presented as a 2x2 matrix.\",\n          \"points\": 1,\n          \"essential\": true\n        }\n      ],\n      \"hint\": \"Add the entries in the same row and column position from each matrix.\",\n      \"pages\": [\n        \"S1 p. 808\"\n      ]\n    },\n    {\n      \"stem\": \"Is it possible to add a $2 \\\\times 3$ matrix to another $2 \\\\times 3$ matrix? Explain why or why not.\",\n      \"referenceAnswer\": \"Yes, it is possible because matrix addition requires that the two matrices have the same dimensions, and both matrices are $2 \\\\times 3$.\",\n      \"criteria\": [\n        {\n          \"id\": \"yes_answer\",\n          \"text\": \"The student concludes that it is possible.\",\n          \"points\": 1,\n          \"essential\": true\n        },\n        {\n          \"id\": \"dimension_reason\",\n          \"text\": \"The student correctly identifies that matrix addition is defined for matrices of the same dimensions.\",\n          \"points\": 2,\n          \"essential\": true\n        }\n      ],\n      \"hint\": \"Check the definition of matrix addition regarding dimensions.\",\n      \"pages\": [\n        \"S1 p. 808\"\n      ]\n    },\n    {\n      \"stem\": \"Given a matrix $E = [[x, y], [z, w]]$ and a matrix $F = [[1, 2], [3, 4]]$, express the sum $E + F$ as a single matrix.\",\n      \"referenceAnswer\": \"[[x + 1, y + 2], [z + 3, w + 4]]\",\n      \"criteria\": [\n        {\n          \"id\": \"symbolic_sum\",\n          \"text\": \"The student correctly sums the algebraic variables with the constants in corresponding positions.\",\n          \"points\": 2,\n          \"essential\": true\n        },\n        {\n          \"id\": \"correct_matrix_structure\",\n          \"text\": \"The result is presented as a matrix with the sums as individual entries.\",\n          \"points\": 1,\n          \"essential\": false\n        }\n      ],\n      \"hint\": \"Apply the rule of adding corresponding entries, even when some entries are variables.\",\n      \"pages\": [\n        \"S1 p. 808\"\n      ]\n    }\n  ]\n}",
+      "allowed": [
+        "S1 p. 808",
+        "S2 p. 808",
+        "S3 p. 808"
+      ]
+    }
+  ],
+  "concepts": {
+    "function": {
+      "asked": [
+        "Consider the relation {(2, 5), (3, 5), (4, 7)}. Is this a function? Fill in the blanks: The input values are ___. The output values for each input are: 2 leads to ___, 3 leads to ___, and 4 leads to ___. Since each input leads to ___ output(s), this relation ___ a function.",
+        "If you have a set of ordered pairs, how can you determine if that relation qualifies as a function? Explain why.",
+        "Consider the relation {(A, 1), (B, 2), (A, 3)}. Is this a function? First, identify the input(s) that appear more than once and the corresponding outputs for those inputs. Then, explain your conclusion.",
+        "A store tracks the number of shirts sold (input) and the total revenue in dollars (output). If the store sells 5 shirts for $100, 10 shirts for $200, and 5 shirts for $150, is the revenue a function of the number of shirts sold? Explain why.",
+        "Determine if the set {(0, 1), (1, 1), (2, 1), (3, 1)} is a function. Explain your reasoning.",
+        "If every student in a class is assigned exactly one ID number, is the ID number a function of the student's name? Explain your reasoning."
+      ],
+      "passages": [
+        {
+          "tag": "S1",
+          "pages": [
+            {
+              "index": 1,
+              "label": "1"
+            },
+            {
+              "index": 2,
+              "label": "2"
+            }
+          ]
+        },
+        {
+          "tag": "S2",
+          "pages": [
+            {
+              "index": 2,
+              "label": "2"
+            }
+          ]
+        },
+        {
+          "tag": "S3",
+          "pages": [
+            {
+              "index": 2,
+              "label": "2"
+            }
+          ]
+        },
+        {
+          "tag": "S4",
+          "pages": [
+            {
+              "index": 2,
+              "label": "2"
+            },
+            {
+              "index": 3,
+              "label": "3"
+            }
+          ]
+        }
+      ],
+      "covered": true,
+      "questions": [
+        {
+          "stem": "Suppose you have a relation where one input value is associated with two different output values. Is this relation a function? Explain why.",
+          "referenceAnswer": "No, it is not a function. By definition, a function requires that each input value leads to exactly one output value; having one input result in two different outputs violates this requirement.",
+          "criteria": [
+            {
+              "id": "c1",
+              "text": "Correctly concludes that the relation is not a function.",
+              "points": 2,
+              "essential": true
+            },
+            {
+              "id": "c2",
+              "text": "Explains that the violation occurs because a single input must map to exactly one output according to the definition.",
+              "points": 2,
+              "essential": true
+            }
+          ],
+          "hint": "Recall the requirement for the number of outputs per input.",
+          "pages": [
+            "S4 p. 3"
+          ]
+        },
+        {
+          "stem": "If you have a set of ordered pairs where different inputs correspond to the same output value (e.g., {(1, 10), (2, 10)}), is this relation a function? Explain why.",
+          "referenceAnswer": "Yes, this relation is a function. The definition of a function states that each input must lead to exactly one output. It does not forbid different inputs from sharing the same output value.",
+          "criteria": [
+            {
+              "id": "c1",
+              "text": "Correctly concludes that the relation is a function.",
+              "points": 2,
+              "essential": true
+            },
+            {
+              "id": "c2",
+              "text": "Explains that the definition only restricts multiple outputs for a single input, not multiple inputs for a single output.",
+              "points": 2,
+              "essential": true
+            }
+          ],
+          "hint": "Re-read the definition of a function focusing on whether the restriction is on inputs or outputs.",
+          "pages": [
+            "S4 p. 3"
+          ]
+        },
+        {
+          "stem": "A vending machine is configured such that pressing button 'A' always releases a bag of chips. Is the bag of chips a function of the button pressed? Explain why.",
+          "referenceAnswer": "Yes, it is a function. Since pressing the specific button 'A' always leads to the same outcome (the bag of chips), each input (the button) results in exactly one output (the item dispensed), which satisfies the definition of a function.",
+          "criteria": [
+            {
+              "id": "c1",
+              "text": "Identifies that each input corresponds to a unique/singular output.",
+              "points": 2,
+              "essential": true
+            },
+            {
+              "id": "c2",
+              "text": "Concludes that it is a function because it meets the 'one input to one output' criteria.",
+              "points": 2,
+              "essential": true
+            }
+          ],
+          "hint": "Think about whether one button can result in different items being dispensed.",
+          "pages": [
+            "S4 p. 3"
+          ]
+        }
+      ]
+    },
+    "domain": {
+      "asked": [
+        "Find the domain of the function f(x) = 1 / (x - 4).",
+        "If you have a function defined by the formula f(x) = 1/x, why can the number 0 not be included in the domain? Explain your reasoning.",
+        "Find the domain of the function f(x) = sqrt(x - 3).",
+        "Find the domain of the function f(x) = {(1, 5), (2, 6), (3, 7), (4, 8)}.",
+        "Find the domain of the function f(x) = 2x + 5. Explain why there are no restrictions on the domain.",
+        "Find the domain of the function f(x) = 1 / (x^2 - 9)."
+      ],
+      "passages": [
+        {
+          "tag": "S1",
+          "pages": [
+            {
+              "index": 4,
+              "label": "21"
+            },
+            {
+              "index": 5,
+              "label": "22"
+            }
+          ]
+        },
+        {
+          "tag": "S2",
+          "pages": [
+            {
+              "index": 5,
+              "label": "22"
+            }
+          ]
+        },
+        {
+          "tag": "S3",
+          "pages": [
+            {
+              "index": 5,
+              "label": "22"
+            }
+          ]
+        },
+        {
+          "tag": "S4",
+          "pages": [
+            {
+              "index": 5,
+              "label": "22"
+            },
+            {
+              "index": 6,
+              "label": "23"
+            }
+          ]
+        },
+        {
+          "tag": "S5",
+          "pages": [
+            {
+              "index": 6,
+              "label": "23"
+            }
+          ]
+        }
+      ],
+      "covered": true,
+      "questions": [
+        {
+          "stem": "Find the domain of the function $f(x) = \\sqrt{7 - x}$.",
+          "referenceAnswer": "The radicand $7 - x$ must be greater than or equal to zero for the square root to be defined as a real number. Solving $7 - x \\geq 0$ leads to $7 \\geq x$ or $x \\leq 7$. In interval notation, the domain is $(-\\infty, 7]$.",
+          "criteria": [
+            {
+              "id": "c1",
+              "text": "Correctly sets up the inequality $7 - x \\geq 0$.",
+              "points": 2,
+              "essential": true
+            },
+            {
+              "id": "c2",
+              "text": "Correctly identifies the interval $(-\\infty, 7]$.",
+              "points": 1,
+              "essential": true
+            }
+          ],
+          "hint": "Ensure the expression inside the square root is non-negative.",
+          "pages": [
+            "S4 p. 23"
+          ]
+        },
+        {
+          "stem": "Explain why the domain of $f(x) = x^2 + 4$ is all real numbers.",
+          "referenceAnswer": "The function $f(x) = x^2 + 4$ does not contain a denominator that could be zero, nor does it contain an even root of a variable expression. Since there are no mathematical operations that would result in undefined values for any real number input, the domain is all real numbers.",
+          "criteria": [
+            {
+              "id": "c1",
+              "text": "Identifies that the function lacks denominators and even roots.",
+              "points": 2,
+              "essential": true
+            },
+            {
+              "id": "c2",
+              "text": "Correctly concludes that because no restrictions exist, all real numbers are valid.",
+              "points": 1,
+              "essential": true
+            }
+          ],
+          "hint": "Check if the function contains any of the operations mentioned in the definition that restrict the domain.",
+          "pages": [
+            "S4 p. 23"
+          ]
+        },
+        {
+          "stem": "Find the domain of the function $f(x) = \\frac{3}{x^2 + 2}$.",
+          "referenceAnswer": "To find the domain, we identify values that make the denominator zero. Setting $x^2 + 2 = 0$ results in $x^2 = -2$, which has no real number solutions. Since the denominator is never zero for any real input $x$, the domain is all real numbers, or $(-\\infty, \\infty)$.",
+          "criteria": [
+            {
+              "id": "c1",
+              "text": "Correctly identifies the need to solve $x^2 + 2 = 0$.",
+              "points": 1,
+              "essential": true
+            },
+            {
+              "id": "c2",
+              "text": "Explains that $x^2 = -2$ has no real solutions.",
+              "points": 1,
+              "essential": true
+            },
+            {
+              "id": "c3",
+              "text": "States the domain as all real numbers.",
+              "points": 1,
+              "essential": true
+            }
+          ],
+          "hint": "Consider if there are any real numbers that make the denominator equal to zero.",
+          "pages": [
+            "S4 p. 23"
+          ]
+        }
+      ]
+    },
+    "matrix-addition": {
+      "asked": [
+        "Can a 2 by 3 matrix be added to a 3 by 2 matrix? Explain why.",
+        "Find A + B for A = [[1, 2], [3, 4]] and B = [[5, 6], [7, 8]]."
+      ],
+      "passages": [
+        {
+          "tag": "S1",
+          "pages": [
+            {
+              "index": 1,
+              "label": "808"
+            }
+          ]
+        },
+        {
+          "tag": "S2",
+          "pages": [
+            {
+              "index": 1,
+              "label": "808"
+            }
+          ]
+        },
+        {
+          "tag": "S3",
+          "pages": [
+            {
+              "index": 1,
+              "label": "808"
+            }
+          ]
+        }
+      ],
+      "covered": true,
+      "questions": [
+        {
+          "stem": "If matrix $C = [[0, 5], [-2, 1]]$ and matrix $D = [[-1, -1], [3, 2]]$, calculate $C + D$.",
+          "referenceAnswer": "$C + D = [[0 + (-1), 5 + (-1)], [-2 + 3, 1 + 2]] = [[-1, 4], [1, 3]]$",
+          "criteria": [
+            {
+              "id": "c1",
+              "text": "The student correctly adds each of the four corresponding pairs of entries.",
+              "points": 3,
+              "essential": true
+            },
+            {
+              "id": "c2",
+              "text": "The answer is presented as a 2x2 matrix.",
+              "points": 1,
+              "essential": true
+            }
+          ],
+          "hint": "Add the entries in the same row and column position from each matrix.",
+          "pages": [
+            "S1 p. 808"
+          ]
+        },
+        {
+          "stem": "Is it possible to add a $2 \\times 3$ matrix to another $2 \\times 3$ matrix? Explain why or why not.",
+          "referenceAnswer": "Yes, it is possible because matrix addition requires that the two matrices have the same dimensions, and both matrices are $2 \\times 3$.",
+          "criteria": [
+            {
+              "id": "c1",
+              "text": "The student concludes that it is possible.",
+              "points": 1,
+              "essential": true
+            },
+            {
+              "id": "c2",
+              "text": "The student correctly identifies that matrix addition is defined for matrices of the same dimensions.",
+              "points": 2,
+              "essential": true
+            }
+          ],
+          "hint": "Check the definition of matrix addition regarding dimensions.",
+          "pages": [
+            "S1 p. 808"
+          ]
+        },
+        {
+          "stem": "Given a matrix $E = [[x, y], [z, w]]$ and a matrix $F = [[1, 2], [3, 4]]$, express the sum $E + F$ as a single matrix.",
+          "referenceAnswer": "[[x + 1, y + 2], [z + 3, w + 4]]",
+          "criteria": [
+            {
+              "id": "c1",
+              "text": "The student correctly sums the algebraic variables with the constants in corresponding positions.",
+              "points": 2,
+              "essential": true
+            },
+            {
+              "id": "c2",
+              "text": "The result is presented as a matrix with the sums as individual entries.",
+              "points": 1,
+              "essential": false
+            }
+          ],
+          "hint": "Apply the rule of adding corresponding entries, even when some entries are variables.",
+          "pages": [
+            "S1 p. 808"
+          ]
+        }
+      ]
+    }
+  }
+}
