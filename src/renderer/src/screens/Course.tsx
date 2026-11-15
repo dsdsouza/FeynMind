@@ -539,7 +539,7 @@ function SyllabusEditor(props: { syllabus: SyllabusState; draft: SyllabusDraft; 
           </button>
         )}
       </div>
-      {syllabus.status === 'confirmed' && <p className="muted">Saving replaces the current units. Concepts stay, but their link to the old units is removed.</p>}
+      {syllabus.status === 'confirmed' && <p className="muted">Saving keeps processed units, their concepts and your progress. A unit you remove loses its link to its concepts; the concepts and your progress on them are kept.</p>}
     </div>
   )
 }

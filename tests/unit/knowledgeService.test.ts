@@ -8,6 +8,7 @@ import type { TextLine } from '../../src/main/ingestion/types'
 import { KnowledgeService, PromptLibrary } from '../../src/main/knowledge'
 import { ProviderError, ProviderService, UsageStore, type GenerateRequest } from '../../src/main/providers'
 import { openDatabase, SessionStore, SettingsStore } from '../../src/main/storage'
+import type { DraftUnit, SyllabusDraft } from '../../src/shared/knowledge'
 import type Database from 'better-sqlite3'
 import { createFakeEmbedder } from './fakes/fakeEmbedder'
 import { FakeClock } from './fakes/fakeClock'
@@ -344,4 +345,77 @@ describe('review edits', () => {
     review = t.knowledge.deleteConcept(unit, id('matrix'))
     expect(review.concepts.map((c) => c.name).sort()).toEqual(['Vector', 'dot product'])
   })
+})
+
+describe('syllabus re-save', () => {
+  /** A processed unit 1 with progress on one concept: a lesson, a graded answer, mastery, and a confirmed "I know this unit" check. */
+  async function processedWithProgress(stripUnitIds: boolean) {
+    const t = setup()
+    seedBook(t.db, t.session.id)
+    const [unit1, unit2] = await confirmSyllabus(t)
+    t.knowledge.approve(t.knowledge.estimateUnit(unit1 ?? 0).id)
+    await t.knowledge.idle()
+    const sid = t.session.id
+    const conceptId = t.knowledge.review(unit1 ?? 0).concepts[0]?.id ?? 0
+    const run = (sql: string, ...args: unknown[]) => Number(t.db.prepare(sql).run(...args).lastInsertRowid)
+    const questionId = run("INSERT INTO questions (session_id, concept_id, kind, ordinal, stem, prompt, prompt_version, cache_key) VALUES (?, ?, 'diagnostic', 0, 'q', 'p', 1, 'k')", sid, conceptId)
+    const lessonId = run("INSERT INTO lessons (session_id, concept_id, step) VALUES (?, ?, 'guided')", sid, conceptId)
+    const checkId = run("INSERT INTO diagnostics (session_id, kind, unit_id, status) VALUES (?, 'confirm', ?, 'done')", sid, unit1)
+    const checkOn2 = run("INSERT INTO diagnostics (session_id, kind, unit_id, status) VALUES (?, 'confirm', ?, 'done')", sid, unit2)
+    for (const d of [checkId, checkOn2]) {
+      const a = run("INSERT INTO attempts (session_id, concept_id, question_id, diagnostic_id, shown_at, status) VALUES (?, ?, ?, ?, 'x', 'graded')", sid, conceptId, questionId, d)
+      run("INSERT INTO grades (attempt_id, pass, verdict, score, reason, graded_by) VALUES (?, 1, 'correct', 1, 'r', 'local')", a)
+      run("INSERT INTO mastery_events (session_id, concept_id, kind, attempt_id, p_before, p_after) VALUES (?, ?, 'diagnostic', ?, 0.2, 0.47)", sid, conceptId, a)
+    }
+    run("INSERT INTO unit_overrides (session_id, unit_id, claimed, diagnostic_id, outcome) VALUES (?, ?, 'known', ?, 'confirmed')", sid, unit1, checkId)
+    run('INSERT INTO mastery (concept_id, session_id, p_known, evidence, mastered_at) VALUES (?, ?, 0.97, 3, ?)', conceptId, sid, '2026-11-14T10:00:00.000Z')
+    if (stripUnitIds) {
+      // As 0.1.0 stored it: the confirmed draft does not name its units.
+      const row = t.db.prepare<[], { id: number; draft: string }>('SELECT id, draft FROM syllabi').get()
+      const draft = JSON.parse(row?.draft ?? '{}') as SyllabusDraft
+      for (const u of draft.units) delete u.unitId
+      t.db.prepare('UPDATE syllabi SET draft = ? WHERE id = ?').run(JSON.stringify(draft), row?.id)
+    }
+    const count = (table: string) => t.db.prepare<[], { n: number }>(`SELECT count(*) AS n FROM ${table}`).get()?.n
+    return { t, unit1: unit1 ?? 0, unit2: unit2 ?? 0, conceptId, lessonId, checkOn2, count }
+  }
+
+  for (const stripUnitIds of [false, true]) {
+    it(`keeps a processed unit's concepts, job, checks and progress when the syllabus is edited and saved again${stripUnitIds ? ' (draft saved by 0.1.0)' : ''}`, async () => {
+      const { t, unit1, unit2, conceptId, lessonId, checkOn2, count } = await processedWithProgress(stripUnitIds)
+      const tables = ['concept_units', 'knowledge_jobs', 'job_steps', 'diagnostics', 'attempts', 'grades', 'mastery_events', 'mastery', 'lessons', 'unit_overrides']
+      const before = Object.fromEntries(tables.map((x) => [x, count(x)]))
+      const conceptsOfUnit1 = t.knowledge.review(unit1).concepts.map((c) => c.id)
+      expect(conceptsOfUnit1.length).toBeGreaterThan(0)
+
+      // Rename unit 1, give it a date, move a new unit in front of it, and keep unit 2.
+      const state = t.knowledge.syllabusState(t.session.id)
+      const draft = state?.draft as SyllabusDraft
+      expect(draft.units.map((u) => u.unitId)).toEqual([unit1, unit2])
+      const [u1, u2] = draft.units as [DraftUnit, DraftUnit]
+      const units = t.knowledge.saveSyllabus(state?.id ?? 0, {
+        units: [{ ...u1, unitId: null, title: 'Review week', tocKeys: [] }, { ...u1, title: 'Vectors and lengths', startDate: '2026-09-02' }, u2],
+        exams: [{ title: 'Midterm', date: '2026-12-01', weight: 40, units: [1, 2] }]
+      })
+
+      expect(units.map((u) => [u.title, u.id === unit1, u.id === unit2])).toEqual([['Review week', false, false], ['Vectors and lengths', true, false], ['Matrices', false, true]])
+      expect(units[1]?.conceptCount).toBe(conceptsOfUnit1.length)
+      expect(units[1]?.lastJob?.status).toBe('done')
+      expect(t.knowledge.review(unit1).concepts.map((c) => c.id)).toEqual(conceptsOfUnit1)
+      for (const x of tables) expect([x, count(x)]).toEqual([x, before[x]])
+      expect(t.db.prepare('SELECT unit_id FROM unit_overrides').pluck().get()).toBe(unit1)
+      expect(t.db.prepare('SELECT mastered_at FROM mastery WHERE concept_id = ?').pluck().get(conceptId)).toBe('2026-11-14T10:00:00.000Z')
+      expect(t.db.prepare('SELECT step FROM lessons WHERE id = ?').pluck().get(lessonId)).toBe('guided')
+      expect(t.db.prepare('SELECT unit_id FROM exam_units ORDER BY unit_id').pluck().all()).toEqual([unit1, unit2])
+
+      // Removing unit 2 removes only that unit; its confirming check and the answers in it stay.
+      const again = t.knowledge.syllabusState(t.session.id)?.draft as SyllabusDraft
+      expect(again.units.map((u) => u.unitId)).toEqual(units.map((u) => u.id))
+      t.knowledge.saveSyllabus(state?.id ?? 0, { units: again.units.slice(0, 2), exams: [] })
+      expect(t.knowledge.units(t.session.id).map((u) => u.title)).toEqual(['Review week', 'Vectors and lengths'])
+      expect(t.db.prepare('SELECT unit_id FROM diagnostics WHERE id = ?').pluck().get(checkOn2)).toBeNull()
+      expect([count('attempts'), count('grades'), count('mastery_events')]).toEqual([before['attempts'], before['grades'], before['mastery_events']])
+      expect(t.knowledge.review(unit1).concepts.map((c) => c.id)).toEqual(conceptsOfUnit1)
+    })
+  }
 })

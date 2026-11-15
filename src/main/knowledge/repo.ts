@@ -197,7 +197,15 @@ export class KnowledgeRepo {
         'SELECT id, session_id AS sessionId, source_name AS sourceName, sha256, text, draft, status FROM syllabi WHERE id = ?'
       )
       .get(id)
-    return row ? { ...row, draft: row.draft ? (JSON.parse(row.draft) as SyllabusDraft) : null } : undefined
+    if (!row) return undefined
+    const draft = row.draft ? (JSON.parse(row.draft) as SyllabusDraft) : null
+    // Drafts saved by 0.1.0 do not name their units. They were saved in unit order, so a confirmed
+    // draft's units match the units by position.
+    if (draft && row.status === 'confirmed' && draft.units.some((u) => u.unitId === undefined)) {
+      const ids = this.db.prepare<[number], { id: number; ordinal: number }>('SELECT id, ordinal FROM units WHERE syllabus_id = ? ORDER BY ordinal').all(id)
+      if (ids.length === draft.units.length) draft.units = draft.units.map((u, i) => ({ ...u, unitId: u.unitId ?? ids[i]?.id ?? null }))
+    }
+    return { ...row, draft }
   }
 
   /** The newest syllabus of the session, whatever its state. */
@@ -212,24 +220,46 @@ export class KnowledgeRepo {
 
   /**
    * Saves the user's corrected syllabus as the session's units, replacing any earlier syllabus
-   * (its units, and their links to concepts, go with it).
+   * (its units, and their links to concepts, go with it). Saving the same syllabus again updates
+   * its units in place, so processed units keep their concepts, jobs, checks and progress; a unit
+   * left out of the draft is removed (its concepts stay, without that unit).
    */
   confirmSyllabus(id: number, draft: SyllabusDraft, sectionIdsOf: (tocKey: string) => number[]): void {
     const syllabus = this.getSyllabus(id)
     if (!syllabus) throw new Error('That syllabus no longer exists.')
     this.db.transaction(() => {
       this.db.prepare('DELETE FROM syllabi WHERE session_id = ? AND id != ?').run(syllabus.sessionId, id)
-      this.db.prepare('DELETE FROM units WHERE syllabus_id = ?').run(id)
+      const existing = new Set(this.db.prepare<[number], { id: number }>('SELECT id FROM units WHERE syllabus_id = ?').all(id).map((r) => r.id))
+      const kept = new Set(draft.units.map((u) => u.unitId).filter((u): u is number => typeof u === 'number' && existing.has(u)))
+      for (const unitId of existing) {
+        if (kept.has(unitId)) continue
+        // A confirming check of a removed unit keeps its answers and their mastery evidence.
+        this.db.prepare('UPDATE diagnostics SET unit_id = NULL WHERE unit_id = ?').run(unitId)
+        this.db.prepare('DELETE FROM units WHERE id = ?').run(unitId)
+      }
       this.db.prepare('DELETE FROM exams WHERE syllabus_id = ?').run(id)
+      // Ordinals are unique per syllabus: move the kept units out of the way before renumbering.
+      this.db.prepare('UPDATE units SET ordinal = -id WHERE syllabus_id = ?').run(id)
       const insertUnit = this.db.prepare(
         'INSERT INTO units (session_id, syllabus_id, ordinal, title, topics, start_date, end_date, exam_weight) VALUES (?, ?, ?, ?, ?, ?, ?, ?)'
       )
+      const updateUnit = this.db.prepare('UPDATE units SET ordinal = ?, title = ?, topics = ?, start_date = ?, end_date = ?, exam_weight = ? WHERE id = ?')
       const insertSection = this.db.prepare('INSERT OR IGNORE INTO unit_sections (unit_id, section_id) VALUES (?, ?)')
+      const seen = new Set<number>()
       const unitIds = draft.units.map((u, i) => {
-        const unitId = Number(insertUnit.run(syllabus.sessionId, id, i, u.title, JSON.stringify(u.topics), u.startDate, u.endDate, u.examWeight).lastInsertRowid)
+        let unitId: number
+        if (typeof u.unitId === 'number' && kept.has(u.unitId) && !seen.has(u.unitId)) {
+          unitId = u.unitId
+          updateUnit.run(i, u.title, JSON.stringify(u.topics), u.startDate, u.endDate, u.examWeight, unitId)
+          this.db.prepare('DELETE FROM unit_sections WHERE unit_id = ?').run(unitId)
+        } else {
+          unitId = Number(insertUnit.run(syllabus.sessionId, id, i, u.title, JSON.stringify(u.topics), u.startDate, u.endDate, u.examWeight).lastInsertRowid)
+        }
+        seen.add(unitId)
         for (const key of u.tocKeys) for (const sectionId of sectionIdsOf(key)) insertSection.run(unitId, sectionId)
         return unitId
       })
+      const saved: SyllabusDraft = { ...draft, units: draft.units.map((u, i) => ({ ...u, unitId: unitIds[i] ?? null })) }
       const insertExam = this.db.prepare('INSERT INTO exams (session_id, syllabus_id, ordinal, title, date, weight) VALUES (?, ?, ?, ?, ?, ?)')
       const insertExamUnit = this.db.prepare('INSERT OR IGNORE INTO exam_units (exam_id, unit_id) VALUES (?, ?)')
       draft.exams.forEach((e, i) => {
@@ -239,7 +269,7 @@ export class KnowledgeRepo {
           if (unitId !== undefined) insertExamUnit.run(examId, unitId)
         }
       })
-      this.db.prepare(`UPDATE syllabi SET draft = ?, status = 'confirmed', confirmed_at = strftime('%Y-%m-%dT%H:%M:%fZ', 'now') WHERE id = ?`).run(JSON.stringify(draft), id)
+      this.db.prepare(`UPDATE syllabi SET draft = ?, status = 'confirmed', confirmed_at = strftime('%Y-%m-%dT%H:%M:%fZ', 'now') WHERE id = ?`).run(JSON.stringify(saved), id)
     })()
   }
 

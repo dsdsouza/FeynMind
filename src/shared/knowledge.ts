@@ -108,6 +108,8 @@ export interface TocEntry {
 }
 
 export interface DraftUnit {
+  /** The saved unit this is, once the syllabus has been confirmed; absent or null for a new unit. Saving again updates that unit in place. */
+  unitId?: number | null
   title: string
   topics: string[]
   startDate: string | null

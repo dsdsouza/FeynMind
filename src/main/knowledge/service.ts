@@ -200,7 +200,7 @@ export class KnowledgeService {
     }
   }
 
-  /** Saves the user's corrected syllabus. Replaces the session's earlier units. */
+  /** Saves the user's corrected syllabus. Units saved before are updated in place; units left out are removed. */
   saveSyllabus(syllabusId: number, draft: SyllabusDraft): UnitSummary[] {
     const syllabus = this.repo.getSyllabus(syllabusId)
     if (!syllabus) throw new UserFacingError('That syllabus no longer exists.')
@@ -845,6 +845,7 @@ function validateDraft(draft: SyllabusDraft, tocKeys: Set<string>): SyllabusDraf
     const endDate = date(u.endDate, `The end date of unit ${i + 1}`)
     if (startDate && endDate && endDate < startDate) throw new UserFacingError(`Unit ${i + 1} ends before it starts.`)
     return {
+      unitId: typeof u.unitId === 'number' && Number.isSafeInteger(u.unitId) && u.unitId > 0 ? u.unitId : null,
       title,
       topics: (Array.isArray(u.topics) ? u.topics : []).map((t) => text(t, 300)).filter((t) => t !== ''),
       startDate,
