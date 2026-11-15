@@ -15,7 +15,9 @@
 //    fixture clip through a fake microphone (Chromium's fake capture device, so the app's
 //    permission handler, the recognition process and the ONNX runtime are all exercised) and
 //    checks the transcript.
-// 6. Fails on any uncaught exception, then quits.
+// 6. The development date control is absent: not in the renderer bundle, its channel refused, and
+//    FEYNMIND_CLOCK_OFFSET_DAYS (set on purpose) ignored by the packaged app.
+// 7. Fails on any uncaught exception, then quits.
 //
 // Exits non-zero if anything goes wrong. Usage: node scripts/smoke-packaged.mjs
 /* global window, AudioContext -- used inside page.evaluate, which runs in the app window */
@@ -82,6 +84,19 @@ for (const name of readdirSync(join(root, 'prompts'))) {
 }
 console.log(`Prompts: ${readdirSync(join(root, 'prompts')).length} files present and unchanged.`)
 
+// 1c. The development date control is not in the packaged renderer.
+{
+  const asar = require('@electron/asar')
+  const archive = join(build.dir, build.asar)
+  const bundles = asar.listPackage(archive).filter((f) => /[\\/]out[\\/]renderer[\\/].*\.js$/.test(f))
+  if (bundles.length === 0) fail('No renderer bundle found in app.asar.')
+  for (const file of bundles) {
+    const text = asar.extractFile(archive, file.replace(/^[\\/]/, '')).toString('utf8')
+    if (text.includes('Development: app date') || text.includes('dev-clock')) fail(`The development date control is in the packaged renderer (${file}).`)
+  }
+  console.log(`Date control: absent from ${bundles.length} renderer bundle file(s).`)
+}
+
 // 2. Copy outside the repository.
 const workDir = mkdtempSync(join(tmpdir(), 'feynmind-smoke-'))
 const appDir = join(workDir, 'app')
@@ -103,7 +118,9 @@ console.log(`Launching ${executablePath}`)
 const STRIPPED = new Set(['GEMINI_API_KEY', 'ELECTRON_RUN_AS_NODE', 'ELECTRON_RENDERER_URL', 'FEYNMIND_MODEL_DOWNLOAD'])
 const env = {
   ...Object.fromEntries(Object.entries(process.env).filter(([name]) => !STRIPPED.has(name))),
-  FEYNMIND_USER_DATA_DIR: userDataDir
+  FEYNMIND_USER_DATA_DIR: userDataDir,
+  // Must be ignored: a packaged app never moves its date.
+  FEYNMIND_CLOCK_OFFSET_DAYS: '30'
 }
 
 const output = []
@@ -159,6 +176,20 @@ try {
   if (!info.packaged) throw new Error('The launched app does not report itself as packaged.')
   if (info.windows !== 1) throw new Error(`Expected 1 window, found ${info.windows}.`)
   if (!existsSync(join(userDataDir, 'feynmind.db'))) throw new Error('The database was not created (better-sqlite3 failed to load?).')
+
+  // The date control is refused, and the offset in the environment is ignored.
+  const clock = await page.evaluate(async () => {
+    const api = window.feynmind
+    const refused = await api['dev:clock']({ action: 'move', days: 30 })
+    const session = await api['sessions:current']()
+    const today = await api['reviews:today']({ sessionId: session.value.id })
+    const local = new Date(Date.now() - 4 * 3_600_000)
+    const real = `${local.getFullYear()}-${String(local.getMonth() + 1).padStart(2, '0')}-${String(local.getDate()).padStart(2, '0')}`
+    return { refused: !refused.ok, message: refused.ok ? '' : refused.error, day: today.ok ? today.value.day : today.error, real }
+  })
+  if (!clock.refused || !clock.message.includes('development builds')) throw new Error(`The packaged app accepted the date control: ${JSON.stringify(clock)}`)
+  if (clock.day !== clock.real) throw new Error(`The packaged app moved its date: it says ${clock.day}, the real study day is ${clock.real}.`)
+  console.log(`Date control: refused; the app's day is the real one (${clock.day}).`)
 
   // Import two fixtures through the real "Add files" button, with the file dialog answered for us.
   const files = [join(FIXTURES, 'openstax-precalculus-text.pdf'), join(FIXTURES, 'openstax-precalculus-scanned.pdf')]
@@ -263,4 +294,4 @@ try {
 } catch {
   // Windows can keep files locked briefly after exit; the OS temp cleaner will remove them.
 }
-console.log(`Smoke test passed: ${productName} ${pkg.version} opened, imported and searched the fixtures, transcribed speech, and quit cleanly.`)
+console.log(`Smoke test passed: ${productName} ${pkg.version} opened, imported and searched the fixtures, transcribed speech, kept its real date, and quit cleanly.`)
