@@ -129,7 +129,16 @@ try {
     // GitHub's Linux runners cannot set up Chromium's setuid sandbox. The app's own
     // renderer sandbox (webPreferences.sandbox) is unaffected by this flag.
     // A fake microphone plays the fixture clip once; the permission prompt still goes through the app.
-    args: [...(process.platform === 'linux' ? ['--no-sandbox'] : []), '--use-fake-device-for-media-stream', `--use-file-for-fake-audio-capture=${MIC_CLIP}%noloop`],
+    // On macOS the fake device reads the file inside Chromium's sandboxed audio service, whose
+    // sandbox profile blocks reading arbitrary files ("Failed to read ... as input to the fake
+    // device"), so the test lifts that one process's sandbox there. A real microphone does not need
+    // this: the profile allows the system audio capture it exists for.
+    args: [
+      ...(process.platform === 'linux' ? ['--no-sandbox'] : []),
+      ...(process.platform === 'darwin' ? ['--disable-features=AudioServiceSandbox'] : []),
+      '--use-fake-device-for-media-stream',
+      `--use-file-for-fake-audio-capture=${MIC_CLIP}%noloop`
+    ],
     env,
     timeout: LAUNCH_TIMEOUT_MS
   })
@@ -221,6 +230,7 @@ try {
     await context.close()
     return unwrap(await api['dictation:stop']({ recordingId })).text
   })
+  if (heard === '') throw new Error('The microphone clip was not transcribed: no speech reached the app. If the log below says the fake device failed to read the file, Chromium could not open the fixture clip.')
   if (!/different quality to mathematics/i.test(heard)) throw new Error(`The microphone clip was not transcribed as expected: "${heard}"`)
   console.log(`Dictation heard: ${heard}`)
   if (modelCache && !existsSync(join(modelCache, SPEECH_FOLDER))) {

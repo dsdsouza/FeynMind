@@ -7,10 +7,13 @@ export const FIXTURES = join(__dirname, '..', 'fixtures')
 
 /**
  * Chromium switches that replace the microphone with a WAV file (played once, then silence). The
- * permission request still goes through the app's own handler.
+ * permission request still goes through the app's own handler. On macOS the fake device reads the
+ * file inside the sandboxed audio service, whose sandbox blocks it, so that one process runs
+ * unsandboxed there (scripts/smoke-packaged.mjs does the same).
  */
 export function fakeMicrophone(wavPath: string): string[] {
-  return ['--use-fake-device-for-media-stream', `--use-file-for-fake-audio-capture=${wavPath}%noloop`]
+  const audioSandbox = process.platform === 'darwin' ? ['--disable-features=AudioServiceSandbox'] : []
+  return [...audioSandbox, '--use-fake-device-for-media-stream', `--use-file-for-fake-audio-capture=${wavPath}%noloop`]
 }
 
 /**
