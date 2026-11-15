@@ -200,8 +200,8 @@ export class DictationService {
     const { samples } = readWav(this.options.speedClipPath)
     await this.ensureLoaded()
     const started = performance.now()
-    await this.transcribe(samples, '')
-    return { model, audioSeconds: Math.round((samples.length / SAMPLE_RATE) * 10) / 10, seconds: Math.round((performance.now() - started) / 100) / 10 }
+    const text = await this.transcribe(samples, '')
+    return { model, audioSeconds: Math.round((samples.length / SAMPLE_RATE) * 10) / 10, seconds: Math.round((performance.now() - started) / 100) / 10, text }
   }
 
   async stop(timeoutMs = 3_000): Promise<void> {

@@ -76,6 +76,10 @@ export function DictationSettings() {
             ? 'That may feel slow; a smaller model will be quicker.'
             : 'While you speak, most of this happens in the background, so after you stop you wait only for the last few seconds.'}{' '}
           A laptop on battery is often two to three times slower.
+          <br />
+          <span className="muted">
+            It heard: “{speed.text}” (a reading from a public-domain book; LibriSpeech, CC BY 4.0).
+          </span>
         </p>
       )}
       {error && (

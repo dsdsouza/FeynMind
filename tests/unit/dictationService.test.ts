@@ -173,7 +173,7 @@ describe('dictation service', () => {
     const { service } = setup()
     markReady(service)
     const result = await service.speedCheck()
-    expect(result).toMatchObject({ model: 'tiny.en', audioSeconds: 9.2 })
+    expect(result).toMatchObject({ model: 'tiny.en', audioSeconds: 9.2, text: 't92' })
     expect(result.seconds).toBeGreaterThanOrEqual(0)
   })
 

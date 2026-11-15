@@ -47,17 +47,20 @@ jobs:
           # No signing certificates yet (see docs/tech-plan.md, Risks).
           CSC_IDENTITY_AUTO_DISCOVERY: 'false'
 
-      # The smoke test needs the local embedding model (about 35 MB). Cache it so each release
-      # downloads it at most once; the app verifies its checksums either way. The key names the
-      # pinned revision (see src/main/ingestion/modelStore.ts).
-      - name: Cache the embedding model
+      # The smoke test needs the local embedding model (about 35 MB) and the Whisper tiny model
+      # (about 44 MB). Cache them so each release downloads them at most once; the app verifies
+      # their checksums either way. The key names the pinned revisions (see
+      # src/main/ingestion/modelStore.ts and src/main/dictation/models.ts).
+      - name: Cache the embedding and speech models
         uses: actions/cache@v6
         with:
           path: ${{ runner.temp }}/feynmind-model-cache
-          key: embedding-model-bge-small-en-v1.5-ea104dac
+          # A cache never changes once saved, so the key names every model it holds.
+          key: models-bge-small-en-v1.5-ea104dac-whisper-tiny.en-794207fe
 
       # Launches the packaged app from outside the checkout, imports two fixture PDFs (one needs
-      # text recognition), searches them, and fails if anything goes wrong.
+      # text recognition), searches them, transcribes a fixture clip through a fake microphone,
+      # and fails if anything goes wrong.
       - name: Smoke test the packaged app (Linux)
         if: runner.os == 'Linux'
         env:

@@ -10,9 +10,15 @@
 //    The only network use is the one-time embedding model download into the throwaway profile.
 //    Set FEYNMIND_SMOKE_MODEL_CACHE to a folder to reuse the model between runs (CI caches it);
 //    the app verifies the model's checksums either way.
-// 5. Fails on any uncaught exception, then quits.
+// 5. Dictation: downloads the Whisper tiny model through Settings (or copies it from the cache),
+//    runs "Check speed on this computer" on the clip that ships with the app, then records a short
+//    fixture clip through a fake microphone (Chromium's fake capture device, so the app's
+//    permission handler, the recognition process and the ONNX runtime are all exercised) and
+//    checks the transcript.
+// 6. Fails on any uncaught exception, then quits.
 //
 // Exits non-zero if anything goes wrong. Usage: node scripts/smoke-packaged.mjs
+/* global window, AudioContext -- used inside page.evaluate, which runs in the app window */
 import { spawnSync } from 'node:child_process'
 import { cpSync, existsSync, mkdtempSync, readdirSync, readFileSync, rmSync } from 'node:fs'
 import { createRequire } from 'node:module'
@@ -31,6 +37,8 @@ const INGEST_TIMEOUT_MS = 300_000
 const OVERALL_TIMEOUT_MS = 480_000
 const FIXTURES = join(root, 'tests', 'fixtures')
 const MODEL_FOLDER = 'bge-small-en-v1.5-ea104dac'
+const SPEECH_FOLDER = 'whisper-tiny.en-794207fe'
+const MIC_CLIP = join(FIXTURES, 'audio', 'speech-9s.wav')
 const modelCache = process.env['FEYNMIND_SMOKE_MODEL_CACHE']
 const FATAL_OUTPUT = /Uncaught Exception|A JavaScript error occurred|ERR_MODULE_NOT_FOUND|Cannot find (module|package)/i
 
@@ -84,6 +92,10 @@ if (modelCache && existsSync(join(modelCache, MODEL_FOLDER))) {
   cpSync(join(modelCache, MODEL_FOLDER), join(userDataDir, 'models', MODEL_FOLDER), { recursive: true })
   console.log(`Using the cached embedding model from ${modelCache}`)
 }
+if (modelCache && existsSync(join(modelCache, SPEECH_FOLDER))) {
+  cpSync(join(modelCache, SPEECH_FOLDER), join(userDataDir, 'models', SPEECH_FOLDER), { recursive: true })
+  console.log(`Using the cached speech model from ${modelCache}`)
+}
 console.log(`Launching ${executablePath}`)
 
 // 3. Launch.
@@ -116,7 +128,8 @@ try {
     executablePath,
     // GitHub's Linux runners cannot set up Chromium's setuid sandbox. The app's own
     // renderer sandbox (webPreferences.sandbox) is unaffected by this flag.
-    args: process.platform === 'linux' ? ['--no-sandbox'] : [],
+    // A fake microphone plays the fixture clip once; the permission prompt still goes through the app.
+    args: [...(process.platform === 'linux' ? ['--no-sandbox'] : []), '--use-fake-device-for-media-stream', `--use-file-for-fake-audio-capture=${MIC_CLIP}%noloop`],
     env,
     timeout: LAUNCH_TIMEOUT_MS
   })
@@ -169,6 +182,52 @@ try {
     console.log(`Saved the embedding model to ${modelCache}`)
   }
 
+  // Dictation: the speech model, the speed check on the bundled clip, then the microphone path.
+  await page.getByRole('button', { name: 'Settings' }).click()
+  const tiny = page.getByTestId('speech-model-tiny.en')
+  if (!(await tiny.getByText('Downloaded.').count())) {
+    await tiny.getByRole('button', { name: 'Download' }).click()
+    await tiny.getByText('Downloaded.').waitFor({ timeout: INGEST_TIMEOUT_MS })
+  }
+  await page.getByRole('button', { name: 'Check speed on this computer' }).click()
+  const speed = page.getByTestId('speed-result')
+  await speed.waitFor({ timeout: INGEST_TIMEOUT_MS })
+  const speedText = (await speed.textContent()) ?? ''
+  if (!/pictures/i.test(speedText)) throw new Error(`The speed check did not transcribe its clip: ${speedText}`)
+  console.log(`Speed check: ${speedText.split('It heard')[0]?.trim()}`)
+
+  // The renderer's own bridge and microphone, as the lesson screen uses them (16 kHz chunks).
+  const heard = await page.evaluate(async () => {
+    const api = window.feynmind
+    const unwrap = (r) => {
+      if (!r.ok) throw new Error(r.error)
+      return r.value
+    }
+    unwrap(await api['dictation:prepareMic']())
+    const { recordingId } = unwrap(await api['dictation:start']())
+    const stream = await navigator.mediaDevices.getUserMedia({ audio: true, video: false })
+    const context = new AudioContext({ sampleRate: 16000 })
+    const source = context.createMediaStreamSource(stream)
+    const processor = context.createScriptProcessor(4096, 1, 1)
+    const mute = context.createGain()
+    mute.gain.value = 0
+    processor.onaudioprocess = (e) => void api['dictation:audio']({ recordingId, samples: new Float32Array(e.inputBuffer.getChannelData(0)) })
+    source.connect(processor)
+    processor.connect(mute)
+    mute.connect(context.destination)
+    await new Promise((resolve) => setTimeout(resolve, 11_000))
+    processor.onaudioprocess = null
+    stream.getTracks().forEach((t) => t.stop())
+    await context.close()
+    return unwrap(await api['dictation:stop']({ recordingId })).text
+  })
+  if (!/different quality to mathematics/i.test(heard)) throw new Error(`The microphone clip was not transcribed as expected: "${heard}"`)
+  console.log(`Dictation heard: ${heard}`)
+  if (modelCache && !existsSync(join(modelCache, SPEECH_FOLDER))) {
+    cpSync(join(userDataDir, 'models', SPEECH_FOLDER), join(modelCache, SPEECH_FOLDER), { recursive: true })
+    console.log(`Saved the speech model to ${modelCache}`)
+  }
+
   await app.close()
 } catch (error) {
   killApp()
@@ -186,4 +245,4 @@ try {
 } catch {
   // Windows can keep files locked briefly after exit; the OS temp cleaner will remove them.
 }
-console.log(`Smoke test passed: ${productName} ${pkg.version} opened, imported and searched the fixtures, and quit cleanly.`)
+console.log(`Smoke test passed: ${productName} ${pkg.version} opened, imported and searched the fixtures, transcribed speech, and quit cleanly.`)

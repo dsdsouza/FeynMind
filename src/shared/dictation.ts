@@ -38,6 +38,8 @@ export interface SpeedCheckResult {
   model: SpeechModelId
   audioSeconds: number
   seconds: number
+  /** What the model heard, so the learner can judge its accuracy too. */
+  text: string
 }
 
 /**
