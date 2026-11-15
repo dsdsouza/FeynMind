@@ -94,6 +94,7 @@ export function DictationSettings() {
 
 function ModelLine({ model, id, allowed, run }: { model: SpeechModelState; id: SpeechModelId; allowed: boolean; run: <T>(a: () => Promise<T>) => Promise<T | null> }) {
   if (model.state === 'ready') return <p className="muted">Downloaded.</p>
+  if (model.state === 'checking') return <p className="muted">Checking…</p>
   if (model.state === 'downloading')
     return (
       <div>

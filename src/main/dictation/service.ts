@@ -80,15 +80,17 @@ export class DictationService {
 
   constructor(private readonly options: DictationServiceOptions) {
     this.delay = options.delay ?? ((ms) => new Promise((resolve) => setTimeout(resolve, ms)))
-    for (const id of SPEECH_MODEL_IDS) this.models.set(id, { id, state: 'missing', receivedBytes: 0, totalBytes: totalSize(SPEECH_MODELS[id]), error: null })
+    for (const id of SPEECH_MODEL_IDS) this.models.set(id, { id, state: 'checking', receivedBytes: 0, totalBytes: totalSize(SPEECH_MODELS[id]), error: null })
   }
 
-  /** Checks which models are already downloaded (and intact). */
+  /** Checks which models are already downloaded (and intact). Until then each is 'checking'. */
   async start(): Promise<void> {
     for (const id of SPEECH_MODEL_IDS) {
-      if (await isModelReady(this.options.modelsDir, SPEECH_MODELS[id])) this.setModel(id, { state: 'ready' })
+      const ready = await isModelReady(this.options.modelsDir, SPEECH_MODELS[id])
+      // A download started meanwhile has its own state; leave it alone.
+      if (this.models.get(id)?.state === 'checking') this.setModel(id, { state: ready ? 'ready' : 'missing' })
+      this.emit()
     }
-    this.emit()
   }
 
   status(): DictationStatus {

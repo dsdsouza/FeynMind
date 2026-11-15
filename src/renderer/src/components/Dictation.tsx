@@ -52,6 +52,8 @@ export function ModelPrompt({ status, onClose }: { status: DictationStatus; onCl
             Close
           </button>
         </p>
+      ) : model.state === 'checking' ? (
+        <p>Checking for the speech model on this computer…</p>
       ) : model.state === 'downloading' ? (
         <>
           <p>

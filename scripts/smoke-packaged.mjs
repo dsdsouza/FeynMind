@@ -193,10 +193,18 @@ try {
 
   // Dictation: the speech model, the speed check on the bundled clip, then the microphone path.
   await page.getByRole('button', { name: 'Settings' }).click()
+  // The model is either already there (copied from the cache) or missing (a cold cache). Wait until
+  // the app has finished checking the files on disk, then download only if it is missing.
   const tiny = page.getByTestId('speech-model-tiny.en')
-  if (!(await tiny.getByText('Downloaded.').count())) {
-    await tiny.getByRole('button', { name: 'Download' }).click()
-    await tiny.getByText('Downloaded.').waitFor({ timeout: INGEST_TIMEOUT_MS })
+  const downloaded = tiny.getByText('Downloaded.')
+  const download = tiny.getByRole('button', { name: 'Download' })
+  await downloaded.or(download).waitFor({ timeout: LAUNCH_TIMEOUT_MS })
+  if (await download.isVisible()) {
+    console.log('Speech model: not in the cache; downloading it in the app.')
+    await download.click()
+    await downloaded.waitFor({ timeout: INGEST_TIMEOUT_MS })
+  } else {
+    console.log('Speech model: already present; skipping the download.')
   }
   await page.getByRole('button', { name: 'Check speed on this computer' }).click()
   const speed = page.getByTestId('speed-result')

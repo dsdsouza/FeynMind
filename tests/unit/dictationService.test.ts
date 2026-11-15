@@ -82,8 +82,10 @@ function send(service: DictationService, id: number, ...parts: Float32Array[]): 
 const tick = () => new Promise((r) => setTimeout(r, 0))
 
 describe('dictation service', () => {
-  it('defaults to tiny, reports models as missing until downloaded, and refuses to record without a model', async () => {
+  it('defaults to tiny, reports models as checking until verified and missing until downloaded, and refuses to record without a model', async () => {
     const { service } = setup()
+    expect(service.status().models.map((m) => m.state)).toEqual(['checking', 'checking', 'checking'])
+    expect(() => service.startRecording()).toThrow('Download the speech model first')
     await service.start()
     expect(service.status()).toMatchObject({ selected: 'tiny.en', engine: 'idle', platform: 'win32', downloadsAllowed: false })
     expect(service.status().models.map((m) => [m.id, m.state])).toEqual([['tiny.en', 'missing'], ['base.en', 'missing'], ['small.en', 'missing']])

@@ -15,7 +15,8 @@ export const SPEECH_MODEL_CHOICES: { id: SpeechModelId; label: string; bytes: nu
 
 export interface SpeechModelState {
   id: SpeechModelId
-  state: 'missing' | 'downloading' | 'ready' | 'error'
+  /** checking: the app has not yet verified the files on disk (at startup). */
+  state: 'checking' | 'missing' | 'downloading' | 'ready' | 'error'
   receivedBytes: number
   totalBytes: number
   error: string | null
