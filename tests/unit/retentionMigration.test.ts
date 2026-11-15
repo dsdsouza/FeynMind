@@ -35,7 +35,7 @@ function seed010(db: Database.Database): { mastered: number; started: number } {
   const lesson = (conceptId: number, step: string) => run("INSERT INTO lessons (session_id, concept_id, step, started_at) VALUES (?, ?, ?, '2026-11-14T13:00:00.000Z')", sid, conceptId, step)
   const question = (conceptId: number, kind: string, ordinal: number) =>
     run("INSERT INTO questions (session_id, concept_id, kind, ordinal, stem, prompt, prompt_version, cache_key) VALUES (?, ?, ?, ?, 'q', 'lesson-questions', 2, 'k')", sid, conceptId, kind, ordinal)
-  let p = 0.2
+  const p = 0.2
   const answer = (conceptId: number, lessonId: number, kind: string, verdict: string, at: string) => {
     const q = question(conceptId, kind, kind === 'unaided' ? 1 : 0)
     const a = run("INSERT INTO attempts (session_id, concept_id, question_id, lesson_id, answer_text, shown_at, submitted_at, status) VALUES (?, ?, ?, ?, 'a', ?, ?, 'graded')", sid, conceptId, q, lessonId, at, at)
