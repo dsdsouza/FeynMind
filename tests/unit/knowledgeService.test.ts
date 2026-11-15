@@ -419,3 +419,20 @@ describe('syllabus re-save', () => {
     })
   }
 })
+
+describe('exam editing', () => {
+  it('changes an exam\'s date and weight in place, in the saved syllabus too, without touching units', async () => {
+    const t = setup()
+    seedBook(t.db, t.session.id)
+    const units = await confirmSyllabus(t)
+    const [exam] = t.knowledge.exams(t.session.id)
+    expect(exam).toMatchObject({ title: 'Midterm', date: '2026-10-15', weight: 30 })
+    expect(exam?.units.map((u) => u.id)).toEqual(units)
+    const after = t.knowledge.updateExam(t.session.id, exam?.id ?? 0, '2026-11-20', 40)
+    expect(after[0]).toMatchObject({ id: exam?.id, date: '2026-11-20', weight: 40 })
+    expect(t.knowledge.units(t.session.id).map((u) => u.id)).toEqual(units)
+    expect(t.knowledge.syllabusState(t.session.id)?.draft?.exams[0]).toMatchObject({ date: '2026-11-20', weight: 40 })
+    expect(() => t.knowledge.updateExam(t.session.id, exam?.id ?? 0, '20 Nov', null)).toThrow(/date/)
+    expect(() => t.knowledge.updateExam(t.session.id, 999, null, null)).toThrow(/not part/)
+  })
+})

@@ -1,5 +1,5 @@
 import type Database from 'better-sqlite3'
-import type { JobEstimate, JobKind, JobStatus, SyllabusDraft } from '../../shared/knowledge'
+import type { ExamInfo, JobEstimate, JobKind, JobStatus, SyllabusDraft } from '../../shared/knowledge'
 import type { TranscriptBlock } from '../ingestion'
 import type { PrereqEdge } from './graph'
 import type { ExtractedConcept } from './schemas'
@@ -270,6 +270,38 @@ export class KnowledgeRepo {
         }
       })
       this.db.prepare(`UPDATE syllabi SET draft = ?, status = 'confirmed', confirmed_at = strftime('%Y-%m-%dT%H:%M:%fZ', 'now') WHERE id = ?`).run(JSON.stringify(saved), id)
+    })()
+  }
+
+  /** The exams of the session's confirmed syllabus, in order, with the units each covers. */
+  exams(sessionId: number): ExamInfo[] {
+    const exams = this.db
+      .prepare<[number, number], { id: number; title: string; date: string | null; weight: number | null }>(
+        `SELECT id, title, date, weight FROM exams WHERE session_id = ? AND syllabus_id = (SELECT id FROM syllabi WHERE session_id = ? AND status = 'confirmed' ORDER BY id DESC LIMIT 1) ORDER BY ordinal`
+      )
+      .all(sessionId, sessionId)
+    return exams.map((e) => ({
+      ...e,
+      units: this.db
+        .prepare<[number], { id: number; title: string; examWeight: number | null }>(
+          'SELECT u.id, u.title, u.exam_weight AS examWeight FROM exam_units x JOIN units u ON u.id = x.unit_id WHERE x.exam_id = ? ORDER BY u.ordinal'
+        )
+        .all(e.id)
+    }))
+  }
+
+  /** Changes an exam's date and weight in place, and in the saved syllabus the editor shows. Units and their concepts are untouched. */
+  updateExam(examId: number, date: string | null, weight: number | null): void {
+    this.db.transaction(() => {
+      const row = this.db.prepare<[number], { syllabusId: number; ordinal: number }>('SELECT syllabus_id AS syllabusId, ordinal FROM exams WHERE id = ?').get(examId)
+      if (!row) throw new Error('That exam no longer exists.')
+      this.db.prepare('UPDATE exams SET date = ?, weight = ? WHERE id = ?').run(date, weight, examId)
+      const syllabus = this.getSyllabus(row.syllabusId)
+      const exam = syllabus?.draft?.exams[row.ordinal]
+      if (syllabus?.draft && exam) {
+        syllabus.draft.exams[row.ordinal] = { ...exam, date, weight }
+        this.db.prepare('UPDATE syllabi SET draft = ? WHERE id = ?').run(JSON.stringify(syllabus.draft), row.syllabusId)
+      }
     })()
   }
 

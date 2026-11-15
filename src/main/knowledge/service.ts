@@ -5,6 +5,7 @@ import type {
   ConsentState,
   DraftUnit,
   EstimatePart,
+  ExamInfo,
   JobEstimate,
   JobSummary,
   ReviewConcept,
@@ -208,6 +209,20 @@ export class KnowledgeService {
     const clean = validateDraft(draft, new Set(toc.keys()))
     this.repo.confirmSyllabus(syllabusId, clean, (key) => toc.get(key)?.sectionIds ?? [])
     return this.units(syllabus.sessionId)
+  }
+
+  /** The exams of the confirmed syllabus, with the units each covers. */
+  exams(sessionId: number): ExamInfo[] {
+    return this.repo.exams(sessionId)
+  }
+
+  /** Sets an exam's date and weight without touching the units (saving the whole syllabus is not needed). */
+  updateExam(sessionId: number, examId: number, date: string | null, weight: number | null): ExamInfo[] {
+    if (!this.repo.exams(sessionId).some((e) => e.id === examId)) throw new UserFacingError('That exam is not part of this course.')
+    if (date !== null && (!DATE.test(date) || Number.isNaN(Date.parse(`${date}T00:00:00Z`)))) throw new UserFacingError('The date must be a date (YYYY-MM-DD) or empty.')
+    if (weight !== null && (!Number.isFinite(weight) || weight < 0 || weight > 100)) throw new UserFacingError('The weight must be a percentage from 0 to 100, or empty.')
+    this.repo.updateExam(examId, date, weight)
+    return this.repo.exams(sessionId)
   }
 
   units(sessionId: number): UnitSummary[] {

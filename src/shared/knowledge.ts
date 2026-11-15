@@ -134,6 +134,18 @@ export interface SyllabusDraft {
   exams: DraftExam[]
 }
 
+/** A saved exam with the units it covers, for exam priorities. */
+export interface ExamInfo {
+  id: number
+  title: string
+  /** 'YYYY-MM-DD', or null when the syllabus gives no date. */
+  date: string | null
+  /** Share of the course grade in percent, when known. */
+  weight: number | null
+  /** The units it covers, each with its share of the grade when the syllabus gives one. Empty: the syllabus names none. */
+  units: { id: number; title: string; examWeight: number | null }[]
+}
+
 export interface SyllabusState {
   id: number
   sourceName: string
