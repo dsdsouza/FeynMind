@@ -1,6 +1,6 @@
 # PRD: FeynMind
 
-As of 2026-11-14
+As of 2026-11-15
 
 ## Overview
 
@@ -224,7 +224,7 @@ The product succeeds if learners remember more, in less study time, than they wo
 
 | Metric | How it is measured | Proposed target |
 | --- | --- | --- |
-| Delayed recall | Share of review questions answered correctly 7 and 30 days after first learning | 85% at 7 days, 80% at 30 days |
+| Delayed recall | Share of concepts recalled (answered correctly, without a hint) at their first review 4 to 13 days after first learning (recall at 7 days) and 21 to 45 days after (recall at 30 days). Reviews that would skip a window are brought forward into it | 85% at 7 days, 80% at 30 days |
 | Time to first lesson | Minutes from upload to the first taught concept | Under 10 minutes |
 | Grading accuracy | Share of grades the learner does not contest, or that stand after a contest | 95% |
 | Handwriting reading | Share of canvas pages needing no correction at "here is what I read" | 90% |
