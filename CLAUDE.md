@@ -11,7 +11,7 @@ If a request conflicts with either document, say so and ask before proceeding. I
 
 ## Current milestone
 
-**Milestone 5: Dictation** (see `docs/tech-plan.md`, Build plan). Milestones 1 (Skeleton), 2 (Ingestion), 3 (Knowledge) and 4 (Tutor loop) are done.
+**Milestone 6: Retention and roles** (see `docs/tech-plan.md`, Build plan). Milestones 1 (Skeleton), 2 (Ingestion), 3 (Knowledge), 4 (Tutor loop) and 5 (Dictation, the first public release) are done.
 
 Work on one milestone at a time. Do not build features from later milestones, even when it seems convenient. A milestone is finished only when its "Done when" test passes. Update this section when a milestone is completed.
 
