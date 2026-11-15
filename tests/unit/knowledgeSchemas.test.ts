@@ -21,7 +21,9 @@ describe('prompt files', () => {
       grade: ['question', 'reference', 'criteria', 'passages', 'answer'],
       'grade-contest': ['question', 'reference', 'criteria', 'passages', 'answer', 'first', 'objection'],
       'grade-reasoning': ['question', 'reference', 'criteria', 'passages', 'answer', 'reasoning'],
-      'grade-contest-reasoning': ['question', 'reference', 'criteria', 'passages', 'answer', 'reasoning', 'first', 'objection']
+      'grade-contest-reasoning': ['question', 'reference', 'criteria', 'passages', 'answer', 'reasoning', 'first', 'objection'],
+      'review-questions': ['concept', 'definition', 'prerequisites', 'asked', 'passages'],
+      reteach: ['concept', 'definition', 'question', 'reference', 'answer', 'reasoning', 'feedback', 'passages']
     }
     const files = readdirSync(PROMPTS).filter((f) => f !== 'connection-test.txt')
     expect(files.map((f) => f.replace('.txt', '')).sort()).toEqual(Object.keys(expected).sort())

@@ -9,11 +9,14 @@ import {
   LESSON_QUESTIONS_JSON_SCHEMA,
   REASONING_CONTEST_JSON_SCHEMA,
   REASONING_GRADE_JSON_SCHEMA,
+  REVIEW_QUESTIONS_JSON_SCHEMA,
   parseContest,
   parseDiagnostic,
   parseExplanation,
   parseGrade,
   parseLessonQuestions,
+  parseReteach,
+  parseReviewQuestions,
   type ContestGrade,
   type Criterion,
   type CriterionResult,
@@ -21,6 +24,8 @@ import {
   type Explanation,
   type LessonQuestions,
   type ModelGrade,
+  type Reteach,
+  type ReviewQuestions,
   type Verdict
 } from './schemas'
 
@@ -130,6 +135,59 @@ export function explanationTask(prompt: PromptFile, concept: ConceptBrief, passa
     rendered,
     values['passages'] ?? '',
     { ...base(prompt, 'teaching', rendered), contentKey: JSON.stringify(['explain', rendered]), parse: (text) => parseExplanation(text, allowed) },
+    ctx
+  )
+}
+
+// Reviews
+
+/** Three new review questions from the lesson's passages, unlike every question already asked. */
+export function reviewQuestionsTask(prompt: PromptFile, concept: ConceptBrief, passages: Passage[], asked: string[], ctx: TaskContext): ModelTask<ReviewQuestions> {
+  const values: Record<string, string> = { ...lessonValues(concept, passages), asked: asked.length > 0 ? asked.map((s) => `- ${s}`).join('\n') : '(none)' }
+  const rendered = renderPrompt(prompt, values)
+  const allowed = allowedCitations(passages)
+  return finish(
+    prompt,
+    rendered,
+    values['passages'] ?? '',
+    {
+      ...base(prompt, 'teaching', rendered),
+      jsonSchema: REVIEW_QUESTIONS_JSON_SCHEMA,
+      contentKey: JSON.stringify(['review-questions', rendered]),
+      parse: (text) => parseReviewQuestions(text, allowed, asked)
+    },
+    ctx
+  )
+}
+
+export interface ReteachInput {
+  question: string
+  referenceAnswer: string
+  answer: string
+  reasoning: string
+  /** The grader's verdict, reason, feedback and reasoning comment, as text. */
+  feedback: string
+}
+
+/** A short re-teach after a missed review, streamed, from the lesson's passages. */
+export function reteachTask(prompt: PromptFile, concept: ConceptBrief, passages: Passage[], input: ReteachInput, ctx: TaskContext): ModelTask<Reteach> {
+  const values = {
+    concept: concept.name,
+    definition: concept.definition,
+    question: input.question,
+    reference: input.referenceAnswer,
+    answer: input.answer.trim() === '' ? '(no answer: they chose "I don\'t know")' : input.answer,
+    reasoning: input.reasoning.trim() === '' ? '(none given)' : input.reasoning,
+    feedback: input.feedback,
+    passages: formatPassages(passages)
+  }
+  const rendered = renderPrompt(prompt, values)
+  const allowed = allowedCitations(passages)
+  return finish(
+    prompt,
+    rendered,
+    `${values.answer}\n${values.reasoning}\n${values.feedback}`,
+    { ...base(prompt, 'teaching', rendered), contentKey: JSON.stringify(['reteach', rendered]), parse: (text) => parseReteach(text, allowed) },
     ctx
   )
 }

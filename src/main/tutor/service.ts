@@ -1,6 +1,7 @@
 import type Database from 'better-sqlite3'
-import { systemClock, type AppClock } from '../clock'
-import type { UsageSummary } from '../../shared/knowledge'
+import { systemClock, type AppClock, type KeyValue } from '../clock'
+import type { ExamInfo, UsageSummary } from '../../shared/knowledge'
+import type { ReviewStreamEvent, SittingView } from '../../shared/reviews'
 import type {
   AttemptView,
   CallEstimate,
@@ -19,11 +20,12 @@ import type {
 } from '../../shared/tutor'
 import { LESSON_STEPS } from '../../shared/tutor'
 import { textTokens, type PromptLibrary, type UnitGraph } from '../knowledge'
-import { LearnerRepo, MASTERY, unitStanding, type ConceptMastery } from '../learner'
+import { LearnerRepo, MASTERY, recallChance, storedCard, studyDay, unitStanding, type ConceptMastery } from '../learner'
 import { PauseError, UserFacingError, type ModelTask, type ModelTaskResult, type Role } from '../providers'
 import { DIAGNOSTIC_MAX_QUESTIONS, graphEdges, probeStatus, reachable, type ProbeNode } from './diagnostic'
 import { DIAGNOSTIC_BUDGET, LESSON_BUDGET, retrievePassages, sourceRefs, type Passage, type RetrievalSource } from './passages'
 import { TutorRepo, type AttemptRow, type LessonRow, type QuestionRow } from './repo'
+import { ReviewService } from './reviews'
 import { verdictOf, type Criterion } from './schemas'
 import { contestTask, diagnosticTask, explanationTask, gradeTask, gradingPromptName, lessonQuestionsTask, type ConceptBrief, type GradingInput, type TaskContext } from './tasks'
 
@@ -52,6 +54,28 @@ export interface TutorServiceOptions {
   onUsage: (usage: UsageSummary) => void
   /** The scheduling clock; the system clock when not given. */
   clock?: AppClock
+  /** Where the daily review limit is kept; in memory when not given. */
+  settings?: KeyValue
+  /** The confirmed syllabus's exams; none when not given. */
+  exams?: (sessionId: number) => ExamInfo[]
+  /** Whether the computer is online; assumed online when not given. */
+  isOnline?: () => boolean
+  onSitting?: (view: SittingView) => void
+  onReviewStream?: (event: ReviewStreamEvent) => void
+}
+
+/** Settings kept in memory, for callers that do not persist them (tests). */
+class MemorySettings implements KeyValue {
+  private readonly values = new Map<string, string>()
+  get(key: string): string | null {
+    return this.values.get(key) ?? null
+  }
+  set(key: string, value: string): void {
+    this.values.set(key, value)
+  }
+  delete(key: string): void {
+    this.values.delete(key)
+  }
 }
 
 /** Concepts per diagnostic question request. */
@@ -87,6 +111,8 @@ interface CourseConcept {
 export class TutorService {
   readonly repo: TutorRepo
   readonly learner: LearnerRepo
+  readonly reviews: ReviewService
+  private readonly clock: AppClock
   private readonly grading = new Map<number, Promise<void>>()
   private readonly explaining = new Map<number, Promise<void>>()
   private readonly blocks = new Map<number, LessonBlock>()
@@ -94,19 +120,57 @@ export class TutorService {
 
   constructor(private readonly options: TutorServiceOptions) {
     this.repo = new TutorRepo(options.db)
-    this.learner = new LearnerRepo(options.db, options.clock ?? systemClock)
+    this.clock = options.clock ?? systemClock
+    this.learner = new LearnerRepo(options.db, this.clock)
+    this.reviews = new ReviewService({
+      db: options.db,
+      repo: this.repo,
+      learner: this.learner,
+      clock: this.clock,
+      settings: options.settings ?? new MemorySettings(),
+      prompts: options.prompts,
+      course: (sessionId) => {
+        const { graphs, concepts } = this.course(sessionId)
+        return { concepts, unitIds: graphs.map((g) => g.unit.id) }
+      },
+      brief: (concept, all) => this.brief(concept as CourseConcept, all as CourseConcept[]),
+      ctx: (sessionId, role, prompt) => this.ctx(sessionId, role, prompt),
+      run: (sessionId, task) => this.run(sessionId, task),
+      runStream: async (sessionId, task, onText, onReset) => {
+        try {
+          return await options.providers.runStream(task, onText, onReset)
+        } finally {
+          options.onUsage(options.providers.usageSummary(sessionId))
+        }
+      },
+      startGrading: (attemptId) => this.startGrading(attemptId),
+      isGrading: (attemptId) => this.grading.has(attemptId),
+      consentGiven: (sessionId) => options.consentGiven(sessionId),
+      exams: (sessionId) => options.exams?.(sessionId) ?? [],
+      isOnline: () => options.isOnline?.() ?? true,
+      calibration: (role, prompt) => options.providers.calibration(role, prompt),
+      costOf: (model, tokens) => options.providers.costOf(model, tokens),
+      modelForRole: (role) => options.providers.modelForRole(role),
+      safeErrorMessage: (error) => options.providers.safeErrorMessage(error),
+      attemptView: (attempt, question) => this.attemptView(attempt, question),
+      onSitting: (view) => options.onSitting?.(view),
+      onLesson: (lessonId) => options.onLesson(this.view(lessonId)),
+      onStream: (event) => options.onReviewStream?.(event)
+    })
   }
 
   /** Stops model requests in flight, waiting briefly so a reply that arrives is cached. */
   async stop(timeoutMs = 5_000): Promise<void> {
     this.abort.abort(new Error('The app is closing.'))
-    const running = [...this.grading.values(), ...this.explaining.values()]
+    this.reviews.stop()
+    const running = [...this.grading.values(), ...this.explaining.values(), ...this.reviews.running()]
     await Promise.race([Promise.allSettled(running), new Promise((r) => setTimeout(r, timeoutMs))])
   }
 
-  /** Waits until no grading or explanation is running (for tests). */
+  /** Waits until no grading, explanation or re-teach is running (for tests). */
   async idle(): Promise<void> {
-    while (this.grading.size > 0 || this.explaining.size > 0) await Promise.allSettled([...this.grading.values(), ...this.explaining.values()])
+    const busy = () => [...this.grading.values(), ...this.explaining.values(), ...this.reviews.running()]
+    while (busy().length > 0) await Promise.allSettled(busy())
   }
 
   // The course
@@ -162,9 +226,14 @@ export class TutorService {
     const steps = this.repo.lessonSteps(sessionId)
     const overrides = this.repo.latestOverrides(sessionId)
     const names = new Map(concepts.map((c) => [c.id, c.name]))
+    const cards = new Map(this.learner.cards(sessionId).map((c) => [c.conceptId, c]))
+    const today = studyDay(this.clock.now(), this.clock.timeZone())
+    // A prerequisite that lapsed is not mastered, so lessons on the concepts that need it wait until
+    // it is re-taught (a lesson already started goes on: only starting one checks the lock).
     const status = (c: CourseConcept): ConceptStatus => {
       const m = mastery.get(c.id) as ConceptMastery
       const waitingFor = c.prerequisites.filter((p) => names.has(p) && !mastery.get(p)?.mastered).map((p) => names.get(p) as string)
+      const card = cards.get(c.id)
       return {
         id: c.id,
         name: c.name,
@@ -172,7 +241,8 @@ export class TutorService {
         mastery: { p: m.p, shown: m.shown, band: m.band, mastered: m.mastered, gap: m.gap },
         locked: waitingFor.length > 0,
         waitingFor,
-        lessonStep: steps.get(c.id) ?? null
+        lessonStep: steps.get(c.id) ?? null,
+        review: card ? { dueDay: card.dueDay, recall: recallChance({ card: storedCard(card), lastDay: card.lastDay }, today), stability: card.stability, lapsed: m.lapsed } : null
       }
     }
     const byId = new Map(concepts.map((c) => [c.id, status(c)]))
@@ -189,10 +259,16 @@ export class TutorService {
         override: overrides.get(g.unit.id) ?? null
       }
     })
-    const nextConcept = concepts.find((c) => {
+    // Concepts already learned are reviewed, not taught again; a lapsed one gets a short re-teach.
+    const candidates = concepts.filter((c) => {
       const s = byId.get(c.id)
-      return s && !s.locked && !s.mastery.mastered
+      return s && !s.locked && !s.mastery.mastered && !cards.has(c.id)
     })
+    // When an exam is close, its units come first: most weight and least mastery, then syllabus order.
+    const shares = this.reviews.closeExamShares(sessionId)
+    const priority = (c: CourseConcept) => (shares?.get(c.unitId) ?? 0) * (1 - (mastery.get(c.id)?.p ?? 0))
+    const inExam = shares ? candidates.filter((c) => shares.has(c.unitId)) : []
+    const nextConcept = inExam.length > 0 ? inExam.reduce((best, c) => (priority(c) > priority(best) ? c : best)) : candidates[0]
     const nextLesson = nextConcept ? (this.repo.lessonOfConcept(nextConcept.id) ?? null) : null
     const latest = this.repo.latestDiagnostic(sessionId, 'diagnostic')
     const open = this.repo.openLesson(sessionId)
@@ -205,9 +281,11 @@ export class TutorService {
             conceptId: nextConcept.id,
             name: nextConcept.name,
             unitTitle: nextConcept.unitTitle,
-            estimate: this.lessonEstimate(nextLesson, nextConcept.id, nextLesson ? this.repo.attemptsOfLesson(nextLesson.id) : [])
+            estimate: this.lessonEstimate(nextLesson, nextConcept.id, nextLesson ? this.repo.attemptsOfLesson(nextLesson.id) : []),
+            reasons: this.reviews.lessonReasons(sessionId, nextConcept.unitId, mastery.get(nextConcept.id)?.p ?? MASTERY.prior)
           }
         : null,
+      reviewsFirst: this.reviews.lessonsWait(sessionId),
       diagnostic: {
         status: !latest ? 'not-started' : latest.status === 'in-progress' ? 'in-progress' : 'done',
         estimate: concepts.length > 0 ? this.diagnosticEstimate(sessionId, concepts) : null
@@ -472,6 +550,7 @@ export class TutorService {
     if (!lesson) {
       const locked = this.path(sessionId).units.flatMap((u) => u.concepts).find((c) => c.id === conceptId)
       if (locked?.locked) throw new UserFacingError(`Learn ${locked.waitingFor.join(', ')} first.`)
+      if (this.reviews.lessonsWait(sessionId)) throw new UserFacingError("Do today's reviews first, or skip them for today.")
       this.requireConsent(sessionId)
       const passages = await retrievePassages(this.options.retrieval, sessionId, concept, LESSON_BUDGET)
       lesson = this.repo.lessonOfConcept(conceptId) ?? this.repo.createLesson(sessionId, conceptId, passages)
@@ -588,7 +667,7 @@ export class TutorService {
   /** Contests a grade once: saves the objection, then asks for a second grade that sees it. Both grades are kept. */
   contest(attemptId: number, objection: string): LessonView {
     const attempt = this.repo.getAttempt(attemptId)
-    if (!attempt?.lessonId) throw new UserFacingError('That answer cannot be contested.')
+    if (!attempt?.lessonId || attempt.purpose !== 'lesson') throw new UserFacingError('That answer cannot be contested.')
     const text = objection.trim()
     if (text === '') throw new UserFacingError('Say why you think the grade is wrong.')
     if (text.length > MAX_OBJECTION) throw new UserFacingError(`Keep the objection under ${MAX_OBJECTION} characters.`)
@@ -602,6 +681,7 @@ export class TutorService {
   /** Grades every lesson answer of the session still waiting (after the cap was raised, say). */
   resumePending(sessionId: number): void {
     for (const a of this.repo.ungraded(sessionId)) this.startGrading(a.id)
+    this.reviews.resumePending(sessionId)
   }
 
   /** Tries again whatever stopped the lesson: writing its questions, grading or the explanation. */
@@ -623,15 +703,22 @@ export class TutorService {
     const attempt = this.repo.getAttempt(attemptId)
     if (!attempt?.lessonId) return
     const lessonId = attempt.lessonId
+    // Review and re-teach answers attached to a lesson are the review service's to show.
+    const review = attempt.purpose !== 'lesson'
     try {
+      // A review answer given offline waits, saved, until the connection returns.
+      if (review && !(this.options.isOnline?.() ?? true)) throw new Error('offline')
       if (attempt.status === 'saved') await this.firstGrade(attempt)
       else if (attempt.objection !== null && !this.repo.grades(attempt.id).some((g) => g.pass === 2)) await this.secondGrade(attempt)
     } catch (error) {
       if (this.abort.signal.aborted) return
+      const offline = review ? this.reviews.gradingError(error) : null
       const block = this.blockOf(attempt.sessionId, error)
-      this.repo.setAttemptError(attempt.id, block.kind === 'cap' ? `${CAP_PREFIX}${block.message}` : block.message)
+      this.repo.setAttemptError(attempt.id, offline ?? (block.kind === 'cap' ? `${CAP_PREFIX}${block.message}` : block.message))
     }
-    if (!this.abort.signal.aborted) this.options.onLesson(this.view(lessonId))
+    if (this.abort.signal.aborted) return
+    if (review) this.reviews.afterGrading(attempt)
+    else this.options.onLesson(this.view(lessonId))
   }
 
   private gradingInput(attempt: AttemptRow): { question: QuestionRow; input: GradingInput } {
@@ -766,6 +853,13 @@ export class TutorService {
         this.repo.setLessonStep(lesson.id, 'partial', first('partial'))
         break
       case 'partial':
+        // Before the first unaided question, at most one question from an earlier concept.
+        if (!this.reviews.interleaveItem(lesson, false) && this.reviews.interleaveItem(lesson, true)) return this.view(lesson.id)
+        if (this.reviews.interleaveItem(lesson, false)?.status === 'pending') throw new UserFacingError('Answer the question from earlier first.')
+        if (mastery.mastered) this.repo.setLessonStep(lesson.id, 'done', null)
+        else if (unanswered) this.repo.setLessonStep(lesson.id, 'unaided', unanswered.id)
+        else throw new UserFacingError('Every question of this lesson is answered. Ask for more questions to keep practising.')
+        break
       case 'unaided':
         if (mastery.mastered) this.repo.setLessonStep(lesson.id, 'done', null)
         else if (unanswered) this.repo.setLessonStep(lesson.id, 'unaided', unanswered.id)
@@ -831,8 +925,25 @@ export class TutorService {
       canMoreQuestions: (lesson.step === 'unaided' || lesson.step === 'partial') && graded && !m.mastered && unanswered.length === 0,
       estimate: this.lessonEstimate(lesson, concept.id, attempts),
       blocked: this.lessonBlock(lesson, attempts),
-      next
+      next,
+      interleave: this.interleaveOf(lesson)
     }
+  }
+
+  /** The question from an earlier concept, while the lesson is at the point it was mixed in. */
+  private interleaveOf(lesson: LessonRow): LessonView['interleave'] {
+    if (lesson.step !== 'partial') return null
+    const item = this.reviews.interleaveItem(lesson, false)
+    return item ? this.reviews.interleaveView(item) : null
+  }
+
+  /** Answers the question from an earlier concept in a lesson: a review like any other, graded the same way. */
+  answerInterleave(lessonId: number, itemId: number, text: string, skipped: boolean, reasoning = ''): LessonView {
+    const lesson = this.requireLesson(lessonId)
+    const item = this.reviews.interleaveItem(lesson, false)
+    if (!item || item.id !== itemId) throw new UserFacingError('That question is no longer part of this lesson.')
+    this.reviews.answer(itemId, text, skipped, reasoning)
+    return this.view(lesson.id)
   }
 
   /** A step before the current one is done if the learner worked through it, skipped if not. */

@@ -1,6 +1,7 @@
 // Types for the diagnostic, standings, lessons and grades, shared by the main process and the renderer.
 
 import type { SourceRef } from './citations'
+import type { InterleaveView, Reason } from './reviews'
 
 export type Standing = 'known' | 'shaky' | 'new' | 'not-assessed'
 export type Band = 'mastered' | 'known' | 'shaky' | 'new'
@@ -44,6 +45,8 @@ export interface ConceptStatus {
   /** Names of prerequisites not yet mastered. */
   waitingFor: string[]
   lessonStep: LessonStep | null
+  /** Once learned: the next review, the chance of recall today, and whether the last review lapsed. */
+  review: { dueDay: string; recall: number; stability: number; lapsed: boolean } | null
 }
 
 export interface UnitStatus {
@@ -69,8 +72,13 @@ export interface CallEstimate {
 export interface PathState {
   sessionId: number
   units: UnitStatus[]
-  /** The earliest concept in syllabus order that is unlocked and not mastered. */
-  next: { conceptId: number; name: string; unitTitle: string; estimate: CallEstimate } | null
+  /**
+   * The concept to learn next: unlocked, not yet learned, earliest in syllabus order; or, when an
+   * exam is close, the one in its units with the most weight and least mastery. With why.
+   */
+  next: { conceptId: number; name: string; unitTitle: string; estimate: CallEstimate; reasons: Reason[] } | null
+  /** New lessons wait until today's reviews are done or skipped (lessons already started go on). */
+  reviewsFirst: boolean
   diagnostic: { status: 'not-started' | 'in-progress' | 'done'; estimate: CallEstimate | null }
   /** A lesson that was left part way, to reopen where it stopped. */
   openLesson: { conceptId: number; name: string; step: LessonStep } | null
@@ -189,6 +197,8 @@ export interface LessonView {
   estimate: CallEstimate
   blocked: LessonBlock | null
   next: { conceptId: number; name: string } | null
+  /** A question from an earlier concept, mixed in before the first unaided question. */
+  interleave: InterleaveView | null
 }
 
 export interface StreamEvent {

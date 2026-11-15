@@ -310,6 +310,84 @@ export function parseExplanation(text: string, allowed: Set<string>): Explanatio
   return { markdown, outsideSources }
 }
 
+// Review questions
+
+export const REVIEW_QUESTIONS_JSON_SCHEMA = {
+  type: 'object',
+  properties: {
+    covered: { type: 'boolean' },
+    questions: {
+      type: 'array',
+      items: {
+        type: 'object',
+        properties: {
+          stem: { type: 'string' },
+          referenceAnswer: { type: 'string' },
+          criteria: { type: 'array', items: criterionSchema },
+          hint: { type: 'string' },
+          pages: citations
+        },
+        required: ['stem', 'referenceAnswer', 'criteria', 'hint', 'pages']
+      }
+    }
+  },
+  required: ['covered', 'questions']
+}
+
+export interface ReviewQuestion {
+  stem: string
+  referenceAnswer: string
+  criteria: Criterion[]
+  hint: string
+  pages: string[]
+}
+
+export interface ReviewQuestions {
+  covered: boolean
+  questions: ReviewQuestion[]
+}
+
+/** Two to three review questions (three are asked for), each with a rubric, a hint and pages the passages allow; none repeating a question already asked. */
+export function parseReviewQuestions(text: string, allowed: Set<string>, asked: string[]): ReviewQuestions {
+  const value = check(
+    z.object({
+      covered: z.boolean(),
+      questions: z
+        .array(z.object({ stem: shortText(2000), referenceAnswer: shortText(3000), criteria: criteriaSchema(), hint: shortText(400), pages: z.array(z.string()).max(5) }))
+        .min(2)
+    }),
+    text
+  )
+  const seen = new Set(asked.map((s) => s.trim().toLowerCase()))
+  const questions = value.questions.slice(0, 3).map((q, i): ReviewQuestion => {
+    if (seen.has(q.stem.trim().toLowerCase())) throw new InvalidOutputError(`question ${i + 1} repeats a question already asked`)
+    seen.add(q.stem.trim().toLowerCase())
+    return { ...q, criteria: q.criteria.map((c, j) => ({ ...c, id: `c${j + 1}` })), pages: checkCitations(q.pages, allowed, `question ${i + 1}`) }
+  })
+  if (value.covered && questions.every((q) => q.pages.length === 0)) throw new InvalidOutputError('the passages cover the concept but no question cites them')
+  return { covered: value.covered, questions }
+}
+
+// Re-teach after a lapse
+
+export interface Reteach {
+  markdown: string
+  outsideSources: boolean
+}
+
+/** The streamed re-teach: short, and only citations the passages allow (at least one unless it says it is not covered). */
+export function parseReteach(text: string, allowed: Set<string>): Reteach {
+  const markdown = normalizeCitationsIn(text.trim())
+  if (markdown.length === 0) throw new InvalidOutputError('the re-teach is empty')
+  if (markdown.length > 4000) throw new InvalidOutputError('the re-teach is far longer than asked')
+  const cited = [...markdown.matchAll(/\[(S\d+ p\. [^\]\n]{1,20})\]/g)].map((m) => m[1] ?? '')
+  const bad = cited.find((c) => !allowed.has(c))
+  if (bad !== undefined) throw new InvalidOutputError(`the re-teach cites "${bad}", which is not a page of the passages`)
+  const outsideSources = markdown.includes(NOT_COVERED_NOTICE)
+  if (!outsideSources && cited.length === 0 && allowed.size > 0) throw new InvalidOutputError('the re-teach cites no page')
+  return { markdown, outsideSources }
+}
+
 // Grades
 
 export type Met = 'yes' | 'partly' | 'no'
