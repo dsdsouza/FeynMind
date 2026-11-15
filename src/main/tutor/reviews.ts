@@ -746,14 +746,13 @@ export class ReviewService {
 
   /** Calls a sitting reviewing these concepts usually makes: a grade each, and new questions where none is eligible. */
   estimate(sessionId: number, conceptIds: number[]): ReviewEstimate {
-    const model = this.host.modelForRole('grading')
     let calls = 0
     let input = 0
     let output = 0
     let newQuestionSets = 0
     const add = (promptName: string, role: Role, count: number, variableIn: number, variableOut: number) => {
       const prompt = this.host.prompts.get(promptName)
-      const f = this.host.calibration(role, promptName)
+      const f = this.calibration(role, promptName)
       const weight = f.samples / (f.samples + 3)
       calls += count
       input += count * (textTokens(prompt.system) + textTokens(prompt.template) + variableIn) * (1 + (f.inputFactor - 1) * weight)
@@ -770,7 +769,26 @@ export class ReviewService {
     }
     const inputTokens = Math.round(input)
     const outputTokens = Math.round(output)
-    return { calls, inputTokens, outputTokens, costUsd: this.host.costOf(model, { inputTokens, outputTokens }), grades: conceptIds.length, newQuestionSets, perReteach: 2 }
+    return { calls, inputTokens, outputTokens, costUsd: this.costOf({ inputTokens, outputTokens }), grades: conceptIds.length, newQuestionSets, perReteach: 2 }
+  }
+
+  /** The ledger's calibration for a prompt; none (raw ratios) when no model is chosen yet. */
+  private calibration(role: Role, prompt: string): { inputFactor: number; outputFactor: number; samples: number } {
+    try {
+      return this.host.calibration(role, prompt)
+    } catch {
+      return { inputFactor: 1, outputFactor: 1, samples: 0 }
+    }
+  }
+
+  /** The price of the tokens, or null when it is unknown or no model is chosen yet (what is due never depends on the model setup). */
+  private costOf(tokens: { inputTokens: number; outputTokens: number }): number | null {
+    if (tokens.inputTokens === 0 && tokens.outputTokens === 0) return 0
+    try {
+      return this.host.costOf(this.host.modelForRole('grading'), tokens)
+    } catch {
+      return null
+    }
   }
 
   // Progress

@@ -375,3 +375,15 @@ describe('time', () => {
     expect(t.tutor.reviews.todayState(t.session.id)).toMatchObject({ day: '2026-11-15', clockBehind: true })
   })
 })
+
+describe('without a model', () => {
+  it('shows what is due when no model is chosen yet (the estimate has no price)', async () => {
+    const t = seeded()
+    await learn(t, relation(t))
+    t.clock.advanceDays(3)
+    t.db.prepare("DELETE FROM settings WHERE key = 'provider.gemini.model'").run()
+    const state = t.tutor.reviews.todayState(t.session.id)
+    expect(state).toMatchObject({ due: 1, estimate: { calls: 1, costUsd: null } })
+    expect(t.tutor.reviews.progress(t.session.id).concepts.find((c) => c.conceptId === relation(t))?.dueDay).toBe('2026-11-17')
+  })
+})
