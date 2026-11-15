@@ -111,6 +111,9 @@ jobs:
           if gh release view "$GITHUB_REF_NAME" >/dev/null 2>&1; then
             gh release upload "$GITHUB_REF_NAME" "${files[@]}" --clobber
           else
-            gh release create "$GITHUB_REF_NAME" "${files[@]}" --draft --verify-tag \
-              --title "FeynMind $GITHUB_REF_NAME" --notes "Unsigned test build."
+            # Versions before 1.0 are early previews: mark them as pre-releases.
+            prerelease=()
+            if [[ "$GITHUB_REF_NAME" == v0.* ]]; then prerelease=(--prerelease); fi
+            gh release create "$GITHUB_REF_NAME" "${files[@]}" --draft --verify-tag "${prerelease[@]}" \
+              --title "FeynMind $GITHUB_REF_NAME" --notes "Unsigned test build. Replace these notes before publishing."
           fi
