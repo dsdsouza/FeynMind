@@ -40,6 +40,7 @@
     "pdfjs-dist": "6.5.438",
     "sqlite-vec": "0.1.9",
     "tesseract.js": "7.0.0",
+    "ts-fsrs": "5.4.2",
     "zod": "4.6.7"
   },
   "devDependencies": {

@@ -17,7 +17,7 @@ One language, TypeScript, runs the whole app, so contributors need to know only 
 | Embeddings | onnxruntime-node and @huggingface/tokenizers running bge-small-en-v1.5, behind an embedder interface so the model can be swapped | Search runs on the user's machine for free. Calling the runtime directly avoids Transformers.js, whose image dependency (sharp) ships LGPL-licensed libvips binaries |
 | Dictation | Whisper running locally through the existing onnxruntime-node (English-only tiny, base or small, int8 ONNX), model downloaded on first use | Private, free, works offline; no new native dependency and no installer growth. whisper.cpp was measured and deferred (see Dictation). Operating system dictation remains an alternative |
 | Model calls | Vercel AI SDK | One interface across providers, with streaming and image input |
-| Review scheduling | ts-fsrs | An existing implementation of the FSRS spacing algorithm |
+| Review scheduling | ts-fsrs 5.4.2 (MIT, no dependencies), FSRS-6 | An existing implementation of the FSRS spacing algorithm. 6.0.0 (October 2026) was passed over for now: a new major version defaulting to FSRS-7, with a new API and a new dependency |
 | Canvas | Excalidraw | Pen, touch and mouse drawing under a permissive license |
 | Math | KaTeX to display (through react-markdown, remark-math and rehype-katex, raw HTML off), MathLive to type | Typeset equations and a keyboard math editor. KaTeX is pinned to 0.19.1 by an npm override (rehype-katex asks for 0.16, which advisory GHSA-238p-pmpm-9mq7 covers) |
 | Learning map | Cytoscape.js | Built for large concept graphs |
