@@ -407,6 +407,35 @@ describe('lesson', () => {
   })
 })
 
+describe('step indicator', () => {
+  it('marks worked steps done, passed-over steps skipped and only one step current', async () => {
+    const t = seeded()
+    const relation = t.ids['relation'] as number
+    t.tutor.learner.addEvidence(t.session.id, relation, 'override-known', { value: 0.9 })
+    let view = await t.tutor.openLesson(t.session.id, relation)
+    expect(view.steps).toEqual({ opening: 'current', explain: 'upcoming', guided: 'upcoming', partial: 'upcoming', unaided: 'upcoming', done: 'upcoming' })
+    view = await answerAndWait(t, view, 'RIGHT')
+    // The fast track goes from the opening question straight to a question on your own.
+    view = t.tutor.continue(view.lessonId, true)
+    expect(view.steps).toEqual({ opening: 'done', explain: 'skipped', guided: 'skipped', partial: 'skipped', unaided: 'current', done: 'upcoming' })
+    expect(Object.values(view.steps).filter((s) => s === 'current')).toHaveLength(1)
+  })
+
+  it('marks every step done on the ordinary path', async () => {
+    const t = seeded()
+    let view = await t.tutor.openLesson(t.session.id, t.ids['relation'] as number)
+    view = await answerAndWait(t, view, 'HALF')
+    view = t.tutor.continue(view.lessonId)
+    await t.tutor.idle()
+    view = t.tutor.continue(view.lessonId)
+    view = await answerAndWait(t, view, 'RIGHT')
+    view = t.tutor.continue(view.lessonId)
+    view = await answerAndWait(t, view, 'RIGHT')
+    view = t.tutor.continue(view.lessonId)
+    expect(view.steps).toEqual({ opening: 'done', explain: 'done', guided: 'done', partial: 'done', unaided: 'current', done: 'upcoming' })
+  })
+})
+
 describe('reasoning', () => {
   const promptsOf = (p: FakeProvider) => p.generateCalls.map((c) => c.prompt)
 

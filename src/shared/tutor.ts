@@ -5,6 +5,9 @@ import type { SourceRef } from './citations'
 export type Standing = 'known' | 'shaky' | 'new' | 'not-assessed'
 export type Band = 'mastered' | 'known' | 'shaky' | 'new'
 export type LessonStep = 'opening' | 'explain' | 'guided' | 'partial' | 'unaided' | 'done'
+export const LESSON_STEPS: readonly LessonStep[] = ['opening', 'explain', 'guided', 'partial', 'unaided', 'done']
+/** done: worked through; skipped: passed over (the fast track skips to a question on your own). */
+export type StepState = 'done' | 'current' | 'skipped' | 'upcoming'
 export type Verdict = 'correct' | 'partial' | 'incorrect'
 /** What the grader made of the learner's reasoning: 'none' when the text gives no reasoning to judge. */
 export type ReasoningJudgment = 'sound' | 'flawed' | 'none'
@@ -165,6 +168,8 @@ export interface LessonView {
   lessonId: number
   concept: { id: number; name: string; definition: string; unitTitle: string; prerequisites: string[] }
   step: LessonStep
+  /** Each step's state, for the step indicator. */
+  steps: Record<LessonStep, StepState>
   question: LessonQuestionView | null
   attempt: AttemptView | null
   draft: string

@@ -11,9 +11,12 @@ import type {
   LessonView,
   McqResult,
   PathState,
+  LessonStep,
+  StepState,
   StreamEvent,
   UnitStatus
 } from '../../shared/tutor'
+import { LESSON_STEPS } from '../../shared/tutor'
 import { textTokens, type PromptLibrary, type UnitGraph } from '../knowledge'
 import { LearnerRepo, MASTERY, unitStanding, type ConceptMastery } from '../learner'
 import { PauseError, UserFacingError, type ModelTask, type ModelTaskResult, type Role } from '../providers'
@@ -811,6 +814,7 @@ export class TutorService {
       lessonId: lesson.id,
       concept: { id: concept.id, name: concept.name, definition: concept.definition, unitTitle: concept.unitTitle, prerequisites: this.brief(concept, all).prerequisites },
       step: lesson.step,
+      steps: this.stepStates(lesson, attempts),
       question: question ? this.questionView(question, unaided) : null,
       attempt: attempt ? this.attemptView(attempt, question as QuestionRow) : null,
       draft: lesson.draft,
@@ -826,6 +830,17 @@ export class TutorService {
       blocked: this.lessonBlock(lesson, attempts),
       next
     }
+  }
+
+  /** A step before the current one is done if the learner worked through it, skipped if not. */
+  private stepStates(lesson: LessonRow, attempts: AttemptRow[]): Record<LessonStep, StepState> {
+    const kinds = new Map(this.repo.questionsOf(lesson.conceptId).map((q) => [q.id, q.kind]))
+    const answered = new Set<string>(attempts.map((a) => kinds.get(a.questionId) ?? ''))
+    const current = LESSON_STEPS.indexOf(lesson.step)
+    const worked = (step: LessonStep): boolean => (step === 'explain' ? lesson.explanation !== null : answered.has(step))
+    return Object.fromEntries(
+      LESSON_STEPS.map((step, i) => [step, i === current ? 'current' : i > current ? 'upcoming' : worked(step) ? 'done' : 'skipped'])
+    ) as Record<LessonStep, StepState>
   }
 
   private questionView(q: QuestionRow, unaided: QuestionRow[]): LessonQuestionView {

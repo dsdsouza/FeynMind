@@ -23,6 +23,8 @@ const VERDICT_LABEL = { correct: 'Correct', partial: 'Partly correct', incorrect
 const MET_LABEL = { yes: '✓', partly: '½', no: '✗' } as const
 const REASONING_LABEL: Record<ReasoningJudgment, string> = { sound: 'Your thinking holds up', flawed: 'Your thinking has a flaw', none: 'No reasoning to judge in your thinking' }
 const DRAFT_DELAY_MS = 800
+/** Read out after each step's name; the look alone must not carry the state. */
+const STEP_STATE_TEXT = { done: ', done', current: ', current step', skipped: ', skipped', upcoming: '' } as const
 
 export function Lesson({ sessionId, initial, usage, onBack, onOpen }: { sessionId: number; initial: LessonView; usage: UsageSummary | null; onBack: () => void; onOpen: (conceptId: number) => void }) {
   const [view, setView] = useState(initial)
@@ -78,11 +80,16 @@ export function Lesson({ sessionId, initial, usage, onBack, onOpen }: { sessionI
         {view.concept.prerequisites.length > 0 && ` · builds on ${view.concept.prerequisites.join(', ')}`}
       </p>
       <ol className="steps" aria-label="Lesson steps">
-        {STEPS.map((s) => (
-          <li key={s.step} className={s.step === step ? 'current' : ''} aria-current={s.step === step ? 'step' : undefined}>
-            {s.label}
-          </li>
-        ))}
+        {STEPS.map((s) => {
+          const state = view.steps[s.step]
+          return (
+            <li key={s.step} className={`step-${state}`} aria-current={state === 'current' ? 'step' : undefined} data-testid={`step-${s.step}`} data-state={state}>
+              {state === 'done' && <span aria-hidden="true">✓ </span>}
+              {s.label}
+              <span className="visually-hidden">{STEP_STATE_TEXT[state]}</span>
+            </li>
+          )
+        })}
       </ol>
       <div className="row lesson-status">
         <label className="grow">

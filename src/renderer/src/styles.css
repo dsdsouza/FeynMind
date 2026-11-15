@@ -442,10 +442,26 @@ button.choice {
   border: 1px solid transparent;
 }
 
-.steps li.current {
-  color: var(--text);
+.steps li.step-current {
+  color: var(--accent-text);
+  background: var(--accent);
   border-color: var(--accent);
   font-weight: 600;
+}
+
+.steps li.step-done {
+  color: var(--success);
+  border-color: var(--success);
+}
+
+.steps li.step-skipped {
+  color: var(--muted);
+  border: 1px dashed var(--border);
+  text-decoration: line-through;
+}
+
+.steps li.step-upcoming {
+  color: var(--muted);
 }
 
 .lesson-status {
