@@ -2,10 +2,16 @@
 // knows it. Every answer updates it by Bayes' rule (a known concept is answered wrongly with the
 // slip probability; an unknown one is answered rightly with the guess probability), and an
 // answer given while being taught adds a chance of having learned it. Diagnostic answers measure
-// without teaching, so they add no learning step.
+// without teaching, so they add no learning step. Review answers measure too: no learning step.
+//
+// Mastery and memory strength are separate. Mastery is whether the concept was learned, and it
+// does not decay with time; memory strength (schedule.ts) is whether it will be recalled on a
+// given day. Once learned, a concept stays mastered until a review lapses: a lapse caps the
+// estimate at the known band and clears mastery until a correct answer without help after it
+// brings the estimate back to the threshold.
 
-/** The kinds of question an answer can come from. */
-export type QuestionKind = 'diagnostic' | 'opening' | 'guided' | 'partial' | 'unaided'
+/** The kinds of question an answer can come from. 'review' is a scheduled review, whatever the question's own kind. */
+export type QuestionKind = 'diagnostic' | 'opening' | 'guided' | 'partial' | 'unaided' | 'review'
 
 export const MASTERY = {
   /** Before any evidence. */
@@ -18,7 +24,11 @@ export const MASTERY = {
    * Chance a learner who does not know the concept answers rightly. Four choices give 0.25 for the
    * multiple-choice diagnostic; a guided question gives away part of the answer.
    */
-  guess: { diagnostic: 0.25, opening: 0.15, guided: 0.3, partial: 0.2, unaided: 0.15 } satisfies Record<QuestionKind, number>,
+  guess: { diagnostic: 0.25, opening: 0.15, guided: 0.3, partial: 0.2, unaided: 0.15, review: 0.15 } satisfies Record<QuestionKind, number>,
+  /** Guess for a review answered after asking for a hint: like a guided question. */
+  guessWithHint: 0.3,
+  /** A lapsed review caps the estimate here: known, not mastered. */
+  lapseCap: 0.75,
   /** Mastered at or above this, together with a correct unaided answer in the lesson (see isMastered). */
   mastered: 0.95,
   known: 0.6,
@@ -30,8 +40,11 @@ export const MASTERY = {
 } as const
 
 export type Evidence =
-  /** An answer with its score: 1 correct, 0.5 partly correct, 0 wrong or skipped. */
-  | { kind: 'answer'; question: QuestionKind; score: number }
+  /**
+   * An answer with its score: 1 correct, 0.5 partly correct, 0 wrong or skipped. `hint`: a hint
+   * was shown first. `lapse`: a review rated Again (see reviewRating).
+   */
+  | { kind: 'answer'; question: QuestionKind; score: number; hint?: boolean; lapse?: boolean }
   /** A correct diagnostic answer on a concept that depends on this one counts as a correct diagnostic answer here. */
   | { kind: 'inferred-known' }
   /** A missed prerequisite: this concept was not asked about. It counts for the standing but does not move the estimate. */
@@ -48,9 +61,10 @@ function posterior(p: number, correct: boolean, guess: number): number {
 export function update(p: number, evidence: Evidence): number {
   switch (evidence.kind) {
     case 'answer': {
-      const guess = MASTERY.guess[evidence.question]
+      const guess = evidence.hint ? MASTERY.guessWithHint : MASTERY.guess[evidence.question]
       const score = Math.min(1, Math.max(0, evidence.score))
       const after = score * posterior(p, true, guess) + (1 - score) * posterior(p, false, guess)
+      if (evidence.question === 'review') return evidence.lapse ? Math.min(after, MASTERY.lapseCap) : after
       return evidence.question === 'diagnostic' ? after : after + (1 - after) * MASTERY.learn
     }
     case 'inferred-known':
@@ -101,6 +115,35 @@ export function masteryGap(p: number, lesson: LessonRecord): MasteryGap {
 }
 
 /** The estimate as shown: never at or above the threshold unless the concept is mastered. */
+export interface MasteryStatus {
+  p: number
+  mastered: boolean
+  gap: MasteryGap
+  /** Learned, then a review lapsed, and not mastered again since. */
+  lapsed: boolean
+}
+
+/**
+ * Estimate and mastery from a concept's evidence. Before the concept is learned (it has no review
+ * schedule yet) this is exactly the lesson rule of isMastered. Once learned, it stays mastered
+ * unless a review lapsed; after the latest lapse it is mastered again when the estimate is at the
+ * threshold, an answer since the lapse was right without help, and the last answer was right.
+ */
+export function masteryStatus(evidence: Evidence[], lesson: LessonRecord, learned: boolean): MasteryStatus {
+  const p = replay(evidence)
+  if (!learned) return { p, mastered: isMastered(p, lesson), gap: masteryGap(p, lesson), lapsed: false }
+  const lastLapse = evidence.findLastIndex((e) => e.kind === 'answer' && e.lapse === true)
+  if (lastLapse < 0) return { p, mastered: true, gap: null, lapsed: false }
+  const since = evidence.slice(lastLapse + 1).filter((e): e is Extract<Evidence, { kind: 'answer' }> => e.kind === 'answer')
+  const last = since[since.length - 1]
+  const record: LessonRecord = {
+    unaidedCorrect: since.some((e) => e.score === 1 && !e.hint && e.question !== 'guided' && e.question !== 'partial'),
+    lastVerdict: last === undefined ? null : last.score === 1 ? 'correct' : last.score > 0 ? 'partial' : 'incorrect'
+  }
+  const mastered = isMastered(p, record)
+  return { p, mastered, gap: masteryGap(p, record), lapsed: !mastered }
+}
+
 export function shownEstimate(p: number, mastered: boolean): number {
   return mastered ? p : Math.min(p, MASTERY.mastered - 0.01)
 }
