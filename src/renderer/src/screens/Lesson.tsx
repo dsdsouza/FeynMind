@@ -327,12 +327,27 @@ function AttemptCard({ attempt, view, sending, onOpenPage, act }: { attempt: Att
 }
 
 function GradeCard({ grade, view, onOpenPage }: { grade: GradeView; view: LessonView; onOpenPage: (p: CitedPage) => void }) {
+  const reasoning = grade.reasoning
+  // Flawed reasoning explains the grade, so it comes before the rubric reason, which can sound like praise.
+  const flawed = reasoning?.judgment === 'flawed'
+  const reasoningBlock = reasoning && (
+    <div className={`reasoning-judgment reasoning-${reasoning.judgment}`} data-testid="grade-reasoning">
+      <strong>{REASONING_LABEL[reasoning.judgment]}.</strong>{' '}
+      {reasoning.comment && <TutorText text={reasoning.comment} sources={view.sources} onOpenPage={onOpenPage} inline />}
+      {flawed && grade.verdict !== 'incorrect' && (
+        <p data-testid="reasoning-cap">
+          <strong>Faulty reasoning caps the grade at partly correct, even when the answer is right, so it does not count toward mastery.</strong>
+        </p>
+      )}
+    </div>
+  )
   return (
     <div className={`grade grade-${grade.verdict}`} data-testid="grade">
       <p>
         <strong>{VERDICT_LABEL[grade.verdict]}</strong>
         {grade.pass === 2 && <span className="muted"> · second grading, after your objection</span>}
       </p>
+      {flawed && reasoningBlock}
       {grade.outsideSources && <p className="warning">Your materials do not cover this, so it was graded from general knowledge.</p>}
       {grade.assessment && (
         <div className="muted">
@@ -343,13 +358,7 @@ function GradeCard({ grade, view, onOpenPage }: { grade: GradeView; view: Lesson
         <TutorText text={grade.reason} sources={view.sources} onOpenPage={onOpenPage} />
       </div>
       {grade.feedback && <TutorText text={grade.feedback} sources={view.sources} onOpenPage={onOpenPage} />}
-      {grade.reasoning && (
-        <div className={`reasoning-judgment reasoning-${grade.reasoning.judgment}`} data-testid="grade-reasoning">
-          <strong>{REASONING_LABEL[grade.reasoning.judgment]}.</strong>{' '}
-          {grade.reasoning.comment && <TutorText text={grade.reasoning.comment} sources={view.sources} onOpenPage={onOpenPage} inline />}
-          {grade.reasoning.judgment === 'flawed' && grade.verdict !== 'incorrect' && <p className="muted">A right answer reached by faulty reasoning is graded partly correct and does not count toward mastery.</p>}
-        </div>
-      )}
+      {!flawed && reasoningBlock}
       {grade.criteria.length > 0 && (
         <ul className="criteria" aria-label="Rubric">
           {grade.criteria.map((c) => (
