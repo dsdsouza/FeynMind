@@ -79,6 +79,8 @@ export interface PathState {
   next: { conceptId: number; name: string; unitTitle: string; estimate: CallEstimate; reasons: Reason[] } | null
   /** New lessons wait until today's reviews are done or skipped (lessons already started go on). */
   reviewsFirst: boolean
+  /** No model is chosen yet: the path shows, but lessons, the diagnostic and reviews need Settings first. */
+  modelMissing: boolean
   diagnostic: { status: 'not-started' | 'in-progress' | 'done'; estimate: CallEstimate | null }
   /** A lesson that was left part way, to reopen where it stopped. */
   openLesson: { conceptId: number; name: string; step: LessonStep } | null

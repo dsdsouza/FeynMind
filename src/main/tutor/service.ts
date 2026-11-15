@@ -88,6 +88,7 @@ const MAX_OBJECTION = 2000
 /** Lesson answers graded by the model in a usual lesson: opening, guided, partial, one unaided. */
 const USUAL_GRADED_ANSWERS = 4
 const CAP_PREFIX = 'cap: '
+export const NO_MODEL_MESSAGE = 'No model is chosen yet. Open Settings, add your API key and choose a model: lessons, the diagnostic and reviews need one.'
 /** Tokens of a rubric, the question and a typed answer, as a grade request adds them to the passages. */
 const GRADED_TEXT_TOKENS = 250
 
@@ -146,6 +147,7 @@ export class TutorService {
       startGrading: (attemptId) => this.startGrading(attemptId),
       isGrading: (attemptId) => this.grading.has(attemptId),
       consentGiven: (sessionId) => options.consentGiven(sessionId),
+      requireModel: () => this.requireModel(),
       exams: (sessionId) => options.exams?.(sessionId) ?? [],
       isOnline: () => options.isOnline?.() ?? true,
       calibration: (role, prompt) => options.providers.calibration(role, prompt),
@@ -286,6 +288,7 @@ export class TutorService {
           }
         : null,
       reviewsFirst: this.reviews.lessonsWait(sessionId),
+      modelMissing: this.modelOrNull('teaching') === null,
       diagnostic: {
         status: !latest ? 'not-started' : latest.status === 'in-progress' ? 'in-progress' : 'done',
         estimate: concepts.length > 0 ? this.diagnosticEstimate(sessionId, concepts) : null
@@ -308,18 +311,37 @@ export class TutorService {
 
   // Diagnostic
 
-  private estimateOf(model: string, calls: number, inputTokens: number, outputTokens: number): CallEstimate {
-    return { calls, inputTokens, outputTokens, costUsd: this.options.providers.costOf(model, { inputTokens, outputTokens }) }
+  private estimateOf(model: string | null, calls: number, inputTokens: number, outputTokens: number): CallEstimate {
+    return { calls, inputTokens, outputTokens, costUsd: model === null ? null : this.options.providers.costOf(model, { inputTokens, outputTokens }) }
+  }
+
+  /** The model for a role, or null when none is chosen yet: the path and its estimates still show, without a price. */
+  private modelOrNull(role: Role): string | null {
+    try {
+      return this.options.providers.modelForRole(role)
+    } catch {
+      return null
+    }
+  }
+
+  /** The ledger's calibration for a prompt; raw ratios when no model is chosen yet. */
+  private calibrationOf(role: Role, prompt: string): { inputFactor: number; outputFactor: number; samples: number } {
+    return this.modelOrNull(role) === null ? { inputFactor: 1, outputFactor: 1, samples: 0 } : this.options.providers.calibration(role, prompt)
+  }
+
+  /** Lessons, the diagnostic and reviews send requests: they need a model, which Settings chooses. */
+  private requireModel(): void {
+    if (this.modelOrNull('teaching') === null) throw new UserFacingError(NO_MODEL_MESSAGE)
   }
 
   /** Calls and tokens to write the diagnostic's questions for concepts that have none yet. Grading is local. */
   private diagnosticEstimate(sessionId: number, concepts: CourseConcept[]): CallEstimate {
     const prompt = this.options.prompts.get('diagnostic-questions')
-    const model = this.options.providers.modelForRole('teaching')
+    const model = this.modelOrNull('teaching')
     const missing = concepts.filter((c) => this.repo.questionsOf(c.id, 'diagnostic').length < 2)
     const calls = Math.ceil(missing.length / DIAGNOSTIC_BATCH)
     const variable = missing.reduce((n, c) => n + textTokens(`${c.name}: ${c.definition}`) + DIAGNOSTIC_BUDGET, 0)
-    const f = this.options.providers.calibration('teaching', prompt.name)
+    const f = this.calibrationOf('teaching', prompt.name)
     const weight = f.samples / (f.samples + 3)
     const input = (calls * (textTokens(prompt.system) + textTokens(prompt.template)) + variable) * (1 + (f.inputFactor - 1) * weight)
     const output = (calls * prompt.outputBase + prompt.outputRatio * variable) * (1 + (f.outputFactor - 1) * weight)
@@ -375,6 +397,7 @@ export class TutorService {
     if (current?.status === 'in-progress') return this.diagnosticState(current.id)
     const { concepts } = this.course(sessionId)
     if (concepts.length === 0) throw new UserFacingError('Process a unit first: the diagnostic asks about its concepts.')
+    this.requireModel()
     this.requireConsent(sessionId)
     await this.ensureDiagnosticQuestions(sessionId, concepts, concepts)
     return this.diagnosticState(this.repo.createDiagnostic(sessionId, 'diagnostic', null))
@@ -385,6 +408,7 @@ export class TutorService {
     const { concepts } = this.course(sessionId)
     const own = concepts.filter((c) => c.unitId === unitId)
     if (own.length === 0) throw new UserFacingError('That unit has no concepts yet.')
+    this.requireModel()
     this.requireConsent(sessionId)
     const checked = this.confirmConcepts(own)
     await this.ensureDiagnosticQuestions(sessionId, checked, concepts)
@@ -551,7 +575,8 @@ export class TutorService {
       const locked = this.path(sessionId).units.flatMap((u) => u.concepts).find((c) => c.id === conceptId)
       if (locked?.locked) throw new UserFacingError(`Learn ${locked.waitingFor.join(', ')} first.`)
       if (this.reviews.lessonsWait(sessionId)) throw new UserFacingError("Do today's reviews first, or skip them for today.")
-      this.requireConsent(sessionId)
+      this.requireModel()
+    this.requireConsent(sessionId)
       const passages = await retrievePassages(this.options.retrieval, sessionId, concept, LESSON_BUDGET)
       lesson = this.repo.lessonOfConcept(conceptId) ?? this.repo.createLesson(sessionId, conceptId, passages)
     }
@@ -1015,7 +1040,7 @@ export class TutorService {
    * fill the retrieval budget.
    */
   private lessonEstimate(lesson: LessonRow | null, conceptId: number, attempts: AttemptRow[]): CallEstimate {
-    const model = this.options.providers.modelForRole('teaching')
+    const model = this.modelOrNull('teaching')
     // input: the variable part of the prompt; output: the part the prompt's output ratio applies to.
     const parts: { prompt: string; role: Role; count: number; input: number; output: number }[] = []
     const passageTokens = lesson ? lesson.passages.reduce((n, p) => n + textTokens(p.text) + 30, 0) : LESSON_BUDGET
@@ -1029,7 +1054,7 @@ export class TutorService {
     let output = 0
     for (const part of parts) {
       const prompt = this.options.prompts.get(part.prompt)
-      const f = this.options.providers.calibration(part.role, part.prompt)
+      const f = this.calibrationOf(part.role, part.prompt)
       const weight = f.samples / (f.samples + 3)
       calls += part.count
       input += part.count * (textTokens(prompt.system) + textTokens(prompt.template) + part.input) * (1 + (f.inputFactor - 1) * weight)

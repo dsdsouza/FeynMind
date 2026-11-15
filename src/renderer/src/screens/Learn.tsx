@@ -11,7 +11,7 @@ import { Reviews } from './Reviews'
 const STANDING_LABEL: Record<Standing, string> = { known: 'Known', shaky: 'Shaky', new: 'New', 'not-assessed': 'Not assessed' }
 
 /** Learning: the diagnostic, the path with standings, and lessons. Opens straight into a lesson left part way. */
-export function Learn() {
+export function Learn({ onOpenSettings }: { onOpenSettings: () => void }) {
   const [sessionId, setSessionId] = useState<number | null>(null)
   const [path, setPath] = useState<PathState | null>(null)
   const [usage, setUsage] = useState<UsageSummary | null>(null)
@@ -143,6 +143,16 @@ export function Learn() {
         <p className="muted" role="status">
           {busy}
         </p>
+      )}
+      {path?.modelMissing && (
+        <div className="card warning-card" role="alert" data-testid="no-model">
+          <p>
+            <strong>No model is chosen yet.</strong> Lessons, the diagnostic and reviews send requests to your provider, so they need an API key and a model. Your path and what is due are shown below.
+          </p>
+          <button type="button" onClick={onOpenSettings}>
+            Open Settings
+          </button>
+        </div>
       )}
       {today && today.clockBehind && (
         <p className="warning" role="status">

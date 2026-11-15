@@ -442,3 +442,25 @@ describe('mastery at the threshold', () => {
     expect(t.tutor.continue(view.lessonId).step).toBe('done')
   })
 })
+
+describe('without a model', () => {
+  it('shows the path with unpriced estimates and says to choose a model in Settings before anything is sent', async () => {
+    const t = seeded()
+    t.db.prepare("DELETE FROM settings WHERE key = 'provider.gemini.model'").run()
+    const path = t.tutor.path(t.session.id)
+    expect(path.modelMissing).toBe(true)
+    expect(path.units[0]?.processed).toBe(true)
+    expect(path.next?.estimate).toMatchObject({ calls: 6, costUsd: null })
+    expect(path.diagnostic.estimate?.costUsd).toBeNull()
+    const message = /No model is chosen yet\. Open Settings/
+    await expect(t.tutor.startDiagnostic(t.session.id)).rejects.toThrow(message)
+    await expect(t.tutor.claimUnitKnown(t.session.id, t.unit1)).rejects.toThrow(message)
+    await expect(t.tutor.openLesson(t.session.id, t.ids['relation'] as number)).rejects.toThrow(message)
+    await expect(t.tutor.reviews.start(t.session.id)).rejects.toThrow(message)
+    expect(t.tutor.repo.lessonOfConcept(t.ids['relation'] as number)).toBeUndefined()
+    expect(calls(t.provider)).toBe(0)
+    // Once a model is chosen, the path says so.
+    t.db.prepare("INSERT INTO settings (key, value) VALUES ('provider.gemini.model', 'gemini-3.1-flash-lite')").run()
+    expect(t.tutor.path(t.session.id).modelMissing).toBe(false)
+  })
+})

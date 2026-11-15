@@ -67,7 +67,7 @@ export function App() {
       <main className="app-main">
         {screen === 'materials' && <Materials />}
         {screen === 'course' && <Course />}
-        {screen === 'learn' && <Learn />}
+        {screen === 'learn' && <Learn onOpenSettings={() => setScreen('settings')} />}
         {screen === 'progress' && <Progress />}
         {screen === 'settings' && <Settings />}
       </main>

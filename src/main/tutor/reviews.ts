@@ -82,6 +82,8 @@ export interface ReviewHost {
   startGrading(attemptId: number): void
   isGrading(attemptId: number): boolean
   consentGiven(sessionId: number): boolean
+  /** Throws a message pointing to Settings when no model is chosen yet. */
+  requireModel(): void
   exams(sessionId: number): ExamInfo[]
   isOnline(): boolean
   calibration(role: Role, prompt: string): { inputFactor: number; outputFactor: number; samples: number }
@@ -335,6 +337,7 @@ export class ReviewService {
     const day = this.today()
     const open = this.openSitting(sessionId)
     if (open && open.day === day && this.pendingIn(open.id) > 0) return this.sittingView(open.id)
+    this.host.requireModel()
     if (!this.host.consentGiven(sessionId)) throw new UserFacingError('Confirm the notice about sending course material first.')
     const { plan } = this.plan(sessionId)
     if (plan.items.length === 0) throw new UserFacingError('Nothing is due right now.')
