@@ -42,8 +42,12 @@ import { reteachTask, reviewQuestionsTask } from './tasks'
 
 /** Answers to the same question are not asked again within this many days if another question is available. */
 export const QUESTION_COOLDOWN_DAYS = 7
-/** A question from an earlier concept is mixed into a lesson only when its recall chance is below this. */
-export const INTERLEAVE_BELOW_RECALL = 0.97
+/**
+ * A question from an earlier concept is mixed into a lesson only when its recall chance is below
+ * this: close to due, so the early review does not push a concept learned the day before (which
+ * 0.97 did in the simulation) further out.
+ */
+export const INTERLEAVE_BELOW_RECALL = 0.93
 const MAX_ANSWER = 5000
 const MAX_OBJECTION = 2000
 /** Tokens of a rubric, the question and a typed answer, as a grade request adds them to the passages. */
@@ -634,7 +638,7 @@ export class ReviewService {
    * The question from an earlier concept mixed into a lesson, between its partial and its first
    * unaided question: at most one per lesson, from a learned concept that is not lapsed, not due
    * today (due ones are in the review sitting) and not reviewed today, preferring another unit and
-   * the lowest chance of recall, and only when that chance is below 97%. It is a real (early)
+   * the lowest chance of recall, and only when that chance is below 93%. It is a real (early)
    * review. Null when there is none.
    */
   interleaveItem(lesson: LessonRow, create: boolean): ItemRow | null {
