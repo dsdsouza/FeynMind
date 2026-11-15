@@ -1,25 +1,29 @@
-import type { KeyboardEvent, ReactNode } from 'react'
+import type { KeyboardEvent, ReactNode, Ref } from 'react'
 
 /**
  * A labelled text area for an answer or the learner's reasoning. Ctrl+Enter (Cmd+Enter on a Mac)
- * submits. `extra` is shown under the field (hints, the microphone).
+ * submits. `extra` is shown under the field (the microphone). Read-only while dictation fills it.
  */
 export function AnswerField({
   id,
+  ref,
   label,
   value,
   onChange,
   onSubmit,
   placeholder,
+  readOnly = false,
   rows = 5,
   extra
 }: {
   id: string
+  ref?: Ref<HTMLTextAreaElement>
   label: ReactNode
   value: string
   onChange: (text: string) => void
   onSubmit: () => void
   placeholder: string
+  readOnly?: boolean
   rows?: number
   extra?: ReactNode
 }) {
@@ -29,7 +33,7 @@ export function AnswerField({
   return (
     <div className="answer-field">
       <label htmlFor={id}>{label}</label>
-      <textarea id={id} rows={rows} value={value} onChange={(e) => onChange(e.target.value)} onKeyDown={onKeyDown} placeholder={placeholder} />
+      <textarea id={id} ref={ref} rows={rows} value={value} readOnly={readOnly} aria-busy={readOnly} onChange={(e) => onChange(e.target.value)} onKeyDown={onKeyDown} placeholder={placeholder} />
       {extra}
     </div>
   )

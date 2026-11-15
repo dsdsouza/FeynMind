@@ -1,7 +1,9 @@
-import { useEffect, useRef, useState } from 'react'
+import { useEffect, useRef, useState, type KeyboardEvent } from 'react'
 import type { UsageSummary } from '../../../shared/knowledge'
 import { masteryHint, type AttemptView, type GradeView, type LessonStep, type LessonView, type ReasoningJudgment } from '../../../shared/tutor'
 import { AnswerField } from '../components/AnswerField'
+import { DictationState, MicButton, ModelPrompt, OsDictationHint } from '../components/Dictation'
+import { DICTATION_SHORTCUT, useDictation } from '../dictation'
 import { PagePreview } from '../components/PagePreview'
 import { TutorText, type CitedPage } from '../components/TutorText'
 import { api, formatCost, formatTokens, messageOf, unwrap } from '../lib'
@@ -168,16 +170,8 @@ function QuestionCard({ view, sending, onOpenPage, act }: { view: LessonView; se
   const question = view.question
   const attempt = view.attempt
   const lessonId = view.lessonId
-  const [answer, setAnswer] = useDraft(lessonId, 'answer', view.draft)
-  const [reasoning, setReasoning] = useDraft(lessonId, 'reasoning', view.draftReasoning)
 
   if (!question) return null
-  const submit = (skipped: boolean) => {
-    if (!skipped && answer.text.trim() === '') return
-    answer.cancel()
-    reasoning.cancel()
-    void act(async () => unwrap(await api['lesson:answer']({ lessonId, questionId: question.id, answer: answer.text, reasoning: reasoning.text, skipped })))
-  }
   const proceed = (fastTrack: boolean) => void act(async () => unwrap(await api['lesson:continue']({ lessonId, fastTrack })))
 
   return (
@@ -194,31 +188,7 @@ function QuestionCard({ view, sending, onOpenPage, act }: { view: LessonView; se
         </div>
       )}
       {!attempt ? (
-        <>
-          <div className="answer-fields">
-            <AnswerField id="answer" label="Your answer" value={answer.text} onChange={setAnswer} onSubmit={() => submit(false)} placeholder="Type your answer. Use $...$ for math if you like." />
-            <AnswerField
-              id="reasoning"
-              label={
-                <>
-                  Your thinking <span className="muted">(optional)</span>
-                </>
-              }
-              value={reasoning.text}
-              onChange={setReasoning}
-              onSubmit={() => submit(false)}
-              placeholder="Explain how you got there. It is graded with your answer."
-            />
-          </div>
-          <div className="row">
-            <button type="button" onClick={() => submit(false)} disabled={sending || answer.text.trim() === ''}>
-              Submit (Ctrl+Enter)
-            </button>
-            <button type="button" className="secondary" onClick={() => submit(true)} disabled={sending}>
-              I don’t know
-            </button>
-          </div>
-        </>
+        <AnswerForm key={question.id} view={view} questionId={question.id} sending={sending} act={act} />
       ) : (
         <AttemptCard attempt={attempt} view={view} sending={sending} onOpenPage={onOpenPage} act={act} />
       )}
@@ -240,6 +210,101 @@ function QuestionCard({ view, sending, onOpenPage, act }: { view: LessonView; se
           )}
         </div>
       )}
+    </div>
+  )
+}
+
+/**
+ * The answer and "Your thinking" fields, each typed or dictated. Ctrl+Shift+Space starts and stops
+ * dictation in the focused field (the thinking field when neither has focus); Esc discards it.
+ */
+function AnswerForm({ view, questionId, sending, act }: { view: LessonView; questionId: number; sending: boolean; act: (a: () => Promise<LessonView>) => Promise<void> }) {
+  const lessonId = view.lessonId
+  const [answer, setAnswer] = useDraft(lessonId, 'answer', view.draft)
+  const [reasoning, setReasoning] = useDraft(lessonId, 'reasoning', view.draftReasoning)
+  const answerRef = useRef<HTMLTextAreaElement | null>(null)
+  const reasoningRef = useRef<HTMLTextAreaElement | null>(null)
+  const dictation = useDictation({
+    answer: { ref: answerRef, value: answer.text, setValue: setAnswer },
+    reasoning: { ref: reasoningRef, value: reasoning.text, setValue: setReasoning }
+  })
+
+  const submit = (skipped: boolean) => {
+    if (dictation.busy) return
+    if (!skipped && answer.text.trim() === '') return
+    answer.cancel()
+    reasoning.cancel()
+    void act(async () => unwrap(await api['lesson:answer']({ lessonId, questionId, answer: answer.text, reasoning: reasoning.text, skipped })))
+  }
+
+  const onKeyDown = (e: KeyboardEvent<HTMLDivElement>) => {
+    if ((e.ctrlKey || e.metaKey) && e.shiftKey && e.code === 'Space') {
+      e.preventDefault()
+      dictation.toggle(document.activeElement === answerRef.current ? 'answer' : document.activeElement === reasoningRef.current ? 'reasoning' : (dictation.field ?? 'reasoning'))
+    } else if (e.key === 'Escape' && dictation.phase === 'listening') {
+      e.preventDefault()
+      dictation.cancel()
+    }
+  }
+
+  const mic = (field: 'answer' | 'reasoning', label: string) => (
+    <MicButton label={label} active={dictation.field === field && dictation.phase === 'listening'} disabled={dictation.busy && !(dictation.field === field && dictation.phase === 'listening')} onClick={() => dictation.toggle(field)} />
+  )
+
+  return (
+    <div onKeyDown={onKeyDown}>
+      <div className="answer-fields">
+        <AnswerField
+          id="answer"
+          ref={answerRef}
+          label="Your answer"
+          value={answer.text}
+          onChange={setAnswer}
+          onSubmit={() => submit(false)}
+          readOnly={dictation.field === 'answer'}
+          placeholder="Type or dictate your answer. Use $...$ for math if you like."
+          extra={mic('answer', 'answer')}
+        />
+        <AnswerField
+          id="reasoning"
+          ref={reasoningRef}
+          label={
+            <>
+              Your thinking <span className="muted">(optional)</span>
+            </>
+          }
+          value={reasoning.text}
+          onChange={setReasoning}
+          onSubmit={() => submit(false)}
+          readOnly={dictation.field === 'reasoning'}
+          placeholder="Explain how you got there, out loud or typed. It is graded with your answer."
+          extra={mic('reasoning', 'thinking')}
+        />
+      </div>
+      <DictationState phase={dictation.phase} seconds={dictation.seconds} level={dictation.level} onStop={() => dictation.toggle(dictation.field ?? 'reasoning')} onCancel={dictation.cancel} />
+      {dictation.error && (
+        <p className="error" role="alert" data-testid="dictation-error">
+          {dictation.error}
+        </p>
+      )}
+      {dictation.notice && (
+        <p className="muted" role="status">
+          {dictation.notice}
+        </p>
+      )}
+      {dictation.needModel && dictation.status && <ModelPrompt status={dictation.status} onClose={dictation.dismissModel} />}
+      <p className="muted os-hint">
+        Dictate with the microphone buttons or {DICTATION_SHORTCUT} (Esc discards). Speech is turned into text on this computer; audio is never stored or sent.
+      </p>
+      {dictation.status && <OsDictationHint platform={dictation.status.platform} />}
+      <div className="row">
+        <button type="button" onClick={() => submit(false)} disabled={sending || dictation.busy || answer.text.trim() === ''}>
+          Submit (Ctrl+Enter)
+        </button>
+        <button type="button" className="secondary" onClick={() => submit(true)} disabled={sending || dictation.busy}>
+          I don’t know
+        </button>
+      </div>
     </div>
   )
 }

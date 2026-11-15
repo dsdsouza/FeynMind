@@ -39,3 +39,18 @@ export interface SpeedCheckResult {
   audioSeconds: number
   seconds: number
 }
+
+/**
+ * Puts dictated text into a field at the cursor (replacing a selection), with a space on either
+ * side where the neighbouring text needs one. Returns the new value and where the cursor goes.
+ */
+export function insertTranscript(value: string, start: number, end: number, transcript: string): { value: string; cursor: number } {
+  const text = transcript.trim()
+  if (text === '') return { value, cursor: end }
+  const before = value.slice(0, start)
+  const after = value.slice(end)
+  const lead = before === '' || /\s$/.test(before) ? '' : ' '
+  const trail = after === '' || /^[\s.,;:!?)]/.test(after) ? '' : ' '
+  const inserted = `${lead}${text}${trail}`
+  return { value: `${before}${inserted}${after}`, cursor: before.length + lead.length + text.length }
+}

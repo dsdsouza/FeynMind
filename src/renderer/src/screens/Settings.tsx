@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useState, type FormEvent } from 'react'
 import type { KeySource, ModelInfo, ProviderSettingsState, Result, TestResult } from '../../../shared/ipc'
 import type { UsageSummary } from '../../../shared/knowledge'
+import { DictationSettings } from '../components/DictationSettings'
 
 const api = window.feynmind
 
@@ -232,6 +233,8 @@ export function Settings() {
       </div>
 
       <UsageLimits selectedModel={state.selectedModel} />
+
+      <DictationSettings />
     </section>
   )
 }

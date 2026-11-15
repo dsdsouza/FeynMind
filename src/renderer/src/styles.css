@@ -605,3 +605,84 @@ button.cite {
 .reasoning-flawed {
   border-left-color: var(--warning);
 }
+
+button.mic {
+  padding: 4px 10px;
+}
+
+button.mic-on {
+  background: var(--error);
+  border-color: var(--error);
+  color: var(--accent-text);
+}
+
+.dictation-state {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+  margin: 8px 0;
+  padding: 8px 12px;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  background: var(--surface);
+}
+
+.dictation-listening {
+  border-color: var(--error);
+}
+
+.rec-dot {
+  display: inline-block;
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  background: var(--error);
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  .rec-dot {
+    animation: rec-pulse 1.2s ease-in-out infinite;
+  }
+}
+
+@keyframes rec-pulse {
+  50% {
+    opacity: 0.3;
+  }
+}
+
+.mic-level {
+  width: 120px;
+}
+
+textarea[readonly] {
+  opacity: 0.75;
+}
+
+.os-hint {
+  margin: 4px 0;
+  font-size: 0.9em;
+}
+
+.model-prompt progress {
+  width: 100%;
+}
+
+.speech-models {
+  border: none;
+  padding: 0;
+  margin: 0 0 8px;
+}
+
+.speech-model {
+  margin: 8px 0;
+}
+
+.speech-model p {
+  margin: 2px 0 4px 24px;
+}
+
+.speech-model > div {
+  margin-left: 24px;
+}
