@@ -29,6 +29,8 @@ It is free and open source (MIT). There is no account and no server: your files 
 - **One course at a time.** Goal-based pathways, multiple courses and the learning map are planned.
 - **Apple silicon Macs only.** The macOS build runs on M1 and later; Intel Macs are not supported.
 - **Unsigned installers.** The installers are not signed with paid certificates, so Windows and macOS warn before the first launch (see below).
+- **Install steps for macOS and Linux are untested.** They have not yet been tried on those systems; please open an issue if one is wrong.
+- **Key storage on Linux without a keyring is unverified.** FeynMind is meant to refuse to save your API key when no secure storage is available, but this has not been checked on a Linux system without a keyring. Install and unlock a keyring (such as GNOME Keyring or KWallet) before saving your key.
 - **Preview quality.** Grading has been checked on a small benchmark (32 cases), not at scale; the vision model can misread small details on a page; spoken math has not been tested; only .pptx (not .ppt) slide decks are read.
 
 ## Install
@@ -43,6 +45,8 @@ Download the installer for your system from the [Releases page](https://github.c
 
 ### macOS (Apple silicon)
 
+> **Not yet tested on a Mac.** These steps have not been tried on macOS by the project yet. If a step is wrong or missing, please [open an issue](https://github.com/dsdsouza/FeynMind/issues).
+
 1. Open `FeynMind-<version>-mac-arm64.dmg` and drag FeynMind to Applications.
 2. Open FeynMind. macOS will refuse the first time, because the app is not signed by an identified developer.
    - On macOS 15 (Sequoia) and later: open **System Settings › Privacy & Security**, scroll down to the message about FeynMind, click **Open Anyway** and confirm.
@@ -56,6 +60,8 @@ Download the installer for your system from the [Releases page](https://github.c
 4. The first time you dictate, macOS asks for microphone access. Because the build is unsigned, it may ask again after you update FeynMind.
 
 ### Linux (x86-64)
+
+> **Not yet tested on a Linux desktop.** These steps have not been tried on a Linux desktop by the project yet. If a step is wrong or missing, please [open an issue](https://github.com/dsdsouza/FeynMind/issues).
 
 1. Download the `.AppImage` file, make it executable and run it:
 
