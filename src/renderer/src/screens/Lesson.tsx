@@ -1,9 +1,9 @@
-import { useEffect, useRef, useState, type KeyboardEvent } from 'react'
+import { useEffect, useState } from 'react'
+import type { SourceRef } from '../../../shared/citations'
+import { reasonText } from '../../../shared/reviews'
 import type { UsageSummary } from '../../../shared/knowledge'
 import { masteryHint, type AttemptView, type GradeView, type LessonStep, type LessonView, type ReasoningJudgment } from '../../../shared/tutor'
-import { AnswerField } from '../components/AnswerField'
-import { DictationState, MicButton, ModelPrompt, OsDictationHint } from '../components/Dictation'
-import { DICTATION_SHORTCUT, useDictation } from '../dictation'
+import { AnswerInputs } from '../components/AnswerInputs'
 import { PagePreview } from '../components/PagePreview'
 import { TutorText, type CitedPage } from '../components/TutorText'
 import { api, formatCost, formatTokens, messageOf, unwrap } from '../lib'
@@ -22,7 +22,6 @@ const KIND_LABEL = { opening: 'Before we start', guided: 'Guided practice', part
 const VERDICT_LABEL = { correct: 'Correct', partial: 'Partly correct', incorrect: 'Not yet' } as const
 const MET_LABEL = { yes: '✓', partly: '½', no: '✗' } as const
 const REASONING_LABEL: Record<ReasoningJudgment, string> = { sound: 'Your thinking holds up', flawed: 'Your thinking has a flaw', none: 'No reasoning to judge in your thinking' }
-const DRAFT_DELAY_MS = 800
 /** Read out after each step's name; the look alone must not carry the state. */
 const STEP_STATE_TEXT = { done: ', done', current: ', current step', skipped: ', skipped', upcoming: '' } as const
 
@@ -143,8 +142,12 @@ export function Lesson({ sessionId, initial, usage, onBack, onOpen }: { sessionI
             </button>
           )}
 
-          {view.question && step !== 'explain' && step !== 'done' && (
-            <QuestionCard key={view.question.id} view={view} sending={sending} onOpenPage={open} act={act} />
+          {view.interleave ? (
+            <InterleaveCard key={view.interleave.itemId} view={view} sending={sending} onOpenPage={open} act={act} />
+          ) : (
+            view.question &&
+            step !== 'explain' &&
+            step !== 'done' && <QuestionCard key={view.question.id} view={view} sending={sending} onOpenPage={open} act={act} />
           )}
 
           {step === 'done' && (
@@ -221,129 +224,58 @@ function QuestionCard({ view, sending, onOpenPage, act }: { view: LessonView; se
   )
 }
 
-/**
- * The answer and "Your thinking" fields, each typed or dictated. Ctrl+Shift+Space starts and stops
- * dictation in the focused field (the thinking field when neither has focus); Esc discards it.
- */
+/** The answer and "Your thinking" fields of the current lesson question. */
 function AnswerForm({ view, questionId, sending, act }: { view: LessonView; questionId: number; sending: boolean; act: (a: () => Promise<LessonView>) => Promise<void> }) {
   const lessonId = view.lessonId
-  const [answer, setAnswer] = useDraft(lessonId, 'answer', view.draft)
-  const [reasoning, setReasoning] = useDraft(lessonId, 'reasoning', view.draftReasoning)
-  const answerRef = useRef<HTMLTextAreaElement | null>(null)
-  const reasoningRef = useRef<HTMLTextAreaElement | null>(null)
-  const dictation = useDictation({
-    answer: { ref: answerRef, value: answer.text, setValue: setAnswer },
-    reasoning: { ref: reasoningRef, value: reasoning.text, setValue: setReasoning }
-  })
-
-  const submit = (skipped: boolean) => {
-    if (dictation.busy) return
-    if (!skipped && answer.text.trim() === '') return
-    answer.cancel()
-    reasoning.cancel()
-    void act(async () => unwrap(await api['lesson:answer']({ lessonId, questionId, answer: answer.text, reasoning: reasoning.text, skipped })))
-  }
-
-  const onKeyDown = (e: KeyboardEvent<HTMLDivElement>) => {
-    if ((e.ctrlKey || e.metaKey) && e.shiftKey && e.code === 'Space') {
-      e.preventDefault()
-      dictation.toggle(document.activeElement === answerRef.current ? 'answer' : document.activeElement === reasoningRef.current ? 'reasoning' : (dictation.field ?? 'reasoning'))
-    } else if (e.key === 'Escape' && dictation.phase === 'listening') {
-      e.preventDefault()
-      dictation.cancel()
-    }
-  }
-
-  const mic = (field: 'answer' | 'reasoning', label: string) => (
-    <MicButton label={label} active={dictation.field === field && dictation.phase === 'listening'} disabled={dictation.busy && !(dictation.field === field && dictation.phase === 'listening')} onClick={() => dictation.toggle(field)} />
-  )
-
   return (
-    <div onKeyDown={onKeyDown}>
-      <div className="answer-fields">
-        <AnswerField
-          id="answer"
-          ref={answerRef}
-          label="Your answer"
-          value={answer.text}
-          onChange={setAnswer}
-          onSubmit={() => submit(false)}
-          readOnly={dictation.field === 'answer'}
-          placeholder="Type or dictate your answer. Use $...$ for math if you like."
-          extra={mic('answer', 'answer')}
-        />
-        <AnswerField
-          id="reasoning"
-          ref={reasoningRef}
-          label={
-            <>
-              Your thinking <span className="muted">(optional)</span>
-            </>
-          }
-          value={reasoning.text}
-          onChange={setReasoning}
-          onSubmit={() => submit(false)}
-          readOnly={dictation.field === 'reasoning'}
-          placeholder="Explain how you got there, out loud or typed. It is graded with your answer."
-          extra={mic('reasoning', 'thinking')}
-        />
-      </div>
-      <DictationState phase={dictation.phase} seconds={dictation.seconds} level={dictation.level} onStop={() => dictation.toggle(dictation.field ?? 'reasoning')} onCancel={dictation.cancel} />
-      {dictation.status?.engine === 'restarting' && (
-        <p className="warning" role="status" data-testid="dictation-restarting">
-          Speech recognition stopped unexpectedly and is restarting. What you said is kept and will be transcribed.
-        </p>
-      )}
-      {dictation.error && (
-        <p className="error" role="alert" data-testid="dictation-error">
-          {dictation.error}
-        </p>
-      )}
-      {dictation.notice && (
-        <p className="muted" role="status">
-          {dictation.notice}
-        </p>
-      )}
-      {dictation.needModel && dictation.status && <ModelPrompt status={dictation.status} onClose={dictation.dismissModel} />}
-      <p className="muted os-hint">
-        Dictate with the microphone buttons or {DICTATION_SHORTCUT} (Esc discards). Speech is turned into text on this computer; audio is never stored or sent.
-      </p>
-      {dictation.status && <OsDictationHint platform={dictation.status.platform} />}
-      <div className="row">
-        <button type="button" onClick={() => submit(false)} disabled={sending || dictation.busy || answer.text.trim() === ''}>
-          Submit (Ctrl+Enter)
-        </button>
-        <button type="button" className="secondary" onClick={() => submit(true)} disabled={sending || dictation.busy}>
-          I don’t know
-        </button>
-      </div>
-    </div>
+    <AnswerInputs
+      initialAnswer={view.draft}
+      initialReasoning={view.draftReasoning}
+      sending={sending}
+      onDraft={(field, text) => void api['lesson:draft']({ lessonId, field, text })}
+      onSubmit={(answer, reasoning, skipped) => void act(async () => unwrap(await api['lesson:answer']({ lessonId, questionId, answer, reasoning, skipped })))}
+    />
   )
 }
 
-/**
- * A field's text, saved as a draft shortly after it stops changing, so closing the app keeps it.
- * `cancel` drops a pending save (before submitting).
- */
-function useDraft(lessonId: number, field: 'answer' | 'reasoning', initial: string): [{ text: string; cancel: () => void }, (text: string) => void] {
-  const [text, setText] = useState(initial)
-  const timer = useRef<ReturnType<typeof setTimeout> | null>(null)
-  useEffect(
-    () => () => {
-      if (timer.current) clearTimeout(timer.current)
-    },
-    []
+/** The question from an earlier concept mixed into the lesson before the first question on your own. */
+function InterleaveCard({ view, sending, onOpenPage, act }: { view: LessonView; sending: boolean; onOpenPage: (p: CitedPage) => void; act: (a: () => Promise<LessonView>) => Promise<void> }) {
+  const item = view.interleave
+  if (!item) return null
+  const lessonId = view.lessonId
+  const attempt = item.attempt
+  return (
+    <div className="card question" aria-labelledby="interleave-title" data-testid="interleave">
+      <h2 id="interleave-title">A question from earlier</h2>
+      <p className="muted">{item.reasons.map(reasonText).join(' · ')}</p>
+      <TutorText text={item.stem} sources={[]} onOpenPage={onOpenPage} />
+      {!attempt ? (
+        <AnswerInputs
+          idPrefix="interleave-"
+          initialAnswer={item.draft}
+          initialReasoning=""
+          sending={sending}
+          onDraft={(field, text) => void api['reviews:draft']({ itemId: item.itemId, field, text })}
+          onSubmit={(answer, reasoning, skipped) => void act(async () => unwrap(await api['lesson:interleaveAnswer']({ lessonId, itemId: item.itemId, answer, reasoning, skipped })))}
+        />
+      ) : (
+        <>
+          {item.conceptName && <p className="muted">This was about: {item.conceptName}</p>}
+          {attempt.status === 'saved' && (
+            <p className="muted" role="status">
+              {attempt.error ?? 'Saved. Grading…'}
+            </p>
+          )}
+          {attempt.grades.map((g) => (
+            <GradeCard key={g.pass} grade={g} sources={view.sources} onOpenPage={onOpenPage} />
+          ))}
+          <button type="button" onClick={() => void act(async () => unwrap(await api['lesson:continue']({ lessonId, fastTrack: false })))} disabled={sending}>
+            Back to this lesson
+          </button>
+        </>
+      )}
+    </div>
   )
-  const cancel = () => {
-    if (timer.current) clearTimeout(timer.current)
-    timer.current = null
-  }
-  const update = (next: string) => {
-    setText(next)
-    cancel()
-    timer.current = setTimeout(() => void api['lesson:draft']({ lessonId, field, text: next }), DRAFT_DELAY_MS)
-  }
-  return [{ text, cancel }, update]
 }
 
 function AttemptCard({ attempt, view, sending, onOpenPage, act }: { attempt: AttemptView; view: LessonView; sending: boolean; onOpenPage: (p: CitedPage) => void; act: (a: () => Promise<LessonView>) => Promise<void> }) {
@@ -372,7 +304,7 @@ function AttemptCard({ attempt, view, sending, onOpenPage, act }: { attempt: Att
       )}
       <div className={attempt.grades.length > 1 ? 'grades two' : 'grades'}>
         {attempt.grades.map((g) => (
-          <GradeCard key={g.pass} grade={g} view={view} onOpenPage={onOpenPage} />
+          <GradeCard key={g.pass} grade={g} sources={view.sources} onOpenPage={onOpenPage} />
         ))}
       </div>
       {attempt.contestPending && (
@@ -403,14 +335,14 @@ function AttemptCard({ attempt, view, sending, onOpenPage, act }: { attempt: Att
   )
 }
 
-function GradeCard({ grade, view, onOpenPage }: { grade: GradeView; view: LessonView; onOpenPage: (p: CitedPage) => void }) {
+export function GradeCard({ grade, sources, onOpenPage }: { grade: GradeView; sources: SourceRef[]; onOpenPage: (p: CitedPage) => void }) {
   const reasoning = grade.reasoning
   // Flawed reasoning explains the grade, so it comes before the rubric reason, which can sound like praise.
   const flawed = reasoning?.judgment === 'flawed'
   const reasoningBlock = reasoning && (
     <div className={`reasoning-judgment reasoning-${reasoning.judgment}`} data-testid="grade-reasoning">
       <strong>{REASONING_LABEL[reasoning.judgment]}.</strong>{' '}
-      {reasoning.comment && <TutorText text={reasoning.comment} sources={view.sources} onOpenPage={onOpenPage} inline />}
+      {reasoning.comment && <TutorText text={reasoning.comment} sources={sources} onOpenPage={onOpenPage} inline />}
       {flawed && grade.verdict !== 'incorrect' && (
         <p data-testid="reasoning-cap">
           <strong>Faulty reasoning caps the grade at partly correct, even when the answer is right, so it does not count toward mastery.</strong>
@@ -428,13 +360,13 @@ function GradeCard({ grade, view, onOpenPage }: { grade: GradeView; view: Lesson
       {grade.outsideSources && <p className="warning">Your materials do not cover this, so it was graded from general knowledge.</p>}
       {grade.assessment && (
         <div className="muted">
-          <TutorText text={grade.assessment} sources={view.sources} onOpenPage={onOpenPage} />
+          <TutorText text={grade.assessment} sources={sources} onOpenPage={onOpenPage} />
         </div>
       )}
       <div data-testid="grade-reason">
-        <TutorText text={grade.reason} sources={view.sources} onOpenPage={onOpenPage} />
+        <TutorText text={grade.reason} sources={sources} onOpenPage={onOpenPage} />
       </div>
-      {grade.feedback && <TutorText text={grade.feedback} sources={view.sources} onOpenPage={onOpenPage} />}
+      {grade.feedback && <TutorText text={grade.feedback} sources={sources} onOpenPage={onOpenPage} />}
       {!flawed && reasoningBlock}
       {grade.criteria.length > 0 && (
         <ul className="criteria" aria-label="Rubric">
@@ -443,7 +375,7 @@ function GradeCard({ grade, view, onOpenPage }: { grade: GradeView; view: Lesson
               <span className={`met met-${c.met}`} aria-label={c.met === 'yes' ? 'met' : c.met === 'partly' ? 'partly met' : 'not met'}>
                 {MET_LABEL[c.met]}
               </span>{' '}
-              <TutorText text={c.text} sources={view.sources} onOpenPage={onOpenPage} inline />
+              <TutorText text={c.text} sources={sources} onOpenPage={onOpenPage} inline />
               {c.essential && <span className="muted"> (essential)</span>}
             </li>
           ))}
@@ -451,14 +383,14 @@ function GradeCard({ grade, view, onOpenPage }: { grade: GradeView; view: Lesson
       )}
       {grade.pages.length > 0 && (
         <p className="muted">
-          Based on: <TutorText text={grade.pages.map((p) => `[${p}]`).join(' ')} sources={view.sources} onOpenPage={onOpenPage} inline />
+          Based on: <TutorText text={grade.pages.map((p) => `[${p}]`).join(' ')} sources={sources} onOpenPage={onOpenPage} inline />
         </p>
       )}
     </div>
   )
 }
 
-function CapPrompt({ sessionId, block, onRaised }: { sessionId: number; block: { message: string; calls: number; callCap: number }; onRaised: () => void }) {
+export function CapPrompt({ sessionId, block, onRaised }: { sessionId: number; block: { message: string; calls: number; callCap: number }; onRaised: () => void }) {
   const [cap, setCap] = useState(String(block.callCap + 50))
   const [error, setError] = useState<string | null>(null)
   async function raise() {

@@ -35,3 +35,10 @@ export function formatCost(usd: number | null): string {
   if (usd < 0.01) return `$${usd.toFixed(4)}`
   return `$${usd.toFixed(2)}`
 }
+
+const DAY_FORMAT = new Intl.DateTimeFormat(undefined, { weekday: 'short', day: 'numeric', month: 'short', timeZone: 'UTC' })
+
+/** "Tue 17 Nov" for a study day ('YYYY-MM-DD'). */
+export function formatDay(day: string): string {
+  return DAY_FORMAT.format(new Date(`${day}T12:00:00Z`))
+}

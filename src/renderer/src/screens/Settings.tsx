@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useState, type FormEvent } from 'react'
 import type { KeySource, ModelInfo, ProviderSettingsState, Result, TestResult } from '../../../shared/ipc'
 import type { UsageSummary } from '../../../shared/knowledge'
+import { DevClock } from '../components/DevClock'
 import { DictationSettings } from '../components/DictationSettings'
 
 const api = window.feynmind
@@ -235,6 +236,8 @@ export function Settings() {
       <UsageLimits selectedModel={state.selectedModel} />
 
       <DictationSettings />
+      {/* Development builds only: production bundles drop this (import.meta.env.DEV is false there). */}
+      {import.meta.env.DEV && <DevClock />}
     </section>
   )
 }
