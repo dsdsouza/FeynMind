@@ -114,7 +114,8 @@ test('dictated reasoning appears as editable text and is graded with the answer'
     const order = await grade.evaluate((card) => {
       const reasoning = card.querySelector('[data-testid="grade-reasoning"]')
       const reason = card.querySelector('[data-testid="grade-reason"]')
-      return reasoning && reason ? reasoning.compareDocumentPosition(reason) & Node.DOCUMENT_POSITION_FOLLOWING : 0
+      // 4 is Node.DOCUMENT_POSITION_FOLLOWING: the rubric reason comes after the reasoning judgment.
+      return reasoning && reason ? reasoning.compareDocumentPosition(reason) & 4 : 0
     })
     expect(order).toBeTruthy()
 
