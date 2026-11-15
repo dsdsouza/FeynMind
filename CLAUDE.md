@@ -69,7 +69,7 @@ Keep this section current.
 npm install          # install dependencies; postinstall rebuilds better-sqlite3 for Electron
 npm run dev          # run the app in development (reads GEMINI_API_KEY from .env.local if no key is saved)
 npm test             # unit tests, run inside Electron's Node; no network (about a minute: includes local OCR)
-npm run test:e2e     # builds, then Playwright opens the app with a throwaway profile; no network (model download off, model replies replayed)
+npm run test:e2e     # builds, then Playwright opens the app with a throwaway profile; no network (model download off, model replies replayed); the dictation test uses a fake microphone and needs the Whisper tiny model (run test:models once)
 npm run test:live    # opt-in: 2 real Gemini calls (list models + one short prompt) using .env.local
 FEYNMIND_LIVE_BATCH=A node scripts/run-vitest.mjs --live run --config vitest.live.config.mts tests/live/knowledge.live.test.ts  # opt-in: one batch of real knowledge calls (A/B/E 2, C 4, D 2, models 1; toc and dump 0) on fixtures only; writes tests/fixtures/recorded/
 FEYNMIND_LIVE_BATCH=G node scripts/run-vitest.mjs --live run --config vitest.live.config.mts tests/live/tutor.live.test.ts  # opt-in: real tutor calls on fixtures only (G 5, bench-minimal 22, bench-low 22, contest 2, reasoning 10; allowed 0); each batch stops at a fixed ceiling (G 15, bench 24, contest 3, reasoning 11); writes tests/fixtures/recorded/
@@ -82,7 +82,7 @@ npm run lint         # ESLint
 npm run build        # typecheck, then production build into out/
 npm run dist         # build, then package an installer for this OS into release/<version>/
 npm run check:deps   # fail if a runtime dependency would be left out of the package (e.g. a peer-only dependency)
-npm run smoke        # after dist: check app.asar, copy the app outside the repo, launch it, import and search two fixture PDFs, quit
+npm run smoke        # after dist: check app.asar, copy the app outside the repo, launch it, import and search two fixture PDFs, download the Whisper tiny model, run the speed check, transcribe a clip through a fake microphone, quit
 ```
 
 Releases: set `version` in package.json, commit, then push a matching tag (`v0.0.2`). `.github/workflows/release.yml` builds Windows, macOS and Linux installers, smoke-tests each one, and only if all three pass uploads them to a draft GitHub Release. CI (`ci.yml`) runs typecheck, lint, `check:deps` and unit tests on every push. To check a release build locally the way CI does: `npm ci && npm run dist && npm run smoke`.
@@ -104,4 +104,7 @@ Gotchas:
 - The rate limiter's 10 requests a minute applies to replayed calls too. An end-to-end test that processes a unit and then grades must raise "Requests per minute" in Settings first, or the grade waits up to a minute behind the unit's calls.
 - Tutor replies are checked against the passages that were sent: a citation must name a page of them (`[S2 p. 17]`). Recorded live replies in `tests/fixtures/recorded/G-tutor.json` must keep passing `tests/unit/recordedTutor.test.ts`; loosen a check only for harmless variations.
 - In `electron-builder.yml`, never put a `files:` list under `win`/`mac`/`linux` that only excludes: electron-builder then packs the whole project folder, old builds included. Keep file filters at the top level, where `${platform}` and `${arch}` work.
+- Dictation runs in its own utility process ("FeynMind dictation"), like ingestion: check dictation changes with `npm run test:e2e` and `npm run smoke` too. Audio must never be written to disk or sent anywhere; only the transcript leaves the recognition process.
+- The e2e and smoke tests feed the microphone from a WAV with Chromium's `--use-fake-device-for-media-stream --use-file-for-fake-audio-capture=<file>%noloop`. With the fake-device switch the app skips the macOS permission prompt. They copy the Whisper tiny model from `FEYNMIND_SMOKE_MODEL_CACHE`, the test:models cache (`<temp>/feynmind-model-cache`) or the development profile; the dictation e2e test skips (saying why) without it.
+- Grading prompts come in pairs: `grade`/`grade-contest` for answers without reasoning and `grade-reasoning`/`grade-contest-reasoning` with it (see the debt note in `docs/tech-plan.md`). An edit to one usually needs the same edit to its partner.
 - Native, WASM and worker-thread packages must be listed under `asarUnpack`. Tesseract's worker thread loads its own dependencies from the unpacked folder, so they are unpacked too.
