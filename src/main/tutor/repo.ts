@@ -23,6 +23,10 @@ export interface QuestionRow {
   pages: string[]
   sources: Passage[]
   outsideSources: boolean
+  /** 'lesson' for the lesson's own questions; 'review' for review variants (stored as unaided questions). */
+  purpose: 'lesson' | 'review'
+  /** For review variants: a one-line nudge that does not give the answer. */
+  hint: string | null
 }
 
 export interface NewQuestion {
@@ -37,6 +41,8 @@ export interface NewQuestion {
   pages: string[]
   sources: Passage[]
   outsideSources: boolean
+  purpose?: 'lesson' | 'review'
+  hint?: string | null
 }
 
 export interface LessonRow {
@@ -75,6 +81,14 @@ export interface AttemptRow {
   error: string | null
   objection: string | null
   objectionAt: string | null
+  /**
+   * 'lesson' for the lesson's own answers. Review and re-teach answers are attached to the
+   * reviewed concept's lesson too (the shipped CHECK on attempts needs a lesson or a diagnostic),
+   * so lesson code reads only purpose 'lesson'.
+   */
+  purpose: 'lesson' | 'review' | 'reteach'
+  hintUsed: boolean
+  reviewItemId: number | null
 }
 
 export interface GradeRow {
@@ -126,12 +140,12 @@ export interface DiagnosticRow {
 }
 
 const QUESTION_COLUMNS = `id, session_id AS sessionId, concept_id AS conceptId, kind, ordinal, stem, choices, answer_index AS answerIndex,
-  explanation, reference_answer AS referenceAnswer, criteria, scaffold, pages, sources, outside_sources AS outsideSources`
+  explanation, reference_answer AS referenceAnswer, criteria, scaffold, pages, sources, outside_sources AS outsideSources, purpose, hint`
 const LESSON_COLUMNS = `id, session_id AS sessionId, concept_id AS conceptId, step, question_id AS questionId, question_shown_at AS questionShownAt, passages, explanation,
   explanation_outside AS explanationOutside, draft_answer AS draft, draft_reasoning AS draftReasoning, started_at AS startedAt, updated_at AS updatedAt, finished_at AS finishedAt`
 const ATTEMPT_COLUMNS = `id, session_id AS sessionId, concept_id AS conceptId, question_id AS questionId, lesson_id AS lessonId,
   diagnostic_id AS diagnosticId, answer_text AS answer, reasoning_text AS reasoning, choice_index AS choiceIndex, skipped, shown_at AS shownAt,
-  submitted_at AS submittedAt, status, error, objection, objection_at AS objectionAt`
+  submitted_at AS submittedAt, status, error, objection, objection_at AS objectionAt, purpose, hint_used AS hintUsed, review_item_id AS reviewItemId`
 const GRADE_COLUMNS = `id, attempt_id AS attemptId, pass, verdict, score, criteria, reason, feedback, pages, outside_sources AS outsideSources,
   objection, assessment, reasoning_judgment AS reasoningJudgment, reasoning_comment AS reasoningComment, graded_by AS gradedBy, model, created_at AS createdAt`
 const DIAGNOSTIC_COLUMNS = 'id, session_id AS sessionId, kind, unit_id AS unitId, status, started_at AS startedAt'
@@ -144,7 +158,7 @@ type RawQuestion = Omit<QuestionRow, 'choices' | 'criteria' | 'pages' | 'sources
   outsideSources: number
 }
 type RawLesson = Omit<LessonRow, 'passages' | 'explanationOutside'> & { passages: string; explanationOutside: number }
-type RawAttempt = Omit<AttemptRow, 'skipped'> & { skipped: number }
+type RawAttempt = Omit<AttemptRow, 'skipped' | 'hintUsed'> & { skipped: number; hintUsed: number }
 type RawGrade = Omit<GradeRow, 'criteria' | 'pages' | 'outsideSources'> & { criteria: string; pages: string; outsideSources: number }
 
 const toQuestion = (r: RawQuestion): QuestionRow => ({
@@ -156,7 +170,7 @@ const toQuestion = (r: RawQuestion): QuestionRow => ({
   outsideSources: r.outsideSources === 1
 })
 const toLesson = (r: RawLesson): LessonRow => ({ ...r, passages: JSON.parse(r.passages) as Passage[], explanationOutside: r.explanationOutside === 1 })
-const toAttempt = (r: RawAttempt): AttemptRow => ({ ...r, skipped: r.skipped === 1 })
+const toAttempt = (r: RawAttempt): AttemptRow => ({ ...r, skipped: r.skipped === 1, hintUsed: r.hintUsed === 1 })
 const toGrade = (r: RawGrade): GradeRow => ({
   ...r,
   criteria: JSON.parse(r.criteria) as CriterionResult[],
@@ -179,8 +193,8 @@ export class TutorRepo {
           this.db
             .prepare(
               `INSERT INTO questions (session_id, concept_id, kind, ordinal, stem, choices, answer_index, explanation, reference_answer,
-                 criteria, scaffold, pages, sources, outside_sources, prompt, prompt_version, cache_key)
-               VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
+                 criteria, scaffold, pages, sources, outside_sources, prompt, prompt_version, cache_key, purpose, hint)
+               VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
             )
             .run(
               sessionId,
@@ -199,7 +213,9 @@ export class TutorRepo {
               q.outsideSources ? 1 : 0,
               prompt.name,
               prompt.version,
-              prompt.cacheKey
+              prompt.cacheKey,
+              q.purpose ?? 'lesson',
+              q.hint ?? null
             ).lastInsertRowid
         )
       })
@@ -211,11 +227,25 @@ export class TutorRepo {
     return row ? toQuestion(row) : undefined
   }
 
+  /** The concept's lesson and diagnostic questions (not review variants). */
   questionsOf(conceptId: number, kind?: QuestionKind): QuestionRow[] {
     const rows = kind
-      ? this.db.prepare<[number, string], RawQuestion>(`SELECT ${QUESTION_COLUMNS} FROM questions WHERE concept_id = ? AND kind = ? ORDER BY ordinal`).all(conceptId, kind)
-      : this.db.prepare<[number], RawQuestion>(`SELECT ${QUESTION_COLUMNS} FROM questions WHERE concept_id = ? ORDER BY kind, ordinal`).all(conceptId)
+      ? this.db.prepare<[number, string], RawQuestion>(`SELECT ${QUESTION_COLUMNS} FROM questions WHERE concept_id = ? AND kind = ? AND purpose = 'lesson' ORDER BY ordinal`).all(conceptId, kind)
+      : this.db.prepare<[number], RawQuestion>(`SELECT ${QUESTION_COLUMNS} FROM questions WHERE concept_id = ? AND purpose = 'lesson' ORDER BY kind, ordinal`).all(conceptId)
     return rows.map(toQuestion)
+  }
+
+  /** Questions a review can ask: the lesson's opening and unaided questions, and review variants. */
+  reviewableQuestions(conceptId: number): QuestionRow[] {
+    return this.db
+      .prepare<[number], RawQuestion>(`SELECT ${QUESTION_COLUMNS} FROM questions WHERE concept_id = ? AND kind IN ('opening', 'unaided') ORDER BY id`)
+      .all(conceptId)
+      .map(toQuestion)
+  }
+
+  /** Every free-text question stem of the concept, so new questions can avoid repeating them. */
+  stemsOf(conceptId: number): string[] {
+    return this.db.prepare<[number], string>("SELECT stem FROM questions WHERE concept_id = ? AND kind != 'diagnostic' ORDER BY id").pluck().all(conceptId)
   }
 
   // Lessons
@@ -297,15 +327,46 @@ export class TutorRepo {
 
   // Attempts and grades
 
-  /** Saves an answer before it is graded. */
-  addAttempt(a: { sessionId: number; conceptId: number; questionId: number; lessonId: number | null; diagnosticId: number | null; answer: string; reasoning?: string; choiceIndex: number | null; skipped: boolean; shownAt: string }): number {
+  /** Saves an answer before it is graded. `submittedAt` defaults to the database's time. */
+  addAttempt(a: {
+    sessionId: number
+    conceptId: number
+    questionId: number
+    lessonId: number | null
+    diagnosticId: number | null
+    answer: string
+    reasoning?: string
+    choiceIndex: number | null
+    skipped: boolean
+    shownAt: string
+    submittedAt?: string
+    purpose?: 'lesson' | 'review' | 'reteach'
+    hintUsed?: boolean
+    reviewItemId?: number | null
+  }): number {
     return Number(
       this.db
         .prepare(
-          `INSERT INTO attempts (session_id, concept_id, question_id, lesson_id, diagnostic_id, answer_text, reasoning_text, choice_index, skipped, shown_at, status)
-           VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'saved')`
+          `INSERT INTO attempts (session_id, concept_id, question_id, lesson_id, diagnostic_id, answer_text, reasoning_text, choice_index, skipped, shown_at, status,
+             submitted_at, purpose, hint_used, review_item_id)
+           VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'saved', coalesce(?, strftime('%Y-%m-%dT%H:%M:%fZ', 'now')), ?, ?, ?)`
         )
-        .run(a.sessionId, a.conceptId, a.questionId, a.lessonId, a.diagnosticId, a.answer, a.reasoning ?? '', a.choiceIndex, a.skipped ? 1 : 0, a.shownAt).lastInsertRowid
+        .run(
+          a.sessionId,
+          a.conceptId,
+          a.questionId,
+          a.lessonId,
+          a.diagnosticId,
+          a.answer,
+          a.reasoning ?? '',
+          a.choiceIndex,
+          a.skipped ? 1 : 0,
+          a.shownAt,
+          a.submittedAt ?? null,
+          a.purpose ?? 'lesson',
+          a.hintUsed ? 1 : 0,
+          a.reviewItemId ?? null
+        ).lastInsertRowid
     )
   }
 
@@ -314,19 +375,36 @@ export class TutorRepo {
     return row ? toAttempt(row) : undefined
   }
 
+  /** The lesson's own answers (not review or re-teach answers attached to it). */
   attemptsOfLesson(lessonId: number): AttemptRow[] {
-    return this.db.prepare<[number], RawAttempt>(`SELECT ${ATTEMPT_COLUMNS} FROM attempts WHERE lesson_id = ? ORDER BY id`).all(lessonId).map(toAttempt)
+    return this.db.prepare<[number], RawAttempt>(`SELECT ${ATTEMPT_COLUMNS} FROM attempts WHERE lesson_id = ? AND purpose = 'lesson' ORDER BY id`).all(lessonId).map(toAttempt)
+  }
+
+  attemptsOfReviewItem(itemId: number): AttemptRow[] {
+    return this.db.prepare<[number], RawAttempt>(`SELECT ${ATTEMPT_COLUMNS} FROM attempts WHERE review_item_id = ? ORDER BY id`).all(itemId).map(toAttempt)
+  }
+
+  /** When each of a concept's questions was last answered (any purpose), for choosing a review question. */
+  lastAnswered(conceptId: number): Map<number, string> {
+    const rows = this.db
+      .prepare<[number], { questionId: number; at: string }>('SELECT question_id AS questionId, max(submitted_at) AS at FROM attempts WHERE concept_id = ? GROUP BY question_id')
+      .all(conceptId)
+    return new Map(rows.map((r) => [r.questionId, r.at]))
   }
 
   attemptsOfDiagnostic(diagnosticId: number): AttemptRow[] {
     return this.db.prepare<[number], RawAttempt>(`SELECT ${ATTEMPT_COLUMNS} FROM attempts WHERE diagnostic_id = ? ORDER BY id`).all(diagnosticId).map(toAttempt)
   }
 
-  /** Lesson answers of the session still waiting for a grade, or for the second grade of a contest. */
-  ungraded(sessionId: number): AttemptRow[] {
+  /**
+   * Answers of the session still waiting for a grade, or for the second grade of a contest:
+   * the lessons' own answers, or review and re-teach answers.
+   */
+  ungraded(sessionId: number, which: 'lesson' | 'review' = 'lesson'): AttemptRow[] {
+    const purposes = which === 'lesson' ? "('lesson')" : "('review', 'reteach')"
     return this.db
       .prepare<[number], RawAttempt>(
-        `SELECT ${ATTEMPT_COLUMNS} FROM attempts a WHERE session_id = ? AND lesson_id IS NOT NULL
+        `SELECT ${ATTEMPT_COLUMNS} FROM attempts a WHERE session_id = ? AND lesson_id IS NOT NULL AND purpose IN ${purposes}
            AND (status = 'saved' OR (objection IS NOT NULL AND NOT EXISTS (SELECT 1 FROM grades g WHERE g.attempt_id = a.id AND g.pass = 2)))
          ORDER BY id`
       )

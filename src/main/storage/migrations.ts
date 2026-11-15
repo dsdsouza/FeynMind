@@ -500,6 +500,94 @@ export const MIGRATIONS: readonly Migration[] = [
       ALTER TABLE grades ADD COLUMN reasoning_judgment TEXT CHECK (reasoning_judgment IN ('sound', 'flawed', 'none'));
       ALTER TABLE grades ADD COLUMN reasoning_comment TEXT;
     `
+  },
+  {
+    version: 6,
+    name: 'retention',
+    // Milestone 6a: review scheduling. Only new tables and added columns: the shipped CHECK
+    // constraints on questions.kind and on attempts (a lesson or a diagnostic) stay as they are,
+    // because rebuilding those tables needs foreign keys off outside a transaction, and dropping
+    // attempts with them on would delete its grades and mastery evidence. So review variants are
+    // stored as unaided questions with purpose 'review', and review and re-teach answers are
+    // attached to the reviewed concept's own lesson with purpose 'review' or 'reteach'. Every
+    // lesson query filters on purpose = 'lesson'. (Debt: see the tech plan.)
+    up: `
+      -- A sitting of reviews on one study day, kept so it resumes after a restart.
+      CREATE TABLE review_sittings (
+        id          INTEGER PRIMARY KEY,
+        session_id  INTEGER NOT NULL REFERENCES sessions(id) ON DELETE CASCADE,
+        day         TEXT NOT NULL,
+        status      TEXT NOT NULL CHECK (status IN ('open', 'done')),
+        started_at  TEXT NOT NULL,
+        finished_at TEXT
+      ) STRICT;
+
+      -- One review in a sitting, or the one earlier-concept question mixed into a lesson.
+      -- reasons: why it was chosen, as JSON codes. reteach: the short re-teach after a lapse.
+      CREATE TABLE review_items (
+        id                  INTEGER PRIMARY KEY,
+        session_id          INTEGER NOT NULL REFERENCES sessions(id) ON DELETE CASCADE,
+        sitting_id          INTEGER REFERENCES review_sittings(id) ON DELETE CASCADE,
+        lesson_id           INTEGER REFERENCES lessons(id) ON DELETE CASCADE,
+        concept_id          INTEGER NOT NULL REFERENCES concepts(id) ON DELETE CASCADE,
+        ordinal             INTEGER NOT NULL,
+        question_id         INTEGER REFERENCES questions(id) ON DELETE SET NULL,
+        reasons             TEXT NOT NULL DEFAULT '[]',
+        status              TEXT NOT NULL CHECK (status IN ('pending', 'answered')),
+        hint_shown          INTEGER NOT NULL DEFAULT 0,
+        shown_at            TEXT,
+        draft_answer        TEXT NOT NULL DEFAULT '',
+        draft_reasoning     TEXT NOT NULL DEFAULT '',
+        reteach             TEXT,
+        reteach_outside     INTEGER NOT NULL DEFAULT 0,
+        reteach_question_id INTEGER REFERENCES questions(id) ON DELETE SET NULL,
+        CHECK ((sitting_id IS NULL) != (lesson_id IS NULL))
+      ) STRICT;
+      CREATE INDEX review_items_by_sitting ON review_items (sitting_id, ordinal);
+      CREATE INDEX review_items_by_lesson ON review_items (lesson_id);
+
+      ALTER TABLE questions ADD COLUMN purpose TEXT NOT NULL DEFAULT 'lesson' CHECK (purpose IN ('lesson', 'review'));
+      ALTER TABLE questions ADD COLUMN hint TEXT;
+      ALTER TABLE attempts ADD COLUMN purpose TEXT NOT NULL DEFAULT 'lesson' CHECK (purpose IN ('lesson', 'review', 'reteach'));
+      ALTER TABLE attempts ADD COLUMN hint_used INTEGER NOT NULL DEFAULT 0;
+      ALTER TABLE attempts ADD COLUMN review_item_id INTEGER REFERENCES review_items(id) ON DELETE SET NULL;
+      CREATE INDEX attempts_by_review_item ON attempts (review_item_id);
+
+      -- Append-only scheduling log: first learning, then each review. The rating is worked out
+      -- from the attempt's final grade when the log is replayed, so a contest recomputes it.
+      -- at: when it happened (the scheduling clock); day: its study day, fixed when it is recorded
+      -- (NULL for rows backfilled here until the app fills it in the time zone of that start).
+      CREATE TABLE review_events (
+        id         INTEGER PRIMARY KEY,
+        session_id INTEGER NOT NULL REFERENCES sessions(id) ON DELETE CASCADE,
+        concept_id INTEGER NOT NULL REFERENCES concepts(id) ON DELETE CASCADE,
+        kind       TEXT NOT NULL CHECK (kind IN ('learned', 'review')),
+        attempt_id INTEGER REFERENCES attempts(id) ON DELETE CASCADE,
+        at         TEXT NOT NULL,
+        day        TEXT
+      ) STRICT;
+      CREATE INDEX review_events_by_concept ON review_events (concept_id, id);
+
+      -- The memory state of each learned concept: a cache of the replay of review_events.
+      CREATE TABLE review_cards (
+        concept_id  INTEGER PRIMARY KEY REFERENCES concepts(id) ON DELETE CASCADE,
+        session_id  INTEGER NOT NULL REFERENCES sessions(id) ON DELETE CASCADE,
+        due_day     TEXT NOT NULL,
+        stability   REAL NOT NULL,
+        difficulty  REAL NOT NULL,
+        reps        INTEGER NOT NULL,
+        lapses      INTEGER NOT NULL,
+        last_day    TEXT NOT NULL,
+        learned_day TEXT NOT NULL,
+        learned_at  TEXT NOT NULL,
+        lapsed      INTEGER NOT NULL DEFAULT 0
+      ) STRICT;
+      CREATE INDEX review_cards_due ON review_cards (session_id, due_day);
+
+      -- Concepts mastered before this version were learned when they were mastered.
+      INSERT INTO review_events (session_id, concept_id, kind, attempt_id, at, day)
+        SELECT session_id, concept_id, 'learned', NULL, mastered_at, NULL FROM mastery WHERE mastered_at IS NOT NULL ORDER BY mastered_at, concept_id;
+    `
   }
 ]
 

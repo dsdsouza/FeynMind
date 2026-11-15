@@ -1,4 +1,5 @@
 import type Database from 'better-sqlite3'
+import { systemClock, type AppClock } from '../clock'
 import type { UsageSummary } from '../../shared/knowledge'
 import type {
   AttemptView,
@@ -49,6 +50,8 @@ export interface TutorServiceOptions {
   onLesson: (view: LessonView) => void
   onStream: (event: StreamEvent) => void
   onUsage: (usage: UsageSummary) => void
+  /** The scheduling clock; the system clock when not given. */
+  clock?: AppClock
 }
 
 /** Concepts per diagnostic question request. */
@@ -91,7 +94,7 @@ export class TutorService {
 
   constructor(private readonly options: TutorServiceOptions) {
     this.repo = new TutorRepo(options.db)
-    this.learner = new LearnerRepo(options.db)
+    this.learner = new LearnerRepo(options.db, options.clock ?? systemClock)
   }
 
   /** Stops model requests in flight, waiting briefly so a reply that arrives is cached. */
@@ -778,7 +781,7 @@ export class TutorService {
     if (!this.view(lesson.id).canMoreQuestions) throw new UserFacingError('Finish the questions you have first.')
     const { concept, all } = this.conceptOf(lesson.sessionId, lesson.conceptId)
     const prompt = this.options.prompts.get('lesson-questions')
-    const asked = this.repo.questionsOf(concept.id).filter((q) => q.kind !== 'diagnostic').map((q) => q.stem)
+    const asked = this.repo.stemsOf(concept.id)
     const task = lessonQuestionsTask(prompt, this.brief(concept, all), lesson.passages, this.ctx(lesson.sessionId, 'teaching', prompt.name), asked)
     try {
       const result = await this.run(lesson.sessionId, task)

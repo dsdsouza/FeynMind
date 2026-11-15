@@ -113,3 +113,10 @@ export class SchedulingClock implements AppClock {
     this.highWater = 0
   }
 }
+
+/** The system clock in the system time zone, for callers that are not given one (tools and older tests). */
+export const systemClock: AppClock = {
+  now: () => Date.now(),
+  timeZone: () => Intl.DateTimeFormat().resolvedOptions().timeZone,
+  recordWrite: () => undefined
+}
