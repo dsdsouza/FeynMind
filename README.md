@@ -1,10 +1,10 @@
 # FeynMind
 
-FeynMind turns a course's own textbooks, slide decks and syllabus into a personal tutor on your computer. It works out what you already know, teaches what you don't with questions grounded in your materials (citing the pages), grades your answers and your reasoning, and tracks what you have mastered. You can explain your thinking out loud: speech becomes text on your own machine.
+FeynMind turns a course's own textbooks, slide decks and syllabus into a personal tutor on your computer. It works out what you already know, teaches what you don't with questions grounded in your materials (citing the pages), grades your answers and your reasoning, and schedules reviews so you keep what you learned. You can explain your thinking out loud: speech becomes text on your own machine.
 
 It is free and open source (MIT). There is no account and no server: your files and progress stay on your computer, and you bring your own AI provider key.
 
-> **Early preview (0.1.0).** This is the first public build. It is usable for one course end to end, but it is unfinished, has rough edges, and its data format may change between versions. Please report problems in [Issues](https://github.com/dsdsouza/FeynMind/issues).
+> **Early preview (0.2.0).** It is usable for one course end to end, but it is unfinished and has rough edges. Your data from 0.1.0 is upgraded when you first open 0.2.0; back up your data folder first if you want a way back (see Privacy). Please report problems in [Issues](https://github.com/dsdsouza/FeynMind/issues).
 
 ![A lesson question with "Your thinking" being dictated](docs/images/dictation.png)
 
@@ -16,6 +16,9 @@ It is free and open source (MIT). There is no account and no server: your files 
 - **Lessons.** Each concept starts with a question, then an explanation with a worked example that cites your book's pages, then practice that fades support (guided, partial, on your own). Answers are graded against a rubric with a visible reason for every decision, and you can contest a grade once.
 - **Your thinking, typed or spoken.** Beside every answer is an optional "Your thinking" field. Type it, or press the microphone (or Ctrl+Shift+Space) and speak; the text appears in the field for you to edit. The grader judges the reasoning too, and a right answer reached by faulty reasoning does not count as mastered. Windows and macOS dictation work as well.
 - **Mastery tracking.** A mastery estimate per concept, updated after every answer; a concept unlocks when its prerequisites are mastered.
+- **Spaced reviews.** Every concept you learn is reviewed on its own schedule, timed to when you are about to forget it (FSRS). Each sitting opens with the reviews due today, mixed across topics, with a daily limit you can change. Reviews ask for recall only and vary their questions. A missed review comes back the next day and offers a short re-teach.
+- **Exam priorities.** When an exam from your syllabus is within two weeks, reviews and the next lesson favour its heaviest-weighted and weakest concepts, and every recommendation says why. Edit exam dates and weights on the Learn screen.
+- **Progress.** The Progress tab shows how much you recall 7 and 30 days after learning, your reviews per day, what is coming up, and each concept's memory. It is computed on your computer and works offline; a review answered offline is graded when you are back online.
 - **Cost control.** Every model call is estimated before a job, cached so no page is paid for twice, rate limited, and counted against a call cap you set (with a dollar figure when the model's price is known).
 - **Crash safe.** An interrupted import, unit or lesson resumes where it stopped; answers are saved before they are graded.
 
@@ -25,13 +28,13 @@ It is free and open source (MIT). There is no account and no server: your files 
 
 - **Gemini only.** The only supported AI provider is Google Gemini, and one model does every job. Claude, ChatGPT, Qwen and Grok, and choosing a model per role, are planned.
 - **English only.** Search, text recognition of scanned pages, and dictation are English-only.
-- **No spaced reviews yet.** Concepts are taught and mastered, but reviews scheduled for when you are about to forget them are not built yet.
+- **Reviews use standard settings.** The review schedule uses FSRS's default parameters for everyone; it does not yet tune itself to your own memory. Concepts you mark as known in the diagnostic are scheduled only once you master them in a lesson.
 - **One course at a time.** Goal-based pathways, multiple courses and the learning map are planned.
 - **Apple silicon Macs only.** The macOS build runs on M1 and later; Intel Macs are not supported.
 - **Unsigned installers.** The installers are not signed with paid certificates, so Windows and macOS warn before the first launch (see below).
 - **Install steps for macOS and Linux are untested.** They have not yet been tried on those systems; please open an issue if one is wrong.
 - **Key storage on Linux without a keyring is unverified.** FeynMind is meant to refuse to save your API key when no secure storage is available, but this has not been checked on a Linux system without a keyring. Install and unlock a keyring (such as GNOME Keyring or KWallet) before saving your key.
-- **Preview quality.** Grading has been checked on a small benchmark (32 cases), not at scale; the vision model can misread small details on a page; spoken math has not been tested; only .pptx (not .ppt) slide decks are read.
+- **Preview quality.** Grading has been checked on small benchmarks (32 cases for lessons, 6 for review questions), not at scale; the vision model can misread small details on a page; spoken math has not been tested; only .pptx (not .ppt) slide decks are read.
 
 ## Install
 
@@ -96,7 +99,7 @@ FeynMind has no account, no server of its own and no telemetry.
 
 - When you import a syllabus: its text.
 - When you process a unit (after you approve its estimate): the text of that unit's sections, and images of its math-heavy and figure-heavy pages.
-- During the diagnostic and lessons: passages from your materials about the concept, the questions, your answers and your typed or dictated reasoning (as text), and any objection to a grade.
+- During the diagnostic, lessons and reviews: passages from your materials about the concept, the questions, your answers and your typed or dictated reasoning (as text), and any objection to a grade. A review that needs new questions, and a re-teach after a missed review, send the concept's passages too.
 
 Before the first request that sends course material, FeynMind shows a notice naming the provider and asks you to confirm.
 

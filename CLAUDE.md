@@ -11,7 +11,7 @@ If a request conflicts with either document, say so and ask before proceeding. I
 
 ## Current milestone
 
-**Milestone 6a: Retention** (see `docs/tech-plan.md`, Build plan). Milestones 1 (Skeleton), 2 (Ingestion), 3 (Knowledge), 4 (Tutor loop) and 5 (Dictation, the first public release) are done. Milestone 6b (providers, roles and fallback) comes after 6a; do not start it yet.
+**Milestone 6b: Providers and roles** (see `docs/tech-plan.md`, Build plan). Milestones 1 (Skeleton), 2 (Ingestion), 3 (Knowledge), 4 (Tutor loop), 5 (Dictation, the first public release, 0.1.0) and 6a (Retention, 0.2.0; done 2026-11-15, checked by the user on a trial copy of their own data) are done. Start 6b only when asked.
 
 Work on one milestone at a time. Do not build features from later milestones, even when it seems convenient. A milestone is finished only when its "Done when" test passes. Update this section when a milestone is completed.
 
@@ -87,7 +87,7 @@ npm run check:deps   # fail if a runtime dependency would be left out of the pac
 npm run smoke        # after dist: check app.asar, copy the app outside the repo, launch it, import and search two fixture PDFs, download the Whisper tiny model, run the speed check, transcribe a clip through a fake microphone, quit
 ```
 
-Releases: set `version` in package.json, commit, then push a matching tag (`v0.0.2`). `.github/workflows/release.yml` builds Windows, macOS and Linux installers, smoke-tests each one, and only if all three pass uploads them to a draft GitHub Release. CI (`ci.yml`) runs typecheck, lint, `check:deps` and unit tests on every push. To check a release build locally the way CI does: `npm ci && npm run dist && npm run smoke`.
+Releases: set `version` in package.json, commit, then push a matching tag (`v0.0.2`). `.github/workflows/release.yml` builds Windows, macOS and Linux installers, smoke-tests each one, and only if all three pass uploads them to a draft GitHub Release. Release notes are drafted in `docs/release-notes/<version>.md`; paste them into the draft before publishing. CI (`ci.yml`) runs typecheck, lint, `check:deps` and unit tests on every push. To check a release build locally the way CI does: `npm ci && npm run dist && npm run smoke`.
 
 Gotchas:
 
